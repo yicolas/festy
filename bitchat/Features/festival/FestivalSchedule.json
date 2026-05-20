@@ -119,7 +119,7 @@
           "driveTime": "1:30",
           "bathroom": true,
           "food": false,
-          "presenters": ["Sophia Ree", "amanda bednarick"],
+          "presenters": ["Sophia Ree", "Amanda Bednarick"],
           "notes": "Sierra batholith and granite context."
         },
         {
@@ -262,10 +262,10 @@
         },
         {
           "id": "d2-ikigai",
-          "title": "ikigai Sanctuary",
+          "title": "Ikigai Sanctuary",
           "location": {
             "id": "ikigai-sanctuary",
-            "name": "ikigai Sanctuary",
+            "name": "Ikigai Sanctuary",
             "address": "40580 Ruth Hill Rd, Yokuts Valley, CA 93675"
           },
           "arrive": "7:15 PM",
@@ -288,10 +288,10 @@
       "items": [
         {
           "id": "d3-ikigai",
-          "title": "ikigai Sanctuary",
+          "title": "Ikigai Sanctuary",
           "location": {
             "id": "ikigai-sanctuary",
-            "name": "ikigai Sanctuary",
+            "name": "Ikigai Sanctuary",
             "address": "40580 Ruth Hill Rd, Yokuts Valley, CA 93675"
           },
           "arrive": "7:00 AM",
