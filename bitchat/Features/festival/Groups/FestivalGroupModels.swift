@@ -29,9 +29,18 @@ struct TripGroup: Codable, Identifiable {
     let maxDepth: Int                   // Maximum invite chain depth (default 5)
     
     enum CodingKeys: String, CodingKey {
-        case id, name, description, creatorPubkey, createdAt
+        case id
+        case name
+        case description
+        case creatorPubkey
+        case createdAt
         case tripId = "festivalId"      // Keep wire-format key for backward compatibility
-        case geohash, scheduledStart, scheduledEnd, channels, isPrivate, maxDepth
+        case geohash
+        case scheduledStart
+        case scheduledEnd
+        case channels
+        case isPrivate
+        case maxDepth
     }
     
     /// Channel within a group
