@@ -2,7 +2,7 @@
 // FriendMapView.swift
 // bitchat
 //
-// Map view showing friend locations at the festival
+// Map view showing friend locations on the trip
 //
 
 import SwiftUI
@@ -14,7 +14,7 @@ struct FriendMapView: View {
     @ObservedObject var locationService = FriendLocationService.shared
     @Environment(\.colorScheme) var colorScheme
     @State private var region = MKCoordinateRegion(
-        // Default to Golden Gate Park (Outside Lands)
+        // Default to Golden Gate Park
         center: CLLocationCoordinate2D(latitude: 37.7694, longitude: -122.4862),
         span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015)
     )
@@ -352,8 +352,8 @@ struct Triangle: Shape {
 
 // MARK: - Tab Integration
 
-/// Festival tab that includes map view
-struct FestivalMapTab: View {
+/// Trip tab that includes map view
+struct TripMapTab: View {
     @ObservedObject var locationService = FriendLocationService.shared
     @Environment(\.colorScheme) var colorScheme
     

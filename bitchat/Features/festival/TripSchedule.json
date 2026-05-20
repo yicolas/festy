@@ -1,5 +1,5 @@
 {
-  "festival": {
+  "trip": {
     "name": "Festivus Mestivus 2026",
     "location": "Golden Gate Park, San Francisco",
     "dates": {
@@ -108,7 +108,7 @@
     {
       "id": "rideshare",
       "name": "#rideshare",
-      "description": "Share rides to/from the festival",
+      "description": "Share rides to/from the trip",
       "icon": "car.fill",
       "color": "#9B59B6"
     },

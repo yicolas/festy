@@ -2,24 +2,24 @@
 // FestivalModeManager.swift
 // FestMest
 //
-// Global state manager for festival mode
+// Global state manager for trip mode
 //
 
 import SwiftUI
 import Combine
 
-/// Manages festival mode state across the app
-/// Persists to UserDefaults so festival mode survives app restarts
-/// For FestMest, festival mode defaults to ON (true)
+/// Manages trip mode state across the app
+/// Persists to UserDefaults so trip mode survives app restarts
+/// For FestMest, trip mode defaults to ON (true)
 @MainActor
-class FestivalModeManager: ObservableObject {
-    static let shared = FestivalModeManager()
+class TripModeManager: ObservableObject {
+    static let shared = TripModeManager()
     
     private let defaults = UserDefaults.standard
-    private let enabledKey = "festivalModeEnabled"
-    private let hasLaunchedKey = "festivalModeHasLaunched"
+    private let enabledKey = "tripModeEnabled"
+    private let hasLaunchedKey = "tripModeHasLaunched"
     
-    /// Whether festival mode is currently enabled
+    /// Whether trip mode is currently enabled
     @Published var isEnabled: Bool {
         didSet {
             defaults.set(isEnabled, forKey: enabledKey)
@@ -33,24 +33,24 @@ class FestivalModeManager: ObservableObject {
             // Returning user - use their saved preference
             self.isEnabled = defaults.bool(forKey: enabledKey)
         } else {
-            // First launch - default to festival mode ON
+            // First launch - default to trip mode ON
             self.isEnabled = true
             defaults.set(true, forKey: enabledKey)
             defaults.set(true, forKey: hasLaunchedKey)
         }
     }
     
-    /// Toggle festival mode on/off
+    /// Toggle trip mode on/off
     func toggle() {
         isEnabled.toggle()
     }
     
-    /// Enable festival mode
+    /// Enable trip mode
     func enable() {
         isEnabled = true
     }
     
-    /// Disable festival mode
+    /// Disable trip mode
     func disable() {
         isEnabled = false
     }

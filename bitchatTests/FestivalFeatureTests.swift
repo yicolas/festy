@@ -2,7 +2,7 @@
 // FestivalFeatureTests.swift
 // bitchatTests
 //
-// Tests for festival mode features: schedule, location sharing, and map
+// Tests for trip mode features: schedule, location sharing, and map
 //
 
 import Testing
@@ -10,27 +10,27 @@ import Foundation
 import CoreLocation
 @testable import bitchat
 
-// MARK: - Festival Schedule Tests
+// MARK: - Trip Schedule Tests
 
-struct FestivalScheduleTests {
+struct TripScheduleTests {
     
     @Test
     func scheduleJSON_loadsSuccessfully() async {
         // Verify the JSON can be loaded and decoded
-        guard let url = Bundle.main.url(forResource: "FestivalSchedule", withExtension: "json") else {
-            Issue.record("FestivalSchedule.json not found in bundle")
+        guard let url = Bundle.main.url(forResource: "TripSchedule", withExtension: "json") else {
+            Issue.record("TripSchedule.json not found in bundle")
             return
         }
         
         do {
             let data = try Data(contentsOf: url)
-            let decoded = try JSONDecoder().decode(FestivalData.self, from: data)
+            let decoded = try JSONDecoder().decode(TripData.self, from: data)
             
-            #expect(!decoded.festival.name.isEmpty)
+            #expect(!decoded.trip.name.isEmpty)
             #expect(!decoded.stages.isEmpty)
             #expect(!decoded.sets.isEmpty)
         } catch {
-            Issue.record("Failed to decode FestivalSchedule.json: \(error)")
+            Issue.record("Failed to decode TripSchedule.json: \(error)")
         }
     }
     
@@ -227,13 +227,13 @@ struct FriendLocationTests {
     }
 }
 
-// MARK: - Festival Mode Manager Tests
+// MARK: - Trip Mode Manager Tests
 
-struct FestivalModeManagerTests {
+struct TripModeManagerTests {
     
     @Test @MainActor
-    func festivalModeManager_toggle_changesState() async {
-        let manager = FestivalModeManager.shared
+    func tripModeManager_toggle_changesState() async {
+        let manager = TripModeManager.shared
         let initialState = manager.isEnabled
         
         manager.toggle()
@@ -244,8 +244,8 @@ struct FestivalModeManagerTests {
     }
     
     @Test @MainActor
-    func festivalModeManager_enable_setsTrue() async {
-        let manager = FestivalModeManager.shared
+    func tripModeManager_enable_setsTrue() async {
+        let manager = TripModeManager.shared
         
         manager.enable()
         #expect(manager.isEnabled == true)
@@ -255,8 +255,8 @@ struct FestivalModeManagerTests {
     }
     
     @Test @MainActor
-    func festivalModeManager_disable_setsFalse() async {
-        let manager = FestivalModeManager.shared
+    func tripModeManager_disable_setsFalse() async {
+        let manager = TripModeManager.shared
         
         manager.enable()
         manager.disable()
@@ -271,7 +271,7 @@ struct AEADTests {
     @Test
     func aead_encryptDecrypt_roundTrips() throws {
         let key = SymmetricKey(size: .bits256)
-        let plaintext = "Hello, Festival!".data(using: .utf8)!
+        let plaintext = "Hello, Trip!".data(using: .utf8)!
         
         let ciphertext = try AEAD.encrypt(payload: plaintext, using: key)
         let decrypted = try AEAD.decrypt(ciphertext, using: key)
@@ -314,17 +314,17 @@ struct AEADTests {
 
 // MARK: - Schedule Manager Tests
 
-struct FestivalScheduleManagerTests {
+struct TripScheduleManagerTests {
     
     @Test @MainActor
     func scheduleManager_singleton_exists() async {
-        let manager = FestivalScheduleManager.shared
+        let manager = TripScheduleManager.shared
         #expect(manager != nil)
     }
     
     @Test @MainActor
     func scheduleManager_days_returnsUniqueSortedDays() async {
-        let manager = FestivalScheduleManager.shared
+        let manager = TripScheduleManager.shared
         manager.loadSchedule()
         
         let days = manager.days
@@ -338,7 +338,7 @@ struct FestivalScheduleManagerTests {
     
     @Test @MainActor
     func scheduleManager_setsForDay_filtersByDay() async {
-        let manager = FestivalScheduleManager.shared
+        let manager = TripScheduleManager.shared
         manager.loadSchedule()
         
         guard let firstDay = manager.days.first else {
@@ -356,7 +356,7 @@ struct FestivalScheduleManagerTests {
     
     @Test @MainActor
     func scheduleManager_formatDayForDisplay_formatsCorrectly() async {
-        let manager = FestivalScheduleManager.shared
+        let manager = TripScheduleManager.shared
         
         let formatted = manager.formatDayForDisplay("2026-08-07")
         

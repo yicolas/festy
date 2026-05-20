@@ -2,7 +2,7 @@
 // FestivalContentView.swift
 // Festivus Mestivus
 //
-// Festival mode UI - built on top of bitchat
+// Trip mode UI - built on top of bitchat
 // Original bitchat: https://github.com/permissionlesstech/bitchat
 //
 // This is free and unencumbered software released into the public domain.
@@ -10,15 +10,15 @@
 
 import SwiftUI
 
-/// Main content wrapper that shows either normal chat or festival mode
+/// Main content wrapper that shows either normal chat or trip mode
 /// This view should replace ContentView() in FestMestApp.swift
-struct FestivalContentView: View {
+struct TripContentView: View {
     @EnvironmentObject var viewModel: ChatViewModel
-    @ObservedObject var festivalManager = FestivalModeManager.shared
+    @ObservedObject var tripManager = TripModeManager.shared
     
     var body: some View {
-        if festivalManager.isEnabled {
-            FestivalMainView()
+        if tripManager.isEnabled {
+            TripMainView()
                 .environmentObject(viewModel)
         } else {
             ContentView()
@@ -26,19 +26,19 @@ struct FestivalContentView: View {
     }
 }
 
-/// Festival mode main view with configurable bottom tab navigation
-/// Tabs are defined in FestivalSchedule.json
-struct FestivalMainView: View {
+/// Trip mode main view with configurable bottom tab navigation
+/// Tabs are defined in TripSchedule.json
+struct TripMainView: View {
     @EnvironmentObject var viewModel: ChatViewModel
     @Environment(\.colorScheme) var colorScheme
-    @ObservedObject var scheduleManager = FestivalScheduleManager.shared
+    @ObservedObject var scheduleManager = TripScheduleManager.shared
     @State private var selectedTabId: String = "schedule"
     
-    private var tabs: [FestivalTab] {
+    private var tabs: [TripTab] {
         scheduleManager.tabs
     }
     
-    private var selectedTab: FestivalTab? {
+    private var selectedTab: TripTab? {
         tabs.first { $0.id == selectedTabId }
     }
     
@@ -52,8 +52,8 @@ struct FestivalMainView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Festival banner
-            festivalBanner
+            // Trip banner
+            tripBanner
             
             // Content based on selected tab
             Group {
@@ -87,23 +87,23 @@ struct FestivalMainView: View {
     
     /// Render content for a tab based on its type
     @ViewBuilder
-    private func tabContent(for tab: FestivalTab) -> some View {
+    private func tabContent(for tab: TripTab) -> some View {
         switch tab.type {
         case .schedule:
-            FestivalScheduleView()
+            TripScheduleView()
         case .channels:
-            FestivalChannelsView()
+            TripChannelsView()
         case .chat:
             ContentView()
         case .map:
-            FestivalMapTab()
+            TripMapTab()
         case .info:
-            FestivalInfoView()
+            TripInfoView()
         case .friends:
             FriendMapView()
         case .groups:
             NavigationStack {
-                FestivalGroupsView()
+                TripGroupsView()
             }
         case .custom:
             // Placeholder for custom content (could be webview, etc.)
@@ -118,19 +118,19 @@ struct FestivalMainView: View {
         }
     }
     
-    private var festivalBanner: some View {
+    private var tripBanner: some View {
         HStack {
             Image(systemName: "tent.fill")
                 .foregroundColor(textColor)
             
-            Text(FestivalScheduleManager.shared.festivalData?.festival.name ?? "Festival Mode")
+            Text(TripScheduleManager.shared.tripData?.trip.name ?? "Trip Mode")
                 .font(.system(.subheadline, design: .monospaced))
                 .fontWeight(.bold)
                 .foregroundColor(textColor)
             
             Spacer()
             
-            Button(action: { FestivalModeManager.shared.disable() }) {
+            Button(action: { TripModeManager.shared.disable() }) {
                 Text("Exit")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.secondary)
@@ -161,11 +161,11 @@ struct FestivalMainView: View {
     }
 }
 
-/// Festival info view with mode toggle and tips
-struct FestivalInfoView: View {
+/// Trip info view with mode toggle and tips
+struct TripInfoView: View {
     @Environment(\.colorScheme) var colorScheme
-    @ObservedObject var festivalManager = FestivalModeManager.shared
-    @ObservedObject var scheduleManager = FestivalScheduleManager.shared
+    @ObservedObject var tripManager = TripModeManager.shared
+    @ObservedObject var scheduleManager = TripScheduleManager.shared
     
     private var backgroundColor: Color {
         colorScheme == .dark ? Color(red: 0.08, green: 0.08, blue: 0.15) : Color(red: 0.97, green: 0.97, blue: 0.99)
@@ -178,19 +178,19 @@ struct FestivalInfoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                // Festival header
-                if let festival = scheduleManager.festivalData?.festival {
+                // Trip header
+                if let trip = scheduleManager.tripData?.trip {
                     VStack(alignment: .center, spacing: 8) {
-                        Text(festival.name)
+                        Text(trip.name)
                             .font(.system(.title, design: .monospaced))
                             .fontWeight(.bold)
                             .foregroundColor(textColor)
                         
-                        Text(festival.location)
+                        Text(trip.location)
                             .font(.system(.subheadline, design: .monospaced))
                             .foregroundColor(.secondary)
                         
-                        Text("Gates: \(festival.gatesOpen) • Music: \(festival.musicStart) - \(festival.musicEnd)")
+                        Text("Gates: \(trip.gatesOpen) • Music: \(trip.musicStart) - \(trip.musicEnd)")
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.secondary)
                     }
@@ -200,7 +200,7 @@ struct FestivalInfoView: View {
                 
                 // Tips section
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Festival Tips")
+                    Text("Trip Tips")
                         .font(.system(.headline, design: .monospaced))
                         .foregroundColor(textColor)
                     
@@ -212,11 +212,11 @@ struct FestivalInfoView: View {
                 
                 Divider()
                 
-                // Exit festival mode
-                Button(action: { festivalManager.disable() }) {
+                // Exit trip mode
+                Button(action: { tripManager.disable() }) {
                     HStack {
                         Image(systemName: "xmark.circle")
-                        Text("Exit Festival Mode")
+                        Text("Exit Trip Mode")
                     }
                     .font(.system(.body, design: .monospaced))
                     .foregroundColor(.red)
@@ -249,9 +249,9 @@ struct FestivalInfoView: View {
 // MARK: - Preview
 
 #if DEBUG
-struct FestivalContentView_Previews: PreviewProvider {
+struct TripContentView_Previews: PreviewProvider {
     static var previews: some View {
-        FestivalMainView()
+        TripMainView()
     }
 }
 #endif

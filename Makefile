@@ -1,5 +1,5 @@
 # FestMest Makefile
-# Festival companion app built on bitchat mesh networking
+# Field trip companion app built on bitchat mesh networking
 #
 # Uses Config/project.json for project settings and test matrix
 
@@ -72,20 +72,20 @@ test-verbose:
 	@echo "🧪 Running tests (verbose)..."
 	swift test --verbose
 
-## Run specific test file (usage: make test-file FILE=FestivalGroupTests)
+## Run specific test file (usage: make test-file FILE=TripGroupTests)
 test-file:
 	@echo "🧪 Running tests matching: $(FILE)..."
 	swift test --filter $(FILE)
 
-## Run festival group tests only
+## Run trip group tests only
 test-groups:
-	@echo "🧪 Running festival group tests..."
-	swift test --filter FestivalGroup
+	@echo "🧪 Running trip group tests..."
+	swift test --filter TripGroup
 
-## Run festival feature tests only
-test-festival:
-	@echo "🧪 Running festival feature tests..."
-	swift test --filter Festival
+## Run trip feature tests only
+test-trip:
+	@echo "🧪 Running trip feature tests..."
+	swift test --filter Trip
 
 ## Run iOS simulator test matrix (reads from Config/project.json)
 test-matrix:
@@ -251,7 +251,7 @@ xcode:
 
 ## Show this help
 help:
-	@echo "FestMest - Festival Companion App"
+	@echo "FestMest - Field Trip Companion App"
 	@echo "================================="
 	@echo "Built on bitchat mesh networking protocol"
 	@echo ""
@@ -266,7 +266,7 @@ help:
 	@echo "  make test-parallel  - Run tests in parallel"
 	@echo "  make test-ios       - Run tests on iOS simulator"
 	@echo "  make test-matrix    - Run full iOS simulator matrix"
-	@echo "  make test-groups    - Run festival group tests"
+	@echo "  make test-groups    - Run trip group tests"
 	@echo "  make test-coverage  - Run tests with coverage"
 	@echo ""
 	@echo "Code Quality:"

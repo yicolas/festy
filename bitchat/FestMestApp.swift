@@ -2,7 +2,7 @@
 // FestMestApp.swift
 // FestMest
 //
-// Festival companion app built on bitchat mesh networking
+// Field trip companion app built on bitchat mesh networking
 // Original bitchat protocol: https://github.com/nickkostov/bitchat
 //
 // This is free and unencumbered software released into the public domain.
@@ -49,7 +49,7 @@ struct FestMestApp: App {
     
     var body: some Scene {
         WindowGroup {
-            FestivalContentView()
+            TripContentView()
                 .environmentObject(chatViewModel)
                 .onAppear {
                     NotificationDelegate.shared.chatViewModel = chatViewModel

@@ -2,15 +2,15 @@
 // FestivalGroupViews.swift
 // bitchat
 //
-// SwiftUI views for creating and managing festival groups
+// SwiftUI views for creating and managing trip groups
 //
 
 import SwiftUI
 
 // MARK: - Group List View
 
-struct FestivalGroupsView: View {
-    @StateObject private var groupManager = FestivalGroupManager.shared
+struct TripGroupsView: View {
+    @StateObject private var groupManager = TripGroupManager.shared
     @State private var showingCreateGroup = false
     
     var body: some View {
@@ -19,7 +19,7 @@ struct FestivalGroupsView: View {
             if !groupManager.myGroups.isEmpty {
                 Section("My Groups") {
                     ForEach(groupManager.myGroups) { group in
-                        NavigationLink(destination: FestivalGroupDetailView(group: group)) {
+                        NavigationLink(destination: TripGroupDetailView(group: group)) {
                             GroupRowView(group: group, isCreator: true)
                         }
                     }
@@ -30,7 +30,7 @@ struct FestivalGroupsView: View {
             if !groupManager.joinedGroups.isEmpty {
                 Section("Joined Groups") {
                     ForEach(groupManager.joinedGroups) { group in
-                        NavigationLink(destination: FestivalGroupDetailView(group: group)) {
+                        NavigationLink(destination: TripGroupDetailView(group: group)) {
                             GroupRowView(group: group, isCreator: false)
                         }
                     }
@@ -57,7 +57,7 @@ struct FestivalGroupsView: View {
                             .foregroundColor(.secondary)
                         Text("No Groups Yet")
                             .font(.headline)
-                        Text("Create a group to coordinate with friends at the festival")
+                        Text("Create a group to coordinate with friends on the trip")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -84,7 +84,7 @@ struct FestivalGroupsView: View {
 // MARK: - Group Row
 
 struct GroupRowView: View {
-    let group: FestivalGroup
+    let group: TripGroup
     let isCreator: Bool
     
     var body: some View {
@@ -150,7 +150,7 @@ struct GroupRowView: View {
 
 struct PendingInviteRow: View {
     let invite: GroupInvite
-    @StateObject private var groupManager = FestivalGroupManager.shared
+    @StateObject private var groupManager = TripGroupManager.shared
     @State private var isAccepting = false
     
     var body: some View {
@@ -196,7 +196,7 @@ struct PendingInviteRow: View {
 
 struct CreateGroupView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var groupManager = FestivalGroupManager.shared
+    @StateObject private var groupManager = TripGroupManager.shared
     
     @State private var name = ""
     @State private var description = ""
@@ -205,7 +205,7 @@ struct CreateGroupView: View {
     @State private var scheduledStart = Date()
     @State private var scheduledEnd = Date().addingTimeInterval(3600)
     @State private var maxDepth = 5
-    @State private var channels: [FestivalGroup.GroupChannel] = []
+    @State private var channels: [TripGroup.GroupChannel] = []
     @State private var showingAddChannel = false
     @State private var errorMessage: String?
     
@@ -304,7 +304,7 @@ struct CreateGroupView: View {
             _ = try groupManager.createGroup(
                 name: name,
                 description: description,
-                festivalId: nil,  // Could be linked to current festival
+                tripId: nil,  // Could be linked to current trip
                 geohash: nil,     // Could use current location
                 scheduledStart: hasSchedule ? scheduledStart : nil,
                 scheduledEnd: hasSchedule ? scheduledEnd : nil,
@@ -323,7 +323,7 @@ struct CreateGroupView: View {
 
 struct AddChannelView: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var channels: [FestivalGroup.GroupChannel]
+    @Binding var channels: [TripGroup.GroupChannel]
     
     @State private var name = ""
     @State private var description = ""
@@ -381,7 +381,7 @@ struct AddChannelView: View {
     
     private func addChannel() {
         let channelId = name.lowercased().replacingOccurrences(of: " ", with: "-")
-        let channel = FestivalGroup.GroupChannel(
+        let channel = TripGroup.GroupChannel(
             id: channelId,
             name: "#\(name.lowercased())",
             description: description,
@@ -394,9 +394,9 @@ struct AddChannelView: View {
 
 // MARK: - Group Detail View
 
-struct FestivalGroupDetailView: View {
-    let group: FestivalGroup
-    @StateObject private var groupManager = FestivalGroupManager.shared
+struct TripGroupDetailView: View {
+    let group: TripGroup
+    @StateObject private var groupManager = TripGroupManager.shared
     @State private var showingInvite = false
     @State private var showingMembers = false
     
@@ -493,9 +493,9 @@ struct FestivalGroupDetailView: View {
 // MARK: - Invite Member View
 
 struct InviteMemberView: View {
-    let group: FestivalGroup
+    let group: TripGroup
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var groupManager = FestivalGroupManager.shared
+    @StateObject private var groupManager = TripGroupManager.shared
     
     @State private var pubkeyInput = ""
     @State private var errorMessage: String?
@@ -572,8 +572,8 @@ struct InviteMemberView: View {
 // MARK: - Group Members View
 
 struct GroupMembersView: View {
-    let group: FestivalGroup
-    @StateObject private var groupManager = FestivalGroupManager.shared
+    let group: TripGroup
+    @StateObject private var groupManager = TripGroupManager.shared
     @State private var members: [String] = []
     @State private var showingRevokeAlert = false
     @State private var memberToRevoke: String?
@@ -670,11 +670,11 @@ struct MemberRow: View {
 /// Chat view for a specific channel within a group
 /// Integrates with the existing chat infrastructure
 struct GroupChannelView: View {
-    let group: FestivalGroup
-    let channel: FestivalGroup.GroupChannel
+    let group: TripGroup
+    let channel: TripGroup.GroupChannel
     
     @EnvironmentObject var chatViewModel: ChatViewModel
-    @ObservedObject var groupManager = FestivalGroupManager.shared
+    @ObservedObject var groupManager = TripGroupManager.shared
     @Environment(\.colorScheme) var colorScheme
     
     @State private var messageText = ""
@@ -887,6 +887,6 @@ struct GroupMessageBubble: View {
 
 #Preview {
     NavigationStack {
-        FestivalGroupsView()
+        TripGroupsView()
     }
 }

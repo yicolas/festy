@@ -2,7 +2,7 @@
 // FestivalChannelsView.swift
 // Festivus Mestivus
 //
-// Festival channels UI - stage channels and custom channels
+// Trip channels UI - stage channels and custom channels
 // Built on top of bitchat: https://github.com/permissionlesstech/bitchat
 //
 // This is free and unencumbered software released into the public domain.
@@ -11,10 +11,10 @@
 import SwiftUI
 import CoreLocation
 
-/// View showing festival-specific channels: stages and custom channels
-struct FestivalChannelsView: View {
+/// View showing trip-specific channels: stages and custom channels
+struct TripChannelsView: View {
     @EnvironmentObject var viewModel: ChatViewModel
-    @ObservedObject var scheduleManager = FestivalScheduleManager.shared
+    @ObservedObject var scheduleManager = TripScheduleManager.shared
     @ObservedObject var locationManager = LocationStateManager.shared
     @Environment(\.colorScheme) var colorScheme
     
@@ -112,7 +112,7 @@ struct FestivalChannelsView: View {
                 .font(.system(.caption, design: .monospaced))
                 .foregroundColor(.secondary)
             
-            ForEach(scheduleManager.festivalData?.stages ?? []) { stage in
+            ForEach(scheduleManager.tripData?.stages ?? []) { stage in
                 stageChannelRow(stage)
             }
         }
@@ -156,7 +156,7 @@ struct FestivalChannelsView: View {
     
     private var customChannelsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Festival Channels")
+            Text("Trip Channels")
                 .font(.system(.headline, design: .monospaced))
                 .foregroundColor(textColor)
             
@@ -199,7 +199,7 @@ struct FestivalChannelsView: View {
     private func updateNearestStage() {
         // Get current location and find nearest stage
         guard let location = locationManager.availableChannels.first,
-              let stages = scheduleManager.festivalData?.stages else {
+              let stages = scheduleManager.tripData?.stages else {
             nearestStage = nil
             return
         }
@@ -218,7 +218,7 @@ struct FestivalChannelsView: View {
         }
         
         // Switch to chat tab
-        // This would need to communicate with FestivalMainView
+        // This would need to communicate with TripMainView
     }
     
     private func joinCustomChannel(_ channel: CustomChannel) {
@@ -230,9 +230,9 @@ struct FestivalChannelsView: View {
 // MARK: - Preview
 
 #if DEBUG
-struct FestivalChannelsView_Previews: PreviewProvider {
+struct TripChannelsView_Previews: PreviewProvider {
     static var previews: some View {
-        FestivalChannelsView()
+        TripChannelsView()
     }
 }
 #endif

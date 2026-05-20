@@ -8,7 +8,7 @@
 import SwiftUI
 import CoreLocation
 
-/// Toggle control for location sharing in festival mode
+/// Toggle control for location sharing in trip mode
 struct FriendLocationToggle: View {
     @ObservedObject var locationService = FriendLocationService.shared
     @Environment(\.colorScheme) var colorScheme

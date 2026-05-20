@@ -2,7 +2,7 @@
 // FestivalScheduleView.swift
 // Festivus Mestivus
 //
-// Festival mode UI - built on top of bitchat
+// Trip mode UI - built on top of bitchat
 // Original bitchat: https://github.com/permissionlesstech/bitchat
 //
 // This is free and unencumbered software released into the public domain.
@@ -10,8 +10,8 @@
 
 import SwiftUI
 
-struct FestivalScheduleView: View {
-    @ObservedObject var scheduleManager = FestivalScheduleManager.shared
+struct TripScheduleView: View {
+    @ObservedObject var scheduleManager = TripScheduleManager.shared
     @Environment(\.colorScheme) var colorScheme
     @State private var showingStageFilter = false
     
@@ -54,11 +54,11 @@ struct FestivalScheduleView: View {
     private var headerView: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(scheduleManager.festivalData?.festival.name ?? "Festival")
+                Text(scheduleManager.tripData?.trip.name ?? "Trip")
                     .font(.system(.headline, design: .monospaced))
                     .foregroundColor(textColor)
                 
-                Text(scheduleManager.festivalData?.festival.location ?? "")
+                Text(scheduleManager.tripData?.trip.location ?? "")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.secondary)
             }
@@ -196,7 +196,7 @@ struct FestivalScheduleView: View {
                     }
                 }
                 
-                if let stages = scheduleManager.festivalData?.stages {
+                if let stages = scheduleManager.tripData?.stages {
                     ForEach(stages) { stage in
                         Button(action: {
                             scheduleManager.selectedStage = stage.id
@@ -345,9 +345,9 @@ struct SetRowView: View {
 // MARK: - Preview
 
 #if DEBUG
-struct FestivalScheduleView_Previews: PreviewProvider {
+struct TripScheduleView_Previews: PreviewProvider {
     static var previews: some View {
-        FestivalScheduleView()
+        TripScheduleView()
     }
 }
 #endif

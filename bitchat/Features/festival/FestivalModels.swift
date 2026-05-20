@@ -2,18 +2,18 @@
 // FestivalModels.swift
 // bitchat
 //
-// Festival schedule data models
+// Trip schedule data models
 //
 
 import Foundation
 import SwiftUI
 import CoreLocation
 
-// MARK: - Festival Data Models
+// MARK: - Trip Data Models
 
-struct FestivalData: Codable {
-    let festival: FestivalInfo
-    let tabs: [FestivalTab]?
+struct TripData: Codable {
+    let trip: TripInfo
+    let tabs: [TripTab]?
     let stages: [Stage]
     let sets: [ScheduledSet]
     let customChannels: [CustomChannel]?
@@ -21,15 +21,15 @@ struct FestivalData: Codable {
     let pointsOfInterest: [PointOfInterest]?
     
     /// Get configured tabs, or default tabs if none specified
-    var configuredTabs: [FestivalTab] {
-        tabs ?? FestivalTab.defaultTabs
+    var configuredTabs: [TripTab] {
+        tabs ?? TripTab.defaultTabs
     }
 }
 
-struct FestivalInfo: Codable {
+struct TripInfo: Codable {
     let name: String
     let location: String
-    let dates: FestivalDates
+    let dates: TripDates
     let gatesOpen: String
     let musicStart: String
     let musicEnd: String
@@ -40,39 +40,39 @@ struct FestivalInfo: Codable {
     }
 }
 
-struct FestivalDates: Codable {
+struct TripDates: Codable {
     let start: String
     let end: String
 }
 
 // MARK: - Configurable Tab Model
 
-/// Tab configuration from JSON - allows festivals to customize which tabs appear
-struct FestivalTab: Codable, Identifiable, Hashable {
+/// Tab configuration from JSON - allows trips to customize which tabs appear
+struct TripTab: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let icon: String
     let type: TabType
     
     enum TabType: String, Codable {
-        case schedule   // Show FestivalScheduleView
-        case channels   // Show FestivalChannelsView
+        case schedule   // Show TripScheduleView
+        case channels   // Show TripChannelsView
         case chat       // Show main chat ContentView
-        case map        // Show FestivalMapView
-        case info       // Show FestivalInfoView
+        case map        // Show TripMapView
+        case info       // Show TripInfoView
         case friends    // Show FriendMapView (location sharing)
-        case groups     // Show FestivalGroupsView (user-created groups)
+        case groups     // Show TripGroupsView (user-created groups)
         case custom     // Future: custom webview or embedded content
     }
     
     /// Default tabs if none specified in JSON
-    static var defaultTabs: [FestivalTab] {
+    static var defaultTabs: [TripTab] {
         [
-            FestivalTab(id: "schedule", name: "Schedule", icon: "calendar", type: .schedule),
-            FestivalTab(id: "channels", name: "Channels", icon: "antenna.radiowaves.left.and.right", type: .channels),
-            FestivalTab(id: "groups", name: "Groups", icon: "person.3", type: .groups),
-            FestivalTab(id: "chat", name: "Mesh Chat", icon: "bubble.left.and.bubble.right", type: .chat),
-            FestivalTab(id: "info", name: "Info", icon: "info.circle", type: .info)
+            TripTab(id: "schedule", name: "Schedule", icon: "calendar", type: .schedule),
+            TripTab(id: "channels", name: "Channels", icon: "antenna.radiowaves.left.and.right", type: .channels),
+            TripTab(id: "groups", name: "Groups", icon: "person.3", type: .groups),
+            TripTab(id: "chat", name: "Mesh Chat", icon: "bubble.left.and.bubble.right", type: .chat),
+            TripTab(id: "info", name: "Info", icon: "info.circle", type: .info)
         ]
     }
 }
@@ -212,10 +212,10 @@ extension Color {
 // MARK: - Schedule Manager
 
 @MainActor
-class FestivalScheduleManager: ObservableObject {
-    static let shared = FestivalScheduleManager()
+class TripScheduleManager: ObservableObject {
+    static let shared = TripScheduleManager()
     
-    @Published var festivalData: FestivalData?
+    @Published var tripData: TripData?
     @Published var selectedDay: String?
     @Published var selectedStage: String?
     @Published var isLoaded = false
@@ -225,37 +225,37 @@ class FestivalScheduleManager: ObservableObject {
     }
     
     func loadSchedule() {
-        guard let url = Bundle.main.url(forResource: "FestivalSchedule", withExtension: "json"),
+        guard let url = Bundle.main.url(forResource: "TripSchedule", withExtension: "json"),
               let data = try? Data(contentsOf: url),
-              let decoded = try? JSONDecoder().decode(FestivalData.self, from: data) else {
-            print("Failed to load festival schedule")
+              let decoded = try? JSONDecoder().decode(TripData.self, from: data) else {
+            print("Failed to load trip schedule")
             return
         }
         
-        self.festivalData = decoded
-        self.selectedDay = decoded.festival.dates.start
+        self.tripData = decoded
+        self.selectedDay = decoded.trip.dates.start
         self.isLoaded = true
     }
     
-    /// Festival timezone
+    /// Trip timezone
     var timezone: String {
-        festivalData?.festival.timezoneIdentifier ?? "America/Los_Angeles"
+        tripData?.trip.timezoneIdentifier ?? "America/Los_Angeles"
     }
     
-    /// Get configured tabs for this festival
-    var tabs: [FestivalTab] {
-        festivalData?.configuredTabs ?? FestivalTab.defaultTabs
+    /// Get configured tabs for this trip
+    var tabs: [TripTab] {
+        tripData?.configuredTabs ?? TripTab.defaultTabs
     }
     
     /// Get all unique days from the schedule
     var days: [String] {
-        guard let data = festivalData else { return [] }
+        guard let data = tripData else { return [] }
         return Array(Set(data.sets.map { $0.day })).sorted()
     }
     
     /// Get sets for a specific day, sorted by start time
     func sets(for day: String) -> [ScheduledSet] {
-        guard let data = festivalData else { return [] }
+        guard let data = tripData else { return [] }
         return data.sets
             .filter { $0.day == day }
             .sorted { ($0.startDate(timezone: timezone) ?? .distantPast) < ($1.startDate(timezone: timezone) ?? .distantPast) }
@@ -268,14 +268,14 @@ class FestivalScheduleManager: ObservableObject {
     
     /// Get the currently playing sets
     var nowPlaying: [ScheduledSet] {
-        guard let data = festivalData else { return [] }
+        guard let data = tripData else { return [] }
         let now = Date()
         return data.sets.filter { $0.isNowPlaying(currentDate: now, timezone: timezone) }
     }
     
     /// Get upcoming sets within the next 30 minutes
     var upcomingSoon: [ScheduledSet] {
-        guard let data = festivalData else { return [] }
+        guard let data = tripData else { return [] }
         let now = Date()
         return data.sets
             .filter { $0.isUpcoming(within: 30, currentDate: now, timezone: timezone) }
@@ -284,22 +284,22 @@ class FestivalScheduleManager: ObservableObject {
     
     /// Get stage by ID
     func stage(for id: String) -> Stage? {
-        festivalData?.stages.first { $0.id == id }
+        tripData?.stages.first { $0.id == id }
     }
     
     /// Get custom channels
     var customChannels: [CustomChannel] {
-        festivalData?.customChannels ?? []
+        tripData?.customChannels ?? []
     }
     
     /// Get points of interest
     var pointsOfInterest: [PointOfInterest] {
-        festivalData?.pointsOfInterest ?? []
+        tripData?.pointsOfInterest ?? []
     }
     
     /// Get nearest stage to a location
     func nearestStage(to location: CLLocation) -> Stage? {
-        festivalData?.stages
+        tripData?.stages
             .compactMap { stage -> (Stage, CLLocationDistance)? in
                 guard let coord = stage.coordinate else { return nil }
                 let stageLocation = CLLocation(latitude: coord.latitude, longitude: coord.longitude)

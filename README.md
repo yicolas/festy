@@ -61,14 +61,14 @@ cp Configs/Local.xcconfig.example Configs/Local.xcconfig
 open bitchat.xcodeproj
 ```
 
-### Customizing the Festival
+### Customizing the Trip
 
-Edit `bitchat/Features/festival/FestivalSchedule.json`:
+Edit `bitchat/Features/festival/TripSchedule.json`:
 
 ```json
 {
-  "festival": {
-    "name": "Your Festival Name",
+  "trip": {
+    "name": "Your Trip Name",
     "location": "Venue, City",
     "dates": { "start": "2026-08-07", "end": "2026-08-09" }
   },
@@ -100,11 +100,11 @@ Edit `bitchat/Features/festival/FestivalSchedule.json`:
 }
 ```
 
-### Enabling Festival Mode
+### Enabling Trip Mode
 
 1. Build and run the app
 2. Tap sidebar → App Info (ⓘ)
-3. Scroll to "Festival Mode" → Tap to enable
+3. Scroll to "Trip Mode" → Tap to enable
 
 ## Technical Architecture
 
