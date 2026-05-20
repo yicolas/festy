@@ -2,7 +2,7 @@
 // FestMestApp.swift
 // FestMest
 //
-// Field trip companion app built on bitchat mesh networking
+// Trip companion app built on bitchat mesh networking
 // Original bitchat protocol: https://github.com/nickkostov/bitchat
 //
 // This is free and unencumbered software released into the public domain.

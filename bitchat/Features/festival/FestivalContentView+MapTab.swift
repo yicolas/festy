@@ -2,16 +2,16 @@
 // FestivalContentView+MapTab.swift
 // bitchat
 //
-// Updated TripMainView with map tab
-// This file updates the TripTab enum and TripMainView to include the map
+// Updated FestivalMainView with map tab
+// This file updates the FestivalTab enum and FestivalMainView to include the map
 //
 
 import SwiftUI
 
-// MARK: - Updated Trip Tab Enum
+// MARK: - Updated Festival Tab Enum
 
-/// Updated trip tabs including map
-enum TripTabWithMap: String, CaseIterable {
+/// Updated festival tabs including map
+enum FestivalTabWithMap: String, CaseIterable {
     case schedule = "Schedule"
     case map = "Map"
     case chat = "Chat"
@@ -27,13 +27,13 @@ enum TripTabWithMap: String, CaseIterable {
     }
 }
 
-/// Updated trip main view with map tab
-/// Replace TripMainView in FestivalContentView.swift (or just use TripMainViewWithMap directly)
-struct TripMainViewWithMap: View {
+/// Updated festival main view with map tab
+/// Replace FestivalMainView in FestivalContentView.swift with this
+struct FestivalMainViewWithMap: View {
     @EnvironmentObject var viewModel: ChatViewModel
     @Environment(\.colorScheme) var colorScheme
     @ObservedObject var locationService = FriendLocationService.shared
-    @State private var selectedTab: TripTabWithMap = .schedule
+    @State private var selectedTab: FestivalTabWithMap = .schedule
     
     private var backgroundColor: Color {
         colorScheme == .dark ? Color.black : Color.white
@@ -45,22 +45,22 @@ struct TripMainViewWithMap: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Trip banner (hide on map to maximize space)
+            // Festival banner (hide on map to maximize space)
             if selectedTab != .map {
-                tripBanner
+                festivalBanner
             }
             
             // Content based on selected tab
             Group {
                 switch selectedTab {
                 case .schedule:
-                    TripScheduleView()
+                    FestivalScheduleView()
                 case .map:
-                    TripMapTab()
+                    FestivalMapTab()
                 case .chat:
                     ContentView()
                 case .info:
-                    TripInfoViewWithLocation()
+                    FestivalInfoViewWithLocation()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -73,12 +73,12 @@ struct TripMainViewWithMap: View {
         .background(backgroundColor)
     }
     
-    private var tripBanner: some View {
+    private var festivalBanner: some View {
         HStack {
             Image(systemName: "tent.fill")
                 .foregroundColor(textColor)
             
-            Text(TripScheduleManager.shared.tripData?.trip.name ?? "Trip Mode")
+            Text(FestivalScheduleManager.shared.festivalData?.festival.name ?? "Festival Mode")
                 .font(.system(.subheadline, design: .monospaced))
                 .fontWeight(.bold)
                 .foregroundColor(textColor)
@@ -88,7 +88,7 @@ struct TripMainViewWithMap: View {
             
             Spacer()
             
-            Button(action: { TripModeManager.shared.disable() }) {
+            Button(action: { FestivalModeManager.shared.disable() }) {
                 Text("Exit")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.secondary)
@@ -101,7 +101,7 @@ struct TripMainViewWithMap: View {
     
     private var tabBar: some View {
         HStack(spacing: 0) {
-            ForEach(TripTabWithMap.allCases, id: \.self) { tab in
+            ForEach(FestivalTabWithMap.allCases, id: \.self) { tab in
                 Button(action: { selectedTab = tab }) {
                     VStack(spacing: 4) {
                         ZStack {
@@ -134,10 +134,10 @@ struct TripMainViewWithMap: View {
 }
 
 /// Updated info view with location controls
-struct TripInfoViewWithLocation: View {
+struct FestivalInfoViewWithLocation: View {
     @Environment(\.colorScheme) var colorScheme
-    @ObservedObject var tripManager = TripModeManager.shared
-    @ObservedObject var scheduleManager = TripScheduleManager.shared
+    @ObservedObject var festivalManager = FestivalModeManager.shared
+    @ObservedObject var scheduleManager = FestivalScheduleManager.shared
     @ObservedObject var locationService = FriendLocationService.shared
     
     private var backgroundColor: Color {
@@ -151,19 +151,19 @@ struct TripInfoViewWithLocation: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                // Trip header
-                if let trip = scheduleManager.tripData?.trip {
+                // Festival header
+                if let festival = scheduleManager.festivalData?.festival {
                     VStack(alignment: .center, spacing: 8) {
-                        Text(trip.name)
+                        Text(festival.name)
                             .font(.system(.title, design: .monospaced))
                             .fontWeight(.bold)
                             .foregroundColor(textColor)
                         
-                        Text(trip.location)
+                        Text(festival.location)
                             .font(.system(.subheadline, design: .monospaced))
                             .foregroundColor(.secondary)
                         
-                        Text("Gates: \(trip.gatesOpen) • Music: \(trip.musicStart) - \(trip.musicEnd)")
+                        Text("\(scheduleManager.formatDayForDisplay(festival.dates.start)) - \(scheduleManager.formatDayForDisplay(festival.dates.end))")
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.secondary)
                     }
@@ -204,8 +204,8 @@ struct TripInfoViewWithLocation: View {
                 
                 Divider()
                 
-                // Exit trip mode
-                Button(action: { tripManager.disable() }) {
+                // Exit festival mode
+                Button(action: { festivalManager.disable() }) {
                     HStack {
                         Image(systemName: "xmark.circle")
                         Text("Exit Trip Mode")
@@ -241,9 +241,9 @@ struct TripInfoViewWithLocation: View {
 // MARK: - Preview
 
 #if DEBUG
-struct TripMainViewWithMap_Previews: PreviewProvider {
+struct FestivalMainViewWithMap_Previews: PreviewProvider {
     static var previews: some View {
-        TripMainViewWithMap()
+        FestivalMainViewWithMap()
     }
 }
 #endif
