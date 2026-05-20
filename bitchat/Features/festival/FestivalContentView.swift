@@ -1,24 +1,13 @@
-//
-// FestivalContentView.swift
-// Festivus Mestivus
-//
-// Festival mode UI - built on top of bitchat
-// Original bitchat: https://github.com/permissionlesstech/bitchat
-//
-// This is free and unencumbered software released into the public domain.
-//
-
 import SwiftUI
 
-/// Main content wrapper that shows either normal chat or festival mode
-/// This view should replace ContentView() in FestMestApp.swift
-struct FestivalContentView: View {
+/// Main content wrapper that shows either normal chat or trip mode.
+struct TripContentView: View {
     @EnvironmentObject var viewModel: ChatViewModel
-    @ObservedObject var festivalManager = FestivalModeManager.shared
-    
+    @ObservedObject var tripManager = TripModeManager.shared
+
     var body: some View {
-        if festivalManager.isEnabled {
-            FestivalMainView()
+        if tripManager.isEnabled {
+            TripMainView()
                 .environmentObject(viewModel)
         } else {
             ContentView()
@@ -26,42 +15,29 @@ struct FestivalContentView: View {
     }
 }
 
-/// Festival mode main view with configurable bottom tab navigation
-/// Tabs are defined in FestivalSchedule.json
-struct FestivalMainView: View {
+struct TripMainView: View {
     @EnvironmentObject var viewModel: ChatViewModel
-    @Environment(\.colorScheme) var colorScheme
-    @ObservedObject var scheduleManager = FestivalScheduleManager.shared
+    @ObservedObject var scheduleManager = TripScheduleManager.shared
     @State private var selectedTabId: String = "schedule"
-    
-    private var tabs: [FestivalTab] {
+
+    private var tabs: [TripTab] {
         scheduleManager.tabs
     }
-    
-    private var selectedTab: FestivalTab? {
+
+    private var selectedTab: TripTab? {
         tabs.first { $0.id == selectedTabId }
     }
-    
-    private var backgroundColor: Color {
-        colorScheme == .dark ? Color(red: 0.08, green: 0.08, blue: 0.15) : Color(red: 0.97, green: 0.97, blue: 0.99)
-    }
-    
-    private var textColor: Color {
-        colorScheme == .dark ? Color(red: 0.4, green: 0.4, blue: 0.7) : Color(red: 0.102, green: 0.102, blue: 0.306)
-    }
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            // Festival banner
-            festivalBanner
-            
-            // Content based on selected tab
+            tripBanner
+
             Group {
                 if let tab = selectedTab {
                     tabContent(for: tab)
                 } else {
-                    // Fallback: select first tab
                     Text("Loading...")
+                        .foregroundColor(TripTheme.secondaryText)
                         .onAppear {
                             if let first = tabs.first {
                                 selectedTabId = first.id
@@ -70,35 +46,32 @@ struct FestivalMainView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            
+
             Divider()
-            
-            // Dynamic tab bar
+
             tabBar
         }
-        .background(backgroundColor)
+        .background(TripTheme.background)
         .onAppear {
-            // Default to first tab if current selection is invalid
             if !tabs.contains(where: { $0.id == selectedTabId }), let first = tabs.first {
                 selectedTabId = first.id
             }
         }
     }
-    
-    /// Render content for a tab based on its type
+
     @ViewBuilder
-    private func tabContent(for tab: FestivalTab) -> some View {
+    private func tabContent(for tab: TripTab) -> some View {
         switch tab.type {
         case .schedule:
-            FestivalScheduleView()
+            TripScheduleView()
         case .channels:
-            FestivalChannelsView()
+            TripChannelsView()
+        case .map:
+            TripMapTab()
         case .chat:
             ContentView()
-        case .map:
-            FestivalMapTab()
         case .info:
-            FestivalInfoView()
+            TripInfoView()
         case .friends:
             FriendMapView()
         case .groups:
@@ -106,152 +79,141 @@ struct FestivalMainView: View {
                 FestivalGroupsView()
             }
         case .custom:
-            // Placeholder for custom content (could be webview, etc.)
-            VStack {
+            VStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .font(.largeTitle)
-                    .foregroundColor(textColor)
+                    .foregroundColor(TripTheme.accent)
                 Text(tab.name)
                     .font(.system(.headline, design: .monospaced))
-                    .foregroundColor(textColor)
+                    .foregroundColor(TripTheme.primaryText)
             }
         }
     }
-    
-    private var festivalBanner: some View {
+
+    private var tripBanner: some View {
         HStack {
-            Image(systemName: "tent.fill")
-                .foregroundColor(textColor)
-            
-            Text(FestivalScheduleManager.shared.festivalData?.festival.name ?? "Festival Mode")
+            Image(systemName: "car.fill")
+                .foregroundColor(TripTheme.accent)
+
+            Text(scheduleManager.tripData?.trip.name ?? "Trip Mode")
                 .font(.system(.subheadline, design: .monospaced))
                 .fontWeight(.bold)
-                .foregroundColor(textColor)
-            
+                .foregroundColor(TripTheme.primaryText)
+
             Spacer()
-            
-            Button(action: { FestivalModeManager.shared.disable() }) {
+
+            Button(action: { TripModeManager.shared.disable() }) {
                 Text("Exit")
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(TripTheme.secondaryText)
             }
         }
         .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(textColor.opacity(0.1))
+        .padding(.vertical, 10)
+        .background(TripTheme.accentSoft)
     }
-    
+
     private var tabBar: some View {
         HStack(spacing: 0) {
             ForEach(tabs) { tab in
                 Button(action: { selectedTabId = tab.id }) {
                     VStack(spacing: 4) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 20))
+                            .font(.system(size: 19))
                         Text(tab.name)
                             .font(.system(.caption2, design: .monospaced))
                     }
-                    .foregroundColor(selectedTabId == tab.id ? textColor : .secondary)
+                    .foregroundColor(selectedTabId == tab.id ? TripTheme.accent : TripTheme.secondaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
+                    .background(selectedTabId == tab.id ? TripTheme.accentSoft : .clear)
                 }
             }
         }
-        .background(backgroundColor)
+        .background(TripTheme.background)
     }
 }
 
-/// Festival info view with mode toggle and tips
-struct FestivalInfoView: View {
-    @Environment(\.colorScheme) var colorScheme
-    @ObservedObject var festivalManager = FestivalModeManager.shared
-    @ObservedObject var scheduleManager = FestivalScheduleManager.shared
-    
-    private var backgroundColor: Color {
-        colorScheme == .dark ? Color(red: 0.08, green: 0.08, blue: 0.15) : Color(red: 0.97, green: 0.97, blue: 0.99)
-    }
-    
-    private var textColor: Color {
-        colorScheme == .dark ? Color(red: 0.4, green: 0.4, blue: 0.7) : Color(red: 0.102, green: 0.102, blue: 0.306)
-    }
-    
+struct TripInfoView: View {
+    @ObservedObject var tripManager = TripModeManager.shared
+    @ObservedObject var scheduleManager = TripScheduleManager.shared
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Festival header
-                if let festival = scheduleManager.festivalData?.festival {
-                    VStack(alignment: .center, spacing: 8) {
-                        Text(festival.name)
-                            .font(.system(.title, design: .monospaced))
+            VStack(alignment: .leading, spacing: 20) {
+                if let trip = scheduleManager.tripData?.trip {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(trip.name)
+                            .font(.system(.title2, design: .monospaced))
                             .fontWeight(.bold)
-                            .foregroundColor(textColor)
-                        
-                        Text(festival.location)
+                            .foregroundColor(TripTheme.primaryText)
+
+                        Text(trip.subtitle ?? "Offline-first field trip coordination")
                             .font(.system(.subheadline, design: .monospaced))
-                            .foregroundColor(.secondary)
-                        
-                        Text("Gates: \(festival.gatesOpen) • Music: \(festival.musicStart) - \(festival.musicEnd)")
+                            .foregroundColor(TripTheme.secondaryText)
+
+                        Text("\(scheduleManager.formatDayForDisplay(trip.dates.start)) - \(scheduleManager.formatDayForDisplay(trip.dates.end))")
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(TripTheme.secondaryText)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(TripTheme.accentSoft)
+                    .cornerRadius(12)
                 }
-                
-                // Tips section
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Festival Tips")
-                        .font(.system(.headline, design: .monospaced))
-                        .foregroundColor(textColor)
-                    
-                    tipRow(icon: "wifi.slash", text: "Mesh chat works without cell service")
-                    tipRow(icon: "person.2", text: "Add friends as favorites to find them later")
-                    tipRow(icon: "battery.100", text: "BLE mesh is battery efficient")
-                    tipRow(icon: "hand.raised.fill", text: "Triple-tap screen to wipe all data")
+
+                ForEach(scheduleManager.infoSections) { section in
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(section.title)
+                            .font(.system(.headline, design: .monospaced))
+                            .foregroundColor(TripTheme.primaryText)
+
+                        ForEach(section.bullets, id: \.self) { bullet in
+                            HStack(alignment: .top, spacing: 8) {
+                                Text("•")
+                                    .foregroundColor(TripTheme.accent)
+                                Text(bullet)
+                                    .font(.system(.subheadline, design: .monospaced))
+                                    .foregroundColor(TripTheme.secondaryText)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                    )
+                    .cornerRadius(10)
                 }
-                
-                Divider()
-                
-                // Exit festival mode
-                Button(action: { festivalManager.disable() }) {
+
+                Button(action: { tripManager.disable() }) {
                     HStack {
                         Image(systemName: "xmark.circle")
-                        Text("Exit Festival Mode")
+                        Text("Exit Trip Mode")
                     }
                     .font(.system(.body, design: .monospaced))
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.red.opacity(0.1))
+                    .background(Color.red.opacity(0.08))
                     .cornerRadius(8)
                 }
-                
-                Spacer()
             }
             .padding()
         }
-        .background(backgroundColor)
-    }
-    
-    private func tipRow(icon: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .foregroundColor(textColor)
-                .frame(width: 24)
-            
-            Text(text)
-                .font(.system(.subheadline, design: .monospaced))
-                .foregroundColor(.secondary)
-        }
+        .background(TripTheme.background)
     }
 }
 
-// MARK: - Preview
+typealias FestivalContentView = TripContentView
+typealias FestivalMainView = TripMainView
+typealias FestivalInfoView = TripInfoView
 
 #if DEBUG
 struct FestivalContentView_Previews: PreviewProvider {
     static var previews: some View {
-        FestivalMainView()
+        TripMainView()
     }
 }
 #endif

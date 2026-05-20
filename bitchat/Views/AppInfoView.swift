@@ -200,8 +200,8 @@ struct AppInfoView: View {
             // Network & Privacy Settings
             NetworkPrivacySection()
             
-            // Festival Mode
-            FestivalAppInfoSection()
+            // Trip Mode
+            TripAppInfoSection()
             
             // Data & Third Parties
             DataDisclosureSection()

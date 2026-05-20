@@ -1,269 +1,574 @@
 {
-  "festival": {
-    "name": "Festivus Mestivus 2026",
-    "location": "Golden Gate Park, San Francisco",
+  "trip": {
+    "id": "ge136c-spring-sierras-2026",
+    "name": "GE136C Spring - Sierras",
+    "subtitle": "Offline mesh trip companion",
+    "location": "Sierras + Central Valley Loop",
     "dates": {
-      "start": "2026-08-07",
-      "end": "2026-08-09"
+      "start": "2026-05-29",
+      "end": "2026-06-01"
     },
-    "gatesOpen": "11:00",
-    "musicStart": "12:00",
-    "musicEnd": "22:00",
     "timezone": "America/Los_Angeles"
   },
   "tabs": [
+    { "id": "schedule", "name": "Schedule", "icon": "calendar", "type": "schedule" },
+    { "id": "channels", "name": "Channels", "icon": "number", "type": "channels" },
+    { "id": "map", "name": "Map", "icon": "map", "type": "map" },
+    { "id": "chat", "name": "Chat", "icon": "bubble.left.and.bubble.right", "type": "chat" },
+    { "id": "info", "name": "Info", "icon": "info.circle", "type": "info" }
+  ],
+  "channels": [
+    { "id": "general", "name": "#general", "description": "Main trip coordination and updates", "icon": "person.3.fill" },
+    { "id": "driving", "name": "#driving", "description": "Driver changes, ETAs, and regrouping", "icon": "car.fill" },
+    { "id": "travel", "name": "#travel", "description": "Stops, route notes, and logistics", "icon": "map.fill" },
+    { "id": "meals", "name": "#meals", "description": "Food timing, dinner plans, and dietary callouts", "icon": "fork.knife" },
+    { "id": "gear", "name": "#gear", "description": "Field gear and supply check-ins", "icon": "backpack.fill" },
+    { "id": "announcements", "name": "#announcements", "description": "Instructor-only high-priority notices", "icon": "megaphone.fill" }
+  ],
+  "days": [
     {
-      "id": "schedule",
-      "name": "Schedule",
-      "icon": "calendar",
-      "type": "schedule"
+      "id": "day-1",
+      "title": "Day 1 (Fri)",
+      "date": "2026-05-29",
+      "startTime": "8:00 AM",
+      "routeURL": "https://maps.app.goo.gl/wvCerfVojKr4BpJG6",
+      "items": [
+        {
+          "id": "d1-arms-circle",
+          "title": "Arms Circle departure",
+          "location": {
+            "id": "arms-circle",
+            "name": "Arms Circle",
+            "address": "34.13616, -118.12675",
+            "latitude": 34.13616,
+            "longitude": -118.12675
+          },
+          "arrive": "8:00 AM",
+          "duration": "1:00",
+          "leave": "9:00 AM",
+          "driveTime": "2:30",
+          "bathroom": true,
+          "food": true,
+          "presenters": ["Abby Keebler"],
+          "notes": "Departure briefing and Day 1 opening talk."
+        },
+        {
+          "id": "d1-allensworth",
+          "title": "Colonel Allensworth State Historic Park + Lunch",
+          "location": {
+            "id": "allensworth",
+            "name": "Colonel Allensworth State Historic Park",
+            "address": "4011 Grant Dr, Earlimart, CA 93219"
+          },
+          "arrive": "11:30 AM",
+          "duration": "1:00",
+          "leave": "12:30 PM",
+          "driveTime": "1:40",
+          "bathroom": true,
+          "food": true,
+          "presenters": ["Olivia Alcabes", "Virginia (Gigi) Pistilli"],
+          "notes": "Lunch stop; agriculture and watershed discussion."
+        },
+        {
+          "id": "d1-hatchery",
+          "title": "San Joaquin Hatchery",
+          "location": {
+            "id": "san-joaquin-hatchery",
+            "name": "San Joaquin Hatchery",
+            "address": "17372 Brooktrout, Friant, CA 93626"
+          },
+          "arrive": "2:10 PM",
+          "duration": "0:30",
+          "leave": "2:40 PM",
+          "driveTime": "0:10",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Amelie Sharples", "Madi Tongco"],
+          "notes": "Fish lifecycle and hatchery operations."
+        },
+        {
+          "id": "d1-vernal-pools",
+          "title": "Vernal Pools + Mortar Bowls",
+          "location": {
+            "id": "vernal-pools",
+            "name": "Vernal Pools + Mortar Bowls",
+            "address": "36.971921, -119.716667 & 36.9783, -119.715079",
+            "latitude": 36.971921,
+            "longitude": -119.716667
+          },
+          "arrive": "2:50 PM",
+          "duration": "0:30",
+          "leave": "3:20 PM",
+          "driveTime": "0:45",
+          "bathroom": false,
+          "food": false,
+          "presenters": ["Sarah Davis"],
+          "notes": "Field ecology stop; second coordinate noted in address."
+        },
+        {
+          "id": "d1-museum",
+          "title": "Museum of the Sierra",
+          "location": {
+            "id": "museum-sierra",
+            "name": "Museum of the Sierra",
+            "address": "42642 Tollhouse Rd, Shaver Lake, CA 93664"
+          },
+          "arrive": "4:05 PM",
+          "duration": "0:45",
+          "leave": "4:50 PM",
+          "driveTime": "1:30",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Sophia Ree", "Amanda Bednarick"],
+          "notes": "Sierra batholith and granite context."
+        },
+        {
+          "id": "d1-mono-creek",
+          "title": "Mono Creek Campground",
+          "location": {
+            "id": "mono-creek-campground",
+            "name": "Mono Creek Campground",
+            "address": "37.354671, -118.996900",
+            "latitude": 37.354671,
+            "longitude": -118.9969
+          },
+          "arrive": "6:20 PM",
+          "duration": "2:00",
+          "leave": "8:20 PM",
+          "driveTime": "0:10",
+          "bathroom": true,
+          "food": true,
+          "presenters": ["Ava Barbano", "Marisa Langley"],
+          "notes": "Dinner and camp setup."
+        },
+        {
+          "id": "d1-mono-hot-springs",
+          "title": "Mono Hot Springs",
+          "location": {
+            "id": "mono-hot-springs",
+            "name": "Mono Hot Springs",
+            "address": "37.326396, -119.017699",
+            "latitude": 37.326396,
+            "longitude": -119.017699
+          },
+          "arrive": "8:30 PM",
+          "duration": "2:00",
+          "leave": "10:30 PM",
+          "driveTime": "",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Zhehao (Garry) Zhang"],
+          "notes": "Hot springs geochemistry stop."
+        }
+      ]
     },
     {
-      "id": "channels",
-      "name": "Channels",
-      "icon": "antenna.radiowaves.left.and.right",
-      "type": "channels"
+      "id": "day-2",
+      "title": "Day 2 (Sat)",
+      "date": "2026-05-30",
+      "startTime": "7:00 AM",
+      "routeURL": "https://maps.app.goo.gl/AizsiSRoXdM3ru5KA",
+      "items": [
+        {
+          "id": "d2-mono-creek",
+          "title": "Mono Creek Campground",
+          "location": {
+            "id": "mono-creek-campground",
+            "name": "Mono Creek Campground",
+            "address": "37.354671, -118.996900",
+            "latitude": 37.354671,
+            "longitude": -118.9969
+          },
+          "arrive": "7:00 AM",
+          "duration": "2:00",
+          "leave": "9:00 AM",
+          "driveTime": "3:10",
+          "bathroom": true,
+          "food": true,
+          "presenters": ["Jarek Kwiecinski"],
+          "notes": "Morning briefing on fire ecology."
+        },
+        {
+          "id": "d2-simonian",
+          "title": "Simonian Farms + Lunch",
+          "location": {
+            "id": "simonian-farms",
+            "name": "Simonian Farms",
+            "address": "2629 S Clovis Ave, Fresno, CA 93725"
+          },
+          "arrive": "12:10 PM",
+          "duration": "1:00",
+          "leave": "1:10 PM",
+          "driveTime": "1:50",
+          "bathroom": true,
+          "food": true,
+          "presenters": ["Madi Tongco"],
+          "notes": "Lunch + food systems discussion."
+        },
+        {
+          "id": "d2-boyden-1",
+          "title": "Boyden Cavern Group 1",
+          "location": {
+            "id": "boyden-cavern",
+            "name": "Boyden Cavern",
+            "address": "36.815114, -118.819352",
+            "latitude": 36.815114,
+            "longitude": -118.819352
+          },
+          "arrive": "3:00 PM",
+          "duration": "1:00",
+          "leave": "4:00 PM",
+          "driveTime": "0:00",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Koki Yoshioka", "Waqar Mirza"],
+          "notes": "25 adults booked; need 7 more slots."
+        },
+        {
+          "id": "d2-boyden-2",
+          "title": "Boyden Cavern Group 2",
+          "location": {
+            "id": "boyden-cavern",
+            "name": "Boyden Cavern",
+            "address": "36.815114, -118.819352",
+            "latitude": 36.815114,
+            "longitude": -118.819352
+          },
+          "arrive": "4:00 PM",
+          "duration": "1:00",
+          "leave": "5:00 PM",
+          "driveTime": "0:00",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Ben Thyer", "Elin Stenmark"],
+          "notes": "Second cave group rotation."
+        },
+        {
+          "id": "d2-kings-canyon",
+          "title": "Kings Canyon Nonsense",
+          "location": {
+            "id": "kings-canyon-nonsense",
+            "name": "Kings Canyon Nonsense",
+            "address": "Placeholder stop details"
+          },
+          "arrive": "3:00 PM",
+          "duration": "3:00",
+          "leave": "6:00 PM",
+          "driveTime": "1:15",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Rachel Nazareth", "Nathan Lim", "Debarun Mukherjee", "Konnor von Emster"],
+          "notes": "Placeholder naming retained from planning sheet."
+        },
+        {
+          "id": "d2-ikigai",
+          "title": "Ikigai Sanctuary",
+          "location": {
+            "id": "ikigai-sanctuary",
+            "name": "Ikigai Sanctuary",
+            "address": "40580 Ruth Hill Rd, Yokuts Valley, CA 93675"
+          },
+          "arrive": "7:15 PM",
+          "duration": "",
+          "leave": "",
+          "driveTime": "",
+          "bathroom": true,
+          "food": true,
+          "presenters": [],
+          "notes": "Evening arrival; details to finalize."
+        }
+      ]
     },
     {
-      "id": "chat",
-      "name": "Mesh Chat",
-      "icon": "bubble.left.and.bubble.right",
-      "type": "chat"
+      "id": "day-3",
+      "title": "Day 3 (Sun)",
+      "date": "2026-05-31",
+      "startTime": "7:00 AM",
+      "routeURL": "https://maps.app.goo.gl/taDEummxUR5coMXcA",
+      "items": [
+        {
+          "id": "d3-ikigai",
+          "title": "Ikigai Sanctuary",
+          "location": {
+            "id": "ikigai-sanctuary",
+            "name": "Ikigai Sanctuary",
+            "address": "40580 Ruth Hill Rd, Yokuts Valley, CA 93675"
+          },
+          "arrive": "7:00 AM",
+          "duration": "1:30",
+          "leave": "8:30 AM",
+          "driveTime": "3:20",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Pablo Drake Hernandez"],
+          "notes": "Morning cultural context briefing."
+        },
+        {
+          "id": "d3-kern-lunch",
+          "title": "Kern River's Edge Campground + Lunch",
+          "location": {
+            "id": "kern-rivers-edge",
+            "name": "Kern River's Edge Campground",
+            "address": "15775 Sierra Way, Kernville, CA 93238"
+          },
+          "arrive": "11:50 AM",
+          "duration": "0:55",
+          "leave": "12:45 PM",
+          "driveTime": "0:15",
+          "bathroom": true,
+          "food": true,
+          "presenters": ["Tuyako Khristoforova"],
+          "notes": "Quickly drop stuff and change for river; dry bag lunch."
+        },
+        {
+          "id": "d3-rafting",
+          "title": "Rafting - Sierra South",
+          "location": {
+            "id": "sierra-south-rafting",
+            "name": "Rafting - Sierra South",
+            "address": "11300 Kernville Rd, Kernville, CA 93238"
+          },
+          "arrive": "1:00 PM",
+          "duration": "1:30",
+          "leave": "2:30 PM",
+          "driveTime": "0:35",
+          "bathroom": false,
+          "food": false,
+          "presenters": ["Richard Horak"],
+          "notes": "30 adults booked; need 2 additional slots."
+        },
+        {
+          "id": "d3-south-creek",
+          "title": "South Creek Falls / 7 Teacups / Hike / Beach",
+          "location": {
+            "id": "south-creek-falls",
+            "name": "South Creek Falls / 7 Teacups",
+            "address": "Placeholder coordinate"
+          },
+          "arrive": "3:05 PM",
+          "duration": "0:30",
+          "leave": "3:35 PM",
+          "driveTime": "1:00",
+          "bathroom": false,
+          "food": false,
+          "presenters": ["Maia Hannahs"],
+          "notes": "Plant and field guide segment."
+        },
+        {
+          "id": "d3-isabella-dam",
+          "title": "Isabella Dam",
+          "location": {
+            "id": "isabella-dam",
+            "name": "Isabella Dam",
+            "address": "Isabella Main Dam, Lake Isabella, CA 93240"
+          },
+          "arrive": "4:35 PM",
+          "duration": "0:30",
+          "leave": "5:05 PM",
+          "driveTime": "0:20",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Zachary Glaser"],
+          "notes": "Reservoir and snowpack downstream effects."
+        },
+        {
+          "id": "d3-kern-dinner",
+          "title": "Kern River's Edge Campground + Dinner",
+          "location": {
+            "id": "kern-rivers-edge",
+            "name": "Kern River's Edge Campground",
+            "address": "15775 Sierra Way, Kernville, CA 93238"
+          },
+          "arrive": "5:25 PM",
+          "duration": "2:00",
+          "leave": "7:25 PM",
+          "driveTime": "0:32",
+          "bathroom": true,
+          "food": true,
+          "presenters": [],
+          "notes": "Dinner + camp logistics."
+        },
+        {
+          "id": "d3-remington",
+          "title": "Remington Hot Springs",
+          "location": {
+            "id": "remington-hot-springs",
+            "name": "Remington Hot Springs",
+            "address": "Kern County hot springs area"
+          },
+          "arrive": "7:57 PM",
+          "duration": "2:00",
+          "leave": "9:57 PM",
+          "driveTime": "",
+          "bathroom": false,
+          "food": false,
+          "presenters": ["Simon Andren"],
+          "notes": "Geothermal topic slot."
+        }
+      ]
     },
     {
-      "id": "map",
-      "name": "Map",
-      "icon": "map",
-      "type": "map"
-    },
-    {
-      "id": "info",
-      "name": "Info",
-      "icon": "info.circle",
-      "type": "info"
+      "id": "day-4",
+      "title": "Day 4 (Mon)",
+      "date": "2026-06-01",
+      "startTime": "7:30 AM",
+      "routeURL": "https://maps.app.goo.gl/wqf8cqR5RHxx9z7X7",
+      "items": [
+        {
+          "id": "d4-kern-retreat",
+          "title": "Kern River's Edge Campground Retreat",
+          "location": {
+            "id": "kern-rivers-edge",
+            "name": "Kern River's Edge Campground",
+            "address": "15775 Sierra Way, Kernville, CA 93238"
+          },
+          "arrive": "7:30 AM",
+          "duration": "2:00",
+          "leave": "9:30 AM",
+          "driveTime": "3:10",
+          "bathroom": true,
+          "food": false,
+          "presenters": [],
+          "notes": "Pack up and retreat departure."
+        },
+        {
+          "id": "d4-soda-lake",
+          "title": "Soda Lake",
+          "location": {
+            "id": "soda-lake",
+            "name": "Soda Lake",
+            "address": "35.219592, -119.897953",
+            "latitude": 35.219592,
+            "longitude": -119.897953
+          },
+          "arrive": "12:40 PM",
+          "duration": "0:20",
+          "leave": "1:00 PM",
+          "driveTime": "0:10",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Korbi Thalhammer", "Annie Edwards"],
+          "notes": "Soda lake thenardite + valley fever context."
+        },
+        {
+          "id": "d4-painted-rock",
+          "title": "Native American Painted Rock + Lunch",
+          "location": {
+            "id": "painted-rock",
+            "name": "Native American Painted Rock",
+            "address": "35.14544, -119.8619",
+            "latitude": 35.14544,
+            "longitude": -119.8619
+          },
+          "arrive": "1:10 PM",
+          "duration": "1:00",
+          "leave": "2:10 PM",
+          "driveTime": "0:20",
+          "bathroom": false,
+          "food": true,
+          "presenters": [],
+          "notes": "Lunch stop with placeholder cultural notes."
+        },
+        {
+          "id": "d4-matre-ranch",
+          "title": "Matre Ranch Interpretive Site",
+          "location": {
+            "id": "matre-ranch",
+            "name": "Matre Ranch Interpretive Site",
+            "address": "35.090799, -119.630085",
+            "latitude": 35.090799,
+            "longitude": -119.630085
+          },
+          "arrive": "2:30 PM",
+          "duration": "0:20",
+          "leave": "2:50 PM",
+          "driveTime": "1:20",
+          "bathroom": true,
+          "food": false,
+          "presenters": [],
+          "notes": "Interpretive stop placeholder details."
+        },
+        {
+          "id": "d4-pine-mountain",
+          "title": "Pine Mountain General Store",
+          "location": {
+            "id": "pine-mountain-store",
+            "name": "Pine Mountain General Store",
+            "address": "2513 Freeman Dr, Frazier Park, CA 93225"
+          },
+          "arrive": "4:10 PM",
+          "duration": "0:30",
+          "leave": "4:40 PM",
+          "driveTime": "1:40",
+          "bathroom": true,
+          "food": false,
+          "presenters": ["Sophia Westerkamp"],
+          "notes": "Final regroup and road snacks."
+        },
+        {
+          "id": "d4-arms-circle",
+          "title": "Arms Circle return",
+          "location": {
+            "id": "arms-circle",
+            "name": "Arms Circle",
+            "address": "34.13616, -118.12675",
+            "latitude": 34.13616,
+            "longitude": -118.12675
+          },
+          "arrive": "6:20 PM",
+          "duration": "",
+          "leave": "",
+          "driveTime": "",
+          "bathroom": false,
+          "food": false,
+          "presenters": [],
+          "notes": "Trip closeout and drop-off."
+        }
+      ]
     }
   ],
-  "stages": [
+  "infoSections": [
     {
-      "id": "lands-end",
-      "name": "Lands End",
-      "description": "Main Stage",
-      "color": "#FF6B6B",
-      "geohash": "9q8yyk2",
-      "latitude": 37.7694,
-      "longitude": -122.4862
+      "id": "safety",
+      "title": "Safety",
+      "bullets": [
+        "Trip leaders: Nicolas Anderson, Joseph Kirschvink, Sophia Westerkamp.",
+        "Submit required trip contact information forms before departure.",
+        "Approved drivers and training records are coordinated with division staff.",
+        "Use buddy checks at each stop and hydrate before every drive block."
+      ]
     },
     {
-      "id": "twin-peaks",
-      "name": "Twin Peaks",
-      "description": "Second Stage",
-      "color": "#4ECDC4",
-      "geohash": "9q8yym1",
-      "latitude": 37.7701,
-      "longitude": -122.4831
+      "id": "offline",
+      "title": "Offline & Maps",
+      "bullets": [
+        "Mesh chat works without cell service; keep Bluetooth on.",
+        "Import each day route into Organic Maps before leaving service.",
+        "Map tab includes stop pins + live friend locations when sharing is enabled.",
+        "Use #announcements for high-priority updates from trip leads."
+      ]
     },
     {
-      "id": "sutro",
-      "name": "Sutro",
-      "description": "Electronic/Dance",
-      "color": "#9B59B6",
-      "geohash": "9q8yyk8",
-      "latitude": 37.7688,
-      "longitude": -122.4855
-    },
-    {
-      "id": "panhandle",
-      "name": "Panhandle",
-      "description": "Indie/Alternative", 
-      "color": "#F39C12",
-      "geohash": "9q8yyn3",
-      "latitude": 37.7712,
-      "longitude": -122.4820
-    },
-    {
-      "id": "grass-lands",
-      "name": "Grass Lands",
-      "description": "Cannabis & Chill",
-      "color": "#27AE60",
-      "geohash": "9q8yym5",
-      "latitude": 37.7705,
-      "longitude": -122.4845
+      "id": "logistics",
+      "title": "Logistics",
+      "bullets": [
+        "Dates: Fri May 29 - Mon Jun 1, 2026 (4 days / 3 nights).",
+        "Primary destinations include Mono Creek, Kings Canyon, and Kernville.",
+        "Vehicles: GPS F350 plus enterprise rental cars (per safety plan).",
+        "Placeholder notes remain for incomplete stop details and can be edited in future trip JSON."
+      ]
     }
   ],
-  "customChannels": [
-    {
-      "id": "meetup",
-      "name": "#meetup",
-      "description": "Find your friends, coordinate meetups",
-      "icon": "person.2.fill",
-      "color": "#3498DB"
-    },
-    {
-      "id": "lost-found",
-      "name": "#lost-found",
-      "description": "Lost items, found items",
-      "icon": "magnifyingglass",
-      "color": "#E74C3C"
-    },
-    {
-      "id": "rideshare",
-      "name": "#rideshare",
-      "description": "Share rides to/from the festival",
-      "icon": "car.fill",
-      "color": "#9B59B6"
-    },
-    {
-      "id": "food-tips",
-      "name": "#food-tips",
-      "description": "Best food vendors, short lines",
-      "icon": "fork.knife",
-      "color": "#F39C12"
-    },
-    {
-      "id": "setlist",
-      "name": "#setlist",
-      "description": "What's playing now, song IDs",
-      "icon": "music.note.list",
-      "color": "#1ABC9C"
-    }
-  ],
-  "sets": [
-    {
-      "id": "1",
-      "artist": "Headliner Friday",
-      "stage": "lands-end",
-      "day": "2026-08-07",
-      "start": "20:30",
-      "end": "22:00",
-      "genre": "Hip-Hop"
-    },
-    {
-      "id": "2", 
-      "artist": "Indie Band",
-      "stage": "twin-peaks",
-      "day": "2026-08-07",
-      "start": "19:00",
-      "end": "20:15",
-      "genre": "Indie Rock"
-    },
-    {
-      "id": "3",
-      "artist": "Electronic Act",
-      "stage": "sutro",
-      "day": "2026-08-07",
-      "start": "18:00",
-      "end": "19:30",
-      "genre": "Electronic"
-    },
-    {
-      "id": "4",
-      "artist": "Alt Band",
-      "stage": "panhandle",
-      "day": "2026-08-07",
-      "start": "17:00",
-      "end": "18:00",
-      "genre": "Alternative"
-    },
-    {
-      "id": "5",
-      "artist": "Chill Vibes",
-      "stage": "grass-lands",
-      "day": "2026-08-07",
-      "start": "14:00",
-      "end": "16:00",
-      "genre": "Ambient"
-    },
-    {
-      "id": "6",
-      "artist": "Headliner Saturday",
-      "stage": "lands-end",
-      "day": "2026-08-08",
-      "start": "20:30",
-      "end": "22:00",
-      "genre": "Pop"
-    },
-    {
-      "id": "7",
-      "artist": "DJ Set",
-      "stage": "sutro",
-      "day": "2026-08-08",
-      "start": "21:00",
-      "end": "22:00",
-      "genre": "House"
-    },
-    {
-      "id": "8",
-      "artist": "Rock Band",
-      "stage": "twin-peaks",
-      "day": "2026-08-08",
-      "start": "19:00",
-      "end": "20:15",
-      "genre": "Rock"
-    },
-    {
-      "id": "9",
-      "artist": "Headliner Sunday",
-      "stage": "lands-end",
-      "day": "2026-08-09",
-      "start": "20:00",
-      "end": "22:00",
-      "genre": "R&B"
-    },
-    {
-      "id": "10",
-      "artist": "Closing Act",
-      "stage": "twin-peaks", 
-      "day": "2026-08-09",
-      "start": "18:30",
-      "end": "19:45",
-      "genre": "Soul"
-    }
-  ],
-  "mapBounds": {
-    "northEast": {
-      "latitude": 37.7725,
-      "longitude": -122.4800
-    },
-    "southWest": {
-      "latitude": 37.7675,
-      "longitude": -122.4880
-    }
-  },
-  "pointsOfInterest": [
-    {
-      "id": "entrance-main",
-      "name": "Main Entrance",
-      "icon": "door.left.hand.open",
-      "latitude": 37.7690,
-      "longitude": -122.4870
-    },
-    {
-      "id": "entrance-fulton",
-      "name": "Fulton Entrance",
-      "icon": "door.left.hand.open",
-      "latitude": 37.7720,
-      "longitude": -122.4815
-    },
-    {
-      "id": "medical",
-      "name": "Medical Tent",
-      "icon": "cross.case.fill",
-      "latitude": 37.7698,
-      "longitude": -122.4840
-    },
-    {
-      "id": "info-booth",
-      "name": "Info Booth",
-      "icon": "info.circle.fill",
-      "latitude": 37.7695,
-      "longitude": -122.4850
-    },
-    {
-      "id": "water-station",
-      "name": "Water Station",
-      "icon": "drop.fill",
-      "latitude": 37.7702,
-      "longitude": -122.4835
-    }
-  ]
+  "mapConfig": {
+    "centerLatitude": 36.3,
+    "centerLongitude": -119.1,
+    "latitudeDelta": 3.4,
+    "longitudeDelta": 2.7,
+    "routeLinks": [
+      { "id": "route-day-1", "title": "Day 1 Route", "url": "https://maps.app.goo.gl/wvCerfVojKr4BpJG6" },
+      { "id": "route-day-2", "title": "Day 2 Route", "url": "https://maps.app.goo.gl/AizsiSRoXdM3ru5KA" },
+      { "id": "route-day-3", "title": "Day 3 Route", "url": "https://maps.app.goo.gl/taDEummxUR5coMXcA" },
+      { "id": "route-day-4", "title": "Day 4 Route", "url": "https://maps.app.goo.gl/wqf8cqR5RHxx9z7X7" }
+    ]
+  }
 }

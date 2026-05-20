@@ -163,7 +163,7 @@ struct FestivalInfoViewWithLocation: View {
                             .font(.system(.subheadline, design: .monospaced))
                             .foregroundColor(.secondary)
                         
-                        Text("Gates: \(festival.gatesOpen) • Music: \(festival.musicStart) - \(festival.musicEnd)")
+                        Text("\(scheduleManager.formatDayForDisplay(festival.dates.start)) - \(scheduleManager.formatDayForDisplay(festival.dates.end))")
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.secondary)
                     }
@@ -191,7 +191,7 @@ struct FestivalInfoViewWithLocation: View {
                 
                 // Tips section
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Festival Tips")
+                    Text("Trip Tips")
                         .font(.system(.headline, design: .monospaced))
                         .foregroundColor(textColor)
                     
@@ -208,7 +208,7 @@ struct FestivalInfoViewWithLocation: View {
                 Button(action: { festivalManager.disable() }) {
                     HStack {
                         Image(systemName: "xmark.circle")
-                        Text("Exit Festival Mode")
+                        Text("Exit Trip Mode")
                     }
                     .font(.system(.body, design: .monospaced))
                     .foregroundColor(.red)

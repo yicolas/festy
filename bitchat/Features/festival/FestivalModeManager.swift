@@ -1,57 +1,50 @@
-//
-// FestivalModeManager.swift
-// FestMest
-//
-// Global state manager for festival mode
-//
-
 import SwiftUI
 import Combine
 
-/// Manages festival mode state across the app
-/// Persists to UserDefaults so festival mode survives app restarts
-/// For FestMest, festival mode defaults to ON (true)
+/// Manages trip mode state across the app.
+/// Persists to UserDefaults and defaults to enabled for this app's offline-trip UX.
 @MainActor
-class FestivalModeManager: ObservableObject {
-    static let shared = FestivalModeManager()
-    
+class TripModeManager: ObservableObject {
+    static let shared = TripModeManager()
+
     private let defaults = UserDefaults.standard
-    private let enabledKey = "festivalModeEnabled"
-    private let hasLaunchedKey = "festivalModeHasLaunched"
-    
-    /// Whether festival mode is currently enabled
+    private let enabledKey = "tripModeEnabled"
+    private let hasLaunchedKey = "tripModeHasLaunched"
+    private let legacyEnabledKey = "festivalModeEnabled"
+
     @Published var isEnabled: Bool {
         didSet {
             defaults.set(isEnabled, forKey: enabledKey)
         }
     }
-    
+
     private init() {
-        // For FestMest: default to true on first launch
-        // After first launch, respect user preference
         if defaults.bool(forKey: hasLaunchedKey) {
-            // Returning user - use their saved preference
-            self.isEnabled = defaults.bool(forKey: enabledKey)
-        } else {
-            // First launch - default to festival mode ON
-            self.isEnabled = true
-            defaults.set(true, forKey: enabledKey)
-            defaults.set(true, forKey: hasLaunchedKey)
+            isEnabled = defaults.bool(forKey: enabledKey)
+            return
         }
+
+        if defaults.object(forKey: legacyEnabledKey) != nil {
+            isEnabled = defaults.bool(forKey: legacyEnabledKey)
+        } else {
+            isEnabled = true
+        }
+
+        defaults.set(isEnabled, forKey: enabledKey)
+        defaults.set(true, forKey: hasLaunchedKey)
     }
-    
-    /// Toggle festival mode on/off
+
     func toggle() {
         isEnabled.toggle()
     }
-    
-    /// Enable festival mode
+
     func enable() {
         isEnabled = true
     }
-    
-    /// Disable festival mode
+
     func disable() {
         isEnabled = false
     }
 }
+
+typealias FestivalModeManager = TripModeManager
