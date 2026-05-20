@@ -2,7 +2,7 @@
 // FestivalGroupModels.swift
 // bitchat
 //
-// Data models for user-created festival groups with invite-chain authorization
+// Data models for user-created trip groups with invite-chain authorization
 // Uses Schnorr signatures (BIP-340) for cryptographic verification
 //
 
@@ -10,23 +10,38 @@ import Foundation
 import CryptoKit
 import P256K
 
-// MARK: - Festival Group Model
+// MARK: - Trip Group Model
 
-/// A user-created group within festival mode
+/// A user-created group within trip mode
 /// Groups have their own channels and use invite-chain authorization
-struct FestivalGroup: Codable, Identifiable {
+struct TripGroup: Codable, Identifiable {
     let id: String                      // Unique group ID (hash of creator + timestamp)
     let name: String
     let description: String
     let creatorPubkey: String           // Nostr pubkey of group creator
     let createdAt: Date
-    let festivalId: String?             // Optional: link to a specific festival
+    let tripId: String?                 // Optional: link to a specific trip
     let geohash: String?                // Optional: location-based discovery
     let scheduledStart: Date?           // Optional: for scheduled meetups
     let scheduledEnd: Date?
     let channels: [GroupChannel]        // Sub-chats within the group
     let isPrivate: Bool                 // If true, requires invite chain
     let maxDepth: Int                   // Maximum invite chain depth (default 5)
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case description
+        case creatorPubkey
+        case createdAt
+        case tripId = "festivalId"      // Keep wire-format key for backward compatibility
+        case geohash
+        case scheduledStart
+        case scheduledEnd
+        case channels
+        case isPrivate
+        case maxDepth
+    }
     
     /// Channel within a group
     struct GroupChannel: Codable, Identifiable {
@@ -104,7 +119,7 @@ struct InviteChain: Codable {
     
     /// Verify this chain is valid for the given group
     /// Returns the chain depth if valid, nil if invalid
-    func verify(group: FestivalGroup, revocations: [GroupRevocation], signatureVerifier: SignatureVerifier) -> Int? {
+    func verify(group: TripGroup, revocations: [GroupRevocation], signatureVerifier: SignatureVerifier) -> Int? {
         // Empty chain is only valid for creator
         if chain.isEmpty {
             return memberPubkey == group.creatorPubkey ? 0 : nil
@@ -154,11 +169,11 @@ struct InviteChain: Codable {
 // MARK: - Nostr Event Kinds for Groups
 
 extension NostrProtocol.EventKind {
-    static let festivalGroup = NostrProtocol.EventKind(rawValue: 30078)!     // Replaceable: Group definition
-    static let groupInvite = NostrProtocol.EventKind(rawValue: 30079)!       // Replaceable: Invite
-    static let groupRevoke = NostrProtocol.EventKind(rawValue: 30080)!       // Replaceable: Revocation
-    static let groupMessage = NostrProtocol.EventKind(rawValue: 20078)!      // Ephemeral: Group chat message
-    static let groupEpoch = NostrProtocol.EventKind(rawValue: 30081)!        // Replaceable: Membership epoch
+    static let tripGroup = NostrProtocol.EventKind(rawValue: 30078)!        // Replaceable: Group definition
+    static let groupInvite = NostrProtocol.EventKind(rawValue: 30079)!      // Replaceable: Invite
+    static let groupRevoke = NostrProtocol.EventKind(rawValue: 30080)!      // Replaceable: Revocation
+    static let groupMessage = NostrProtocol.EventKind(rawValue: 20078)!     // Ephemeral: Group chat message
+    static let groupEpoch = NostrProtocol.EventKind(rawValue: 30081)!       // Replaceable: Membership epoch
 }
 
 // Convenience typealias
@@ -318,7 +333,7 @@ struct GroupMessage: Codable, Identifiable {
               groupTag.count > 1,
               let channelTag = event.tags.first(where: { $0.first == "channel" }),
               channelTag.count > 1 else {
-            throw FestivalGroupError.invalidEventContent
+            throw TripGroupError.invalidEventContent
         }
         
         let replyTo = event.tags.first(where: { $0.first == "e" && $0.count > 3 && $0[3] == "reply" })?[1]
@@ -337,7 +352,7 @@ struct GroupMessage: Codable, Identifiable {
 
 // MARK: - Nostr Event Conversion
 
-extension FestivalGroup {
+extension TripGroup {
     /// Convert to Nostr event for publishing
     func toNostrEvent(signer: SignatureProvider) throws -> NostrEvent {
         let encoder = JSONEncoder()
@@ -348,8 +363,8 @@ extension FestivalGroup {
         var tags: [[String]] = [
             ["d", id],  // NIP-33: replaceable event identifier
         ]
-        if let festivalId = festivalId {
-            tags.append(["festival", festivalId])
+        if let tripId = tripId {
+            tags.append(["trip", tripId])
         }
         if let geohash = geohash {
             tags.append(["g", geohash])
@@ -359,20 +374,20 @@ extension FestivalGroup {
         return NostrEvent(
             pubkey: signer.pubkey,
             createdAt: createdAt,
-            kind: .festivalGroup,
+            kind: .tripGroup,
             tags: tags,
             content: content
         )
     }
     
     /// Parse from Nostr event
-    static func from(event: NostrEvent) throws -> FestivalGroup {
+    static func from(event: NostrEvent) throws -> TripGroup {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
         guard let data = event.content.data(using: .utf8) else {
-            throw FestivalGroupError.invalidEventContent
+            throw TripGroupError.invalidEventContent
         }
-        return try decoder.decode(FestivalGroup.self, from: data)
+        return try decoder.decode(TripGroup.self, from: data)
     }
 }
 
@@ -403,7 +418,7 @@ extension GroupInvite {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
         guard let data = event.content.data(using: .utf8) else {
-            throw FestivalGroupError.invalidEventContent
+            throw TripGroupError.invalidEventContent
         }
         return try decoder.decode(GroupInvite.self, from: data)
     }
@@ -436,7 +451,7 @@ extension GroupRevocation {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
         guard let data = event.content.data(using: .utf8) else {
-            throw FestivalGroupError.invalidEventContent
+            throw TripGroupError.invalidEventContent
         }
         return try decoder.decode(GroupRevocation.self, from: data)
     }
@@ -444,7 +459,7 @@ extension GroupRevocation {
 
 // MARK: - Errors
 
-enum FestivalGroupError: Error {
+enum TripGroupError: Error {
     case invalidEventContent
     case invalidSignature
     case inviteChainTooDeep
@@ -463,7 +478,7 @@ struct GroupNostrFilter {
     let groupId: String
     
     /// Event kind raw values
-    private static let festivalGroupKind = 30078
+    private static let tripGroupKind = 30078
     private static let groupInviteKind = 30079
     private static let groupRevokeKind = 30080
     private static let groupMessageKind = 20078
@@ -471,7 +486,7 @@ struct GroupNostrFilter {
     /// Filter for group definition updates
     var groupFilter: [String: Any] {
         [
-            "kinds": [Self.festivalGroupKind],
+            "kinds": [Self.tripGroupKind],
             "#d": [groupId]
         ]
     }

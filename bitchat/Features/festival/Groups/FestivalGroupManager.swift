@@ -2,7 +2,7 @@
 // FestivalGroupManager.swift
 // bitchat
 //
-// Service for creating and managing festival groups with invite-chain auth
+// Service for creating and managing trip groups with invite-chain auth
 // Uses local caching for O(1) membership verification after first check
 //
 
@@ -11,24 +11,24 @@ import Combine
 
 // MARK: - Group Event Kinds (Nostr NIP-compatible)
 
-/// Event kind constants for festival groups
+/// Event kind constants for trip groups
 private enum GroupEventKind {
-    static let festivalGroup = 30078    // Replaceable: Group definition
+    static let tripGroup = 30078        // Replaceable: Group definition
     static let groupInvite = 30079      // Replaceable: Invite
     static let groupRevoke = 30080      // Replaceable: Revocation
     static let groupMessage = 20078     // Ephemeral: Group chat message
 }
 
-/// Manages user-created festival groups and their authorization chains
+/// Manages user-created trip groups and their authorization chains
 @MainActor
-final class FestivalGroupManager: ObservableObject {
-    static let shared = FestivalGroupManager()
+final class TripGroupManager: ObservableObject {
+    static let shared = TripGroupManager()
     
     // MARK: - Published State
     
-    @Published private(set) var myGroups: [FestivalGroup] = []           // Groups I created
-    @Published private(set) var joinedGroups: [FestivalGroup] = []       // Groups I'm a member of
-    @Published private(set) var pendingInvites: [GroupInvite] = []       // Invites I haven't accepted
+    @Published private(set) var myGroups: [TripGroup] = []           // Groups I created
+    @Published private(set) var joinedGroups: [TripGroup] = []       // Groups I'm a member of
+    @Published private(set) var pendingInvites: [GroupInvite] = []   // Invites I haven't accepted
     @Published private(set) var isLoading = false
     
     // MARK: - Dependencies
@@ -40,7 +40,7 @@ final class FestivalGroupManager: ObservableObject {
     // MARK: - Internal State
     
     /// All known groups (by ID)
-    private var groups: [String: FestivalGroup] = [:]
+    private var groups: [String: TripGroup] = [:]
     
     /// All invites for each group (by group ID)
     private var invitesByGroup: [String: [GroupInvite]] = [:]
@@ -101,38 +101,38 @@ final class FestivalGroupManager: ObservableObject {
     
     // MARK: - Group Creation
     
-    /// Create a new festival group
+    /// Create a new trip group
     func createGroup(
         name: String,
         description: String,
-        festivalId: String? = nil,
+        tripId: String? = nil,
         geohash: String? = nil,
         scheduledStart: Date? = nil,
         scheduledEnd: Date? = nil,
-        channels: [FestivalGroup.GroupChannel] = [],
+        channels: [TripGroup.GroupChannel] = [],
         isPrivate: Bool = true,
         maxDepth: Int = 5
-    ) throws -> FestivalGroup {
+    ) throws -> TripGroup {
         guard let signer = signatureProvider else {
-            throw FestivalGroupError.encryptionNotConfigured
+            throw TripGroupError.encryptionNotConfigured
         }
         
         let now = Date()
-        let id = FestivalGroup.generateId(creatorPubkey: signer.pubkey, createdAt: now)
+        let id = TripGroup.generateId(creatorPubkey: signer.pubkey, createdAt: now)
         
         // Default channels if none provided
         let groupChannels = channels.isEmpty ? [
-            FestivalGroup.GroupChannel(id: "general", name: "#general", description: "Main chat", icon: "bubble.left.and.bubble.right"),
-            FestivalGroup.GroupChannel(id: "meetup", name: "#meetup", description: "Coordinate meetups", icon: "mappin.and.ellipse")
+            TripGroup.GroupChannel(id: "general", name: "#general", description: "Main chat", icon: "bubble.left.and.bubble.right"),
+            TripGroup.GroupChannel(id: "meetup", name: "#meetup", description: "Coordinate meetups", icon: "mappin.and.ellipse")
         ] : channels
         
-        let group = FestivalGroup(
+        let group = TripGroup(
             id: id,
             name: name,
             description: description,
             creatorPubkey: signer.pubkey,
             createdAt: now,
-            festivalId: festivalId,
+            tripId: tripId,
             geohash: geohash,
             scheduledStart: scheduledStart,
             scheduledEnd: scheduledEnd,
@@ -170,16 +170,16 @@ final class FestivalGroupManager: ObservableObject {
         inviteePubkey: String
     ) throws -> GroupInvite {
         guard let signer = signatureProvider else {
-            throw FestivalGroupError.encryptionNotConfigured
+            throw TripGroupError.encryptionNotConfigured
         }
         
         guard let group = groups[groupId] else {
-            throw FestivalGroupError.groupNotFound
+            throw TripGroupError.groupNotFound
         }
         
         // Get my chain to determine depth
         guard let myChain = myChains[groupId] else {
-            throw FestivalGroupError.notAuthorizedToInvite
+            throw TripGroupError.notAuthorizedToInvite
         }
         
         let myDepth = myChain.chain.count
@@ -187,14 +187,14 @@ final class FestivalGroupManager: ObservableObject {
         
         // Check depth limit
         guard newDepth <= group.maxDepth else {
-            throw FestivalGroupError.inviteChainTooDeep
+            throw TripGroupError.inviteChainTooDeep
         }
         
         // Check invitee isn't already revoked
         let revocations = revocationsByGroup[groupId] ?? []
         let revokedPubkeys = Set(revocations.map { $0.revokedPubkey })
         guard !revokedPubkeys.contains(inviteePubkey) else {
-            throw FestivalGroupError.memberAlreadyRevoked
+            throw TripGroupError.memberAlreadyRevoked
         }
         
         // Create and sign invite
@@ -237,12 +237,12 @@ final class FestivalGroupManager: ObservableObject {
     /// Accept an invite and join a group
     func acceptInvite(_ invite: GroupInvite) throws {
         guard let signer = signatureProvider else {
-            throw FestivalGroupError.encryptionNotConfigured
+            throw TripGroupError.encryptionNotConfigured
         }
         
         // Verify the invite is for me
         guard invite.inviteePubkey == signer.pubkey else {
-            throw FestivalGroupError.invalidSignature
+            throw TripGroupError.invalidSignature
         }
         
         // Build my chain by finding all ancestors
@@ -252,12 +252,12 @@ final class FestivalGroupManager: ObservableObject {
         guard let group = groups[invite.groupId] else {
             // Fetch group from relay if not cached
             Task { await fetchGroup(id: invite.groupId) }
-            throw FestivalGroupError.groupNotFound
+            throw TripGroupError.groupNotFound
         }
         
         let revocations = revocationsByGroup[invite.groupId] ?? []
         guard chain.verify(group: group, revocations: revocations, signatureVerifier: signatureVerifier) != nil else {
-            throw FestivalGroupError.invalidSignature
+            throw TripGroupError.invalidSignature
         }
         
         // Store my chain
@@ -299,7 +299,7 @@ final class FestivalGroupManager: ObservableObject {
         }
         
         guard let signer = signatureProvider else {
-            throw FestivalGroupError.encryptionNotConfigured
+            throw TripGroupError.encryptionNotConfigured
         }
         
         return InviteChain(groupId: invite.groupId, memberPubkey: signer.pubkey, chain: chain)
@@ -314,22 +314,22 @@ final class FestivalGroupManager: ObservableObject {
         reason: String? = nil
     ) throws -> GroupRevocation {
         guard let signer = signatureProvider else {
-            throw FestivalGroupError.encryptionNotConfigured
+            throw TripGroupError.encryptionNotConfigured
         }
         
         guard let group = groups[groupId] else {
-            throw FestivalGroupError.groupNotFound
+            throw TripGroupError.groupNotFound
         }
         
         // Verify I can revoke this member (I must be upstream)
         guard canRevoke(revokerPubkey: signer.pubkey, targetPubkey: memberPubkey, groupId: groupId) else {
-            throw FestivalGroupError.notAuthorizedToRevoke
+            throw TripGroupError.notAuthorizedToRevoke
         }
         
         // Check not already revoked
         let existingRevocations = revocationsByGroup[groupId] ?? []
         guard !existingRevocations.contains(where: { $0.revokedPubkey == memberPubkey }) else {
-            throw FestivalGroupError.memberAlreadyRevoked
+            throw TripGroupError.memberAlreadyRevoked
         }
         
         // Create and sign revocation
@@ -455,7 +455,7 @@ final class FestivalGroupManager: ObservableObject {
         
         // Find the invite where this pubkey is invitee
         guard let theirInvite = groupInvites.first(where: { $0.inviteePubkey == pubkey }) else {
-            throw FestivalGroupError.groupNotFound
+            throw TripGroupError.groupNotFound
         }
         
         var chain: [GroupInvite] = []
@@ -531,12 +531,12 @@ final class FestivalGroupManager: ObservableObject {
     /// Send a message to a group channel
     func sendMessage(groupId: String, channelId: String, content: String, replyTo: String? = nil) async throws -> GroupMessage {
         guard let signer = signatureProvider else {
-            throw FestivalGroupError.encryptionNotConfigured
+            throw TripGroupError.encryptionNotConfigured
         }
         
         // Verify we're a member
         guard isMember(pubkey: signer.pubkey, groupId: groupId) else {
-            throw FestivalGroupError.notAuthorizedToInvite
+            throw TripGroupError.notAuthorizedToInvite
         }
         
         let message = GroupMessage(
@@ -570,7 +570,7 @@ final class FestivalGroupManager: ObservableObject {
     /// Publish a Nostr event to relays
     private func publishEvent(_ event: NostrEvent) async throws {
         guard let identity = identity else {
-            throw FestivalGroupError.encryptionNotConfigured
+            throw TripGroupError.encryptionNotConfigured
         }
         
         // Sign the event with our identity
@@ -679,7 +679,7 @@ final class FestivalGroupManager: ObservableObject {
     /// Fetch a group definition from relay
     private func fetchGroup(id: String) async {
         var filter = NostrFilter()
-        filter.kinds = [GroupEventKind.festivalGroup]
+        filter.kinds = [GroupEventKind.tripGroup]
         filter.setTagFilter("d", values: [id])
         filter.limit = 1
         
@@ -704,10 +704,10 @@ final class FestivalGroupManager: ObservableObject {
     
     /// Handle incoming group definition
     private func handleIncomingGroup(_ event: NostrEvent) {
-        guard event.kind == GroupEventKind.festivalGroup else { return }
+        guard event.kind == GroupEventKind.tripGroup else { return }
         
         do {
-            let group = try FestivalGroup.from(event: event)
+            let group = try TripGroup.from(event: event)
             groups[group.id] = group
             
             // Check if this is one of my groups

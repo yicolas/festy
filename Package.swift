@@ -40,7 +40,8 @@ let package = Package(
                 "BitchatApp.swift"  // Excluded - using FestMestApp.swift instead
             ],
             resources: [
-                .process("Localizable.xcstrings")
+                .process("Localizable.xcstrings"),
+                .process("Features/festival/TripSchedule.json")
             ]
         ),
         .testTarget(

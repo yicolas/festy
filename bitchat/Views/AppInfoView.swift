@@ -317,7 +317,7 @@ struct DataDisclosureSection: View {
                             .font(.system(size: 14, weight: .semibold, design: .monospaced))
                             .foregroundColor(textColor)
                         
-                        Text("Location channels, distant private messages, and festival groups use third-party Nostr relays when internet is available.")
+                        Text("Location channels, distant private messages, and trip groups use third-party Nostr relays when internet is available.")
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(secondaryTextColor)
                             .fixedSize(horizontal: false, vertical: true)

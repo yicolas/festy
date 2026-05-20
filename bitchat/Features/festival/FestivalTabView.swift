@@ -2,19 +2,19 @@
 // FestivalTabView.swift
 // bitchat
 //
-// Festival mode with schedule and chat integration
+// Trip mode with schedule and chat integration
 //
 
 import SwiftUI
 
-/// Main festival mode view with tab navigation
+/// Main trip mode view with tab navigation
 /// Integrates schedule viewing with bitchat messaging
-struct FestivalTabView: View {
+struct TripTabView: View {
     @EnvironmentObject var viewModel: ChatViewModel
     @Environment(\.colorScheme) var colorScheme
-    @State private var selectedTab: FestivalTab = .schedule
+    @State private var selectedTab: TabSelection = .schedule
     
-    enum FestivalTab: String, CaseIterable {
+    enum TabSelection: String, CaseIterable {
         case schedule = "Schedule"
         case chat = "Chat"
         
@@ -35,7 +35,7 @@ struct FestivalTabView: View {
             // Content
             switch selectedTab {
             case .schedule:
-                FestivalScheduleView()
+                TripScheduleView()
             case .chat:
                 // Return to regular chat
                 Text("Switch to Chat tab in main app")
@@ -51,7 +51,7 @@ struct FestivalTabView: View {
     
     private var tabBar: some View {
         HStack {
-            ForEach(FestivalTab.allCases, id: \.self) { tab in
+            ForEach(TabSelection.allCases, id: \.self) { tab in
                 Button(action: { selectedTab = tab }) {
                     VStack(spacing: 4) {
                         Image(systemName: tab.icon)
@@ -69,15 +69,15 @@ struct FestivalTabView: View {
     }
 }
 
-// MARK: - Festival Mode Toggle
+// MARK: - Trip Mode Toggle
 
-/// A view modifier that can be applied to ContentView to enable festival mode
-struct FestivalModeModifier: ViewModifier {
-    @Binding var isFestivalModeEnabled: Bool
+/// A view modifier that can be applied to ContentView to enable trip mode
+struct TripModeModifier: ViewModifier {
+    @Binding var isTripModeEnabled: Bool
     
     func body(content: Content) -> some View {
-        if isFestivalModeEnabled {
-            FestivalTabView()
+        if isTripModeEnabled {
+            TripTabView()
         } else {
             content
         }
@@ -85,16 +85,16 @@ struct FestivalModeModifier: ViewModifier {
 }
 
 extension View {
-    func festivalMode(enabled: Binding<Bool>) -> some View {
-        modifier(FestivalModeModifier(isFestivalModeEnabled: enabled))
+    func tripMode(enabled: Binding<Bool>) -> some View {
+        modifier(TripModeModifier(isTripModeEnabled: enabled))
     }
 }
 
-// MARK: - Festival Mode Menu Button
+// MARK: - Trip Mode Menu Button
 
-/// Button to toggle festival mode, can be added to app info or settings
-struct FestivalModeButton: View {
-    @Binding var isFestivalModeEnabled: Bool
+/// Button to toggle trip mode, can be added to app info or settings
+struct TripModeButton: View {
+    @Binding var isTripModeEnabled: Bool
     @Environment(\.colorScheme) var colorScheme
     
     private var textColor: Color {
@@ -102,17 +102,17 @@ struct FestivalModeButton: View {
     }
     
     var body: some View {
-        Button(action: { isFestivalModeEnabled.toggle() }) {
+        Button(action: { isTripModeEnabled.toggle() }) {
             HStack {
-                Image(systemName: isFestivalModeEnabled ? "tent.fill" : "tent")
+                Image(systemName: isTripModeEnabled ? "tent.fill" : "tent")
                     .foregroundColor(textColor)
                 
-                Text(isFestivalModeEnabled ? "Exit Festival Mode" : "Enter Festival Mode")
+                Text(isTripModeEnabled ? "Exit Trip Mode" : "Enter Trip Mode")
                     .font(.system(.body, design: .monospaced))
                 
                 Spacer()
                 
-                if isFestivalModeEnabled {
+                if isTripModeEnabled {
                     Text("ON")
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(.white)
@@ -123,7 +123,7 @@ struct FestivalModeButton: View {
                 }
             }
             .padding()
-            .background(isFestivalModeEnabled ? textColor.opacity(0.1) : Color.clear)
+            .background(isTripModeEnabled ? textColor.opacity(0.1) : Color.clear)
             .cornerRadius(8)
         }
         .buttonStyle(.plain)
@@ -133,9 +133,9 @@ struct FestivalModeButton: View {
 // MARK: - Preview
 
 #if DEBUG
-struct FestivalTabView_Previews: PreviewProvider {
+struct TripTabView_Previews: PreviewProvider {
     static var previews: some View {
-        FestivalTabView()
+        TripTabView()
     }
 }
 #endif

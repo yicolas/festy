@@ -1,8 +1,8 @@
 //
-// FestivalGroupTests.swift
+// TripGroupTests.swift
 // bitchatTests
 //
-// Tests for festival groups with invite-chain authorization
+// Tests for trip groups with invite-chain authorization
 //
 
 import Testing
@@ -31,17 +31,17 @@ struct MockSignatureProvider: SignatureProvider {
     }
 }
 
-// MARK: - Festival Group Model Tests
+// MARK: - Trip Group Model Tests
 
-struct FestivalGroupModelTests {
+struct TripGroupModelTests {
     
     @Test
     func group_generateId_isDeterministic() {
         let pubkey = "abc123"
         let date = Date(timeIntervalSince1970: 1700000000)
         
-        let id1 = FestivalGroup.generateId(creatorPubkey: pubkey, createdAt: date)
-        let id2 = FestivalGroup.generateId(creatorPubkey: pubkey, createdAt: date)
+        let id1 = TripGroup.generateId(creatorPubkey: pubkey, createdAt: date)
+        let id2 = TripGroup.generateId(creatorPubkey: pubkey, createdAt: date)
         
         #expect(id1 == id2)
         #expect(id1.count == 32)  // 16 bytes = 32 hex chars
@@ -51,9 +51,9 @@ struct FestivalGroupModelTests {
     func group_generateId_differentInputsProduceDifferentIds() {
         let date = Date(timeIntervalSince1970: 1700000000)
         
-        let id1 = FestivalGroup.generateId(creatorPubkey: "alice", createdAt: date)
-        let id2 = FestivalGroup.generateId(creatorPubkey: "bob", createdAt: date)
-        let id3 = FestivalGroup.generateId(creatorPubkey: "alice", createdAt: date.addingTimeInterval(1))
+        let id1 = TripGroup.generateId(creatorPubkey: "alice", createdAt: date)
+        let id2 = TripGroup.generateId(creatorPubkey: "bob", createdAt: date)
+        let id3 = TripGroup.generateId(creatorPubkey: "alice", createdAt: date.addingTimeInterval(1))
         
         #expect(id1 != id2)
         #expect(id1 != id3)
@@ -62,7 +62,7 @@ struct FestivalGroupModelTests {
     
     @Test
     func groupChannel_identifiable() {
-        let channel = FestivalGroup.GroupChannel(
+        let channel = TripGroup.GroupChannel(
             id: "general",
             name: "#general",
             description: "Main chat",
@@ -517,15 +517,15 @@ struct SignableDataTests {
 private func makeTestGroup(
     creatorPubkey: String,
     maxDepth: Int = 5
-) -> FestivalGroup {
+) -> TripGroup {
     let now = Date()
-    return FestivalGroup(
-        id: FestivalGroup.generateId(creatorPubkey: creatorPubkey, createdAt: now),
+    return TripGroup(
+        id: TripGroup.generateId(creatorPubkey: creatorPubkey, createdAt: now),
         name: "Test Group",
         description: "A test group",
         creatorPubkey: creatorPubkey,
         createdAt: now,
-        festivalId: nil,
+        tripId: nil,
         geohash: nil,
         scheduledStart: nil,
         scheduledEnd: nil,
@@ -563,19 +563,19 @@ struct CleartextEncryptorTests {
 
 // MARK: - Tab Type Tests
 
-struct FestivalTabTypeTests {
+struct TripTabTypeTests {
     
     @Test
     func tabType_groups_exists() {
         // Verify the groups tab type is defined
-        let groupsType = FestivalTab.TabType.groups
+        let groupsType = TripTab.TabType.groups
         #expect(groupsType.rawValue == "groups")
     }
     
     @Test
     func defaultTabs_canIncludeGroups() {
         // Verify groups tab can be created
-        let groupsTab = FestivalTab(
+        let groupsTab = TripTab(
             id: "groups",
             name: "Groups",
             icon: "person.3",
