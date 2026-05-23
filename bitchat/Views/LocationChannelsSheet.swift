@@ -14,6 +14,10 @@ struct LocationChannelsSheet: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var customGeohash: String = ""
     @State private var customError: String? = nil
+    @ObservedObject private var carStore = CarAssignmentStore.shared
+    @State private var showingCarPrompt: Bool = false
+    @State private var driverEntry: String = ""
+    @State private var carsExpanded: Bool = true
 
     private var backgroundColor: Color { colorScheme == .dark ? .black : .white }
 
@@ -183,6 +187,8 @@ struct LocationChannelsSheet: View {
     private var channelList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
+                tripChannelsSection
+
                 channelRow(title: Strings.meshTitle(meshCount()), subtitlePrefix: Strings.subtitlePrefix(geohash: "bluetooth", coverage: bluetoothRangeString()), isSelected: isMeshSelected, titleColor: standardBlue, titleBold: meshCount() > 0) {
                     manager.select(ChannelID.mesh)
                     isPresented = false
@@ -483,6 +489,231 @@ struct LocationChannelsSheet: View {
         default: return .block
         }
     }
+
+    @ViewBuilder
+    fileprivate var tripChannelsSection: some View {
+        let channels = TripScheduleManager.shared.channels
+        if !channels.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Trip Channels")
+                        .font(.bitchatSystem(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    if let active = viewModel.hashtagFilter, !active.isEmpty {
+                        Button(action: {
+                            viewModel.hashtagFilter = nil
+                            isPresented = false
+                        }) {
+                            Text("clear filter")
+                                .font(.bitchatSystem(size: 11, design: .monospaced))
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 4)
+                .padding(.bottom, 2)
+
+                ForEach(channels) { channel in
+                    if channel.id == "cars" {
+                        carsChannelRow(channel: channel)
+                        if carsExpanded {
+                            carsSubChannelsRows
+                        }
+                    } else {
+                        regularChannelRow(channel: channel)
+                    }
+                }
+
+                Divider()
+                    .padding(.vertical, 6)
+            }
+            .alert("Who's driving your car?", isPresented: $showingCarPrompt) {
+                TextField("driver's first name", text: $driverEntry)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    #endif
+                Button("Cancel", role: .cancel) { driverEntry = "" }
+                Button("Join car") {
+                    let name = driverEntry.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !name.isEmpty else { return }
+                    carStore.driver = name
+                    viewModel.hashtagFilter = CarAssignmentStore.tag(forDriver: name)
+                    manager.select(ChannelID.mesh)
+                    driverEntry = ""
+                    isPresented = false
+                }
+                if carStore.driver != nil {
+                    Button("Leave current car", role: .destructive) {
+                        carStore.driver = nil
+                        driverEntry = ""
+                    }
+                }
+            } message: {
+                Text("Enter your driver's first name. Everyone in the same car uses the same name so messages stay scoped to your vehicle.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    fileprivate func regularChannelRow(channel: TripChannel) -> some View {
+        let isActive = (viewModel.hashtagFilter ?? "") == channel.name
+        Button(action: {
+            viewModel.hashtagFilter = channel.name
+            manager.select(ChannelID.mesh)
+            isPresented = false
+        }) {
+            HStack(spacing: 10) {
+                Image(systemName: channel.icon ?? "number")
+                    .foregroundColor(standardOrange)
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(channel.name)
+                        .font(.bitchatSystem(size: 14, weight: isActive ? .bold : .regular, design: .monospaced))
+                        .foregroundColor(isActive ? standardOrange : .primary)
+                    Text(channel.description)
+                        .font(.bitchatSystem(size: 10, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                if isActive {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(standardOrange)
+                }
+            }
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    fileprivate func carsChannelRow(channel: TripChannel) -> some View {
+        let activeIsCar = (viewModel.hashtagFilter ?? "").hasPrefix("#car-")
+        HStack(spacing: 10) {
+            Button(action: { carsExpanded.toggle() }) {
+                Image(systemName: carsExpanded ? "chevron.down" : "chevron.right")
+                    .font(.bitchatSystem(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 16)
+            }
+            .buttonStyle(.plain)
+
+            Button(action: {
+                driverEntry = carStore.driver ?? ""
+                showingCarPrompt = true
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: channel.icon ?? "car.fill")
+                        .foregroundColor(standardOrange)
+                        .frame(width: 22)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(channel.name)
+                                .font(.bitchatSystem(size: 14, weight: activeIsCar ? .bold : .regular, design: .monospaced))
+                                .foregroundColor(activeIsCar ? standardOrange : .primary)
+                            if let driver = carStore.driver, !driver.isEmpty {
+                                Text("· \(driver)")
+                                    .font(.bitchatSystem(size: 11, design: .monospaced))
+                                    .foregroundColor(standardOrange)
+                            }
+                        }
+                        Text(channel.description)
+                            .font(.bitchatSystem(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Discover all `#car-{driver}` tags currently in the timeline so users can
+    /// jump straight into any existing car chat without re-typing the driver.
+    private var discoveredCarDrivers: [String] {
+        let regex = try? NSRegularExpression(pattern: "#car-([a-zA-Z0-9-]+)", options: .caseInsensitive)
+        guard let regex else { return [] }
+        var seen: Set<String> = []
+        for message in viewModel.messages {
+            let content = message.content
+            let nsRange = NSRange(content.startIndex..., in: content)
+            let matches = regex.matches(in: content, options: [], range: nsRange)
+            for match in matches {
+                if let r = Range(match.range(at: 1), in: content) {
+                    seen.insert(String(content[r]).lowercased())
+                }
+            }
+        }
+        if let mine = carStore.driver?.lowercased() {
+            seen.insert(mine)
+        }
+        return seen.sorted()
+    }
+
+    @ViewBuilder
+    fileprivate var carsSubChannelsRows: some View {
+        let drivers = discoveredCarDrivers
+        if drivers.isEmpty {
+            HStack {
+                Text("No car chats yet. Tap #cars to start one.")
+                    .font(.bitchatSystem(size: 10, design: .monospaced))
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.leading, 48)
+            .padding(.vertical, 4)
+        } else {
+            ForEach(drivers, id: \.self) { driver in
+                let tag = "#car-\(driver)"
+                let isActive = viewModel.hashtagFilter == tag
+                let isMine = carStore.driver?.lowercased() == driver
+                Button(action: {
+                    viewModel.hashtagFilter = tag
+                    manager.select(ChannelID.mesh)
+                    isPresented = false
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.turn.down.right")
+                            .font(.bitchatSystem(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .frame(width: 16)
+                        Image(systemName: "car.fill")
+                            .font(.bitchatSystem(size: 12, design: .monospaced))
+                            .foregroundColor(standardOrange.opacity(0.7))
+                            .frame(width: 22)
+                        Text("\(driver.prefix(1).uppercased())\(driver.dropFirst())'s car")
+                            .font(.bitchatSystem(size: 13, weight: isActive ? .bold : .regular, design: .monospaced))
+                            .foregroundColor(isActive ? standardOrange : .primary)
+                        if isMine {
+                            Text("you")
+                                .font(.bitchatSystem(size: 9, design: .monospaced))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(standardOrange)
+                                .cornerRadius(3)
+                        }
+                        Spacer()
+                        if isActive {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(standardOrange)
+                        }
+                    }
+                    .padding(.leading, 24)
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
 }
 
 // MARK: - TOR Toggle & Standardized Colors
@@ -514,10 +745,13 @@ extension LocationChannelsSheet {
     }
 
     private var standardGreen: Color {
-        (colorScheme == .dark) ? Color.green : Color(red: 0, green: 0.5, blue: 0)
+        TripTheme.uiTint
     }
     private var standardBlue: Color {
         Color(red: 0.0, green: 0.478, blue: 1.0)
+    }
+    fileprivate var standardOrange: Color {
+        Color(red: 1.0, green: 0.494, blue: 0.082) // GE136C accent (#FF7E15)
     }
 }
 

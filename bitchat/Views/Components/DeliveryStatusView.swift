@@ -15,11 +15,11 @@ struct DeliveryStatusView: View {
     // MARK: - Computed Properties
     
     private var textColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
+        TripTheme.uiTint
     }
     
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.green.opacity(0.8) : Color(red: 0, green: 0.5, blue: 0).opacity(0.8)
+        TripTheme.uiTint.opacity(0.8)
     }
 
     private enum Strings {

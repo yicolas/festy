@@ -270,6 +270,21 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
     private let userDefaults = UserDefaults.standard
     let keychain: KeychainManagerProtocol
     private let nicknameKey = "bitchat.nickname"
+    private let hasChosenNicknameKey = "bitchat.hasChosenNickname"
+
+    @Published var hasChosenNickname: Bool = UserDefaults.standard.bool(forKey: "bitchat.hasChosenNickname")
+
+    /// When non-nil, the public timeline shows only messages whose content contains this hashtag
+    /// (case-insensitive). Set via the #filter button → trip channel list.
+    @Published var hashtagFilter: String? = nil
+
+    func confirmNickname(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        nickname = trimmed.isEmpty ? "anon\(Int.random(in: 1000...9999))" : trimmed
+        saveNickname()
+        userDefaults.set(true, forKey: hasChosenNicknameKey)
+        hasChosenNickname = true
+    }
     // Location channel state (macOS supports manual geohash selection)
     @Published var activeChannel: ChannelID = .mesh
     var geoSubscriptionID: String? = nil
@@ -465,6 +480,49 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         loadNickname()
         loadVerifiedFingerprints()
         meshService.delegate = self
+
+        // Prune any media (images, voice notes, files) older than the retention window.
+        MediaRetention.pruneNow()
+
+        // Restore persisted mesh timeline (7-day rolling window).
+        let persistedMesh = MeshTimelinePersistence.shared.load()
+        for msg in persistedMesh {
+            timelineStore.append(msg, to: .mesh)
+        }
+        if case .mesh = activeChannel, !persistedMesh.isEmpty {
+            self.messages = timelineStore.messages(for: .mesh)
+        }
+
+        // Seed #meals placeholders once so the meals channel isn't empty.
+        seedMealPlaceholdersIfNeeded()
+        if case .mesh = activeChannel {
+            self.messages = timelineStore.messages(for: .mesh)
+        }
+
+        // Restore persisted private DMs (7-day rolling window). Overrides any
+        // in-memory state which is empty at this point in init.
+        let persistedDMs = PrivateChatsPersistence.shared.load()
+        if !persistedDMs.isEmpty {
+            self.privateChats = persistedDMs
+        }
+
+        // Re-save on backgrounding so we capture anything still in the debounce window.
+        NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                MeshTimelinePersistence.shared.saveNow(self.timelineStore.messages(for: .mesh))
+                PrivateChatsPersistence.shared.saveNow(self.privateChats)
+            }
+            .store(in: &cancellables)
+
+        // Periodic DM snapshot every 60s — coarse-grained but reliable.
+        Timer.publish(every: 60, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                PrivateChatsPersistence.shared.saveNow(self.privateChats)
+            }
+            .store(in: &cancellables)
         
         // Log startup info
         
@@ -996,18 +1054,38 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
     /// - Note: Automatically handles command processing if content starts with '/'
     ///         Routes to private chat if one is selected, otherwise broadcasts
     @MainActor
-    func sendMessage(_ content: String) {
+    func sendMessage(_ rawContent: String) {
         // Ignore messages that are empty or whitespace-only to prevent blank lines
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = rawContent.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
         // Check for commands
-        if content.hasPrefix("/") {
+        if rawContent.hasPrefix("/") {
             Task { @MainActor in
-                handleCommand(content)
+                handleCommand(rawContent)
             }
             return
         }
+
+        let gate = TripChatGate.shared
+        let inMesh: Bool = { if case .mesh = activeChannel { return true }; return false }()
+
+        // Per-channel input scope: when a hashtag filter is active, auto-append
+        // the tag (to the trimmed user input) so the user just types and sends.
+        // No double-tagging if the user happened to type the hashtag themselves.
+        // Note: `scoped` is what we use for BOTH the local display copy and the
+        // payload that gets encrypted+sent over the mesh. Local display has to
+        // contain the tag or the filter hides the user's own messages.
+        let scoped: String = {
+            guard inMesh, let tag = hashtagFilter, !tag.isEmpty else { return trimmed }
+            if trimmed.range(of: tag, options: .caseInsensitive) != nil { return trimmed }
+            return "\(trimmed) \(tag)"
+        }()
+
+        // Trip-chat encryption: if we're inside the trip-mode chat tab and the
+        // gate is unlocked, wrap outgoing content with shared-key ciphertext.
+        // Only applies to the mesh channel — geohash/Nostr channels stay public.
+        let content = (gate.isActive && gate.isUnlocked && inMesh) ? (gate.encrypt(scoped) ?? scoped) : scoped
 
         if selectedPrivateChatPeer != nil {
             // Update peer ID in case it changed due to reconnection
@@ -1062,7 +1140,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         let message = BitchatMessage(
             id: messageID,
             sender: displaySender,
-            content: trimmed,
+            content: scoped,
             timestamp: messageTimestamp,
             isRelay: false,
             senderPeerID: localSenderPeerID,
@@ -1070,6 +1148,9 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         )
 
         timelineStore.append(message, to: activeChannel)
+        if case .mesh = activeChannel {
+            MeshTimelinePersistence.shared.scheduleSave(timelineStore.messages(for: .mesh))
+        }
         refreshVisibleMessages(from: activeChannel)
 
         // Update content LRU for near-dup detection
@@ -2649,6 +2730,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         return peerColor(for: message, isDark: isDark)
     }
 
+    /// User-selected color for the user's own messages. Driven by the
+    /// in-app text-color picker in the appearance menu.
+    @MainActor
+    var selfColor: Color {
+        UserChatColorStore.shared.color
+    }
+
     @MainActor
     func peerURL(for peerID: PeerID) -> URL? {
         return URL(string: "bitchat://user/\(peerID.toPercentEncoded())")
@@ -3003,18 +3091,72 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
             // Early validation
             guard !isMessageBlocked(message) else { return }
             guard !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || message.isPrivate else { return }
-            
-            // Route to appropriate handler
-            if message.isPrivate {
-                handlePrivateMessage(message)
-            } else {
-                handlePublicMessage(message)
+
+            // Trip-chat decryption: unwrap encrypted payloads from the trip group.
+            let wasEncrypted = TripChatGate.hasEncryptedMarker(message.content)
+            let delivered = Self.decryptTripContentIfNeeded(message)
+            let decryptSucceeded = wasEncrypted &&
+                delivered.content != message.content &&
+                !delivered.content.hasPrefix("🔒")
+
+            // Auto-favorite anyone in the trip group (i.e., anyone whose
+            // GE136C-encrypted message we just decrypted with the shared key).
+            if decryptSucceeded {
+                autoFavoriteTripGroupMember(message: delivered)
             }
-            
+
+            // Route to appropriate handler
+            if delivered.isPrivate {
+                handlePrivateMessage(delivered)
+            } else {
+                handlePublicMessage(delivered)
+            }
+
             // Post-processing
-            checkForMentions(message)
-            sendHapticFeedback(for: message)
+            checkForMentions(delivered)
+            sendHapticFeedback(for: delivered)
         }
+    }
+
+    /// Adds the sender of a successfully-decrypted GE136C message to favorites,
+    /// silently and idempotently. Lets the map's friend features work without
+    /// the user having to manually favorite everyone.
+    private func autoFavoriteTripGroupMember(message: BitchatMessage) {
+        guard message.sender != "system", message.sender != nickname else { return }
+        guard let peerID = message.senderPeerID else { return }
+        // Lookup the stable Noise public key for this peer.
+        guard let noiseKey = unifiedPeerService.peers.first(where: { $0.peerID == peerID })?.noisePublicKey else { return }
+        let status = FavoritesPersistenceService.shared.getFavoriteStatus(for: noiseKey)
+        if status?.isFavorite == true { return }
+        let nostrKey = status?.peerNostrPublicKey ?? idBridge.getNostrPublicKey(for: noiseKey)
+        FavoritesPersistenceService.shared.addFavorite(
+            peerNoisePublicKey: noiseKey,
+            peerNostrPublicKey: nostrKey,
+            peerNickname: message.sender
+        )
+    }
+
+    private static func decryptTripContentIfNeeded(_ message: BitchatMessage) -> BitchatMessage {
+        guard TripChatGate.hasEncryptedMarker(message.content) else { return message }
+        let newContent: String
+        switch TripChatGate.shared.decrypt(message.content) {
+        case .plaintext(let plain): newContent = plain
+        case .locked:               newContent = "🔒 [encrypted — unlock chat to read]"
+        case .notEncrypted:         return message
+        }
+        return BitchatMessage(
+            id: message.id,
+            sender: message.sender,
+            content: newContent,
+            timestamp: message.timestamp,
+            isRelay: message.isRelay,
+            originalSender: message.originalSender,
+            isPrivate: message.isPrivate,
+            recipientNickname: message.recipientNickname,
+            senderPeerID: message.senderPeerID,
+            mentions: message.mentions,
+            deliveryStatus: message.deliveryStatus
+        )
     }
 
     /// Find message index trying both short (16-hex) and long (64-hex) peer ID formats.
@@ -3616,6 +3758,62 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         
     }
     
+    /// Inserts one-time #meals placeholder messages into the mesh timeline,
+    /// anchored to the trip's actual meal times in America/Los_Angeles.
+    /// Bumping the seed version regenerates them.
+    private func seedMealPlaceholdersIfNeeded() {
+        let seedKey = "ge136c.mealPlaceholdersSeededVersion"
+        let currentVersion = 1
+        let stored = userDefaults.integer(forKey: seedKey)
+        guard stored < currentVersion else { return }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .current
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+
+        struct MealSlot {
+            let date: String        // yyyy-MM-dd
+            let time: String        // HH:mm 24h
+            let day: String         // "Friday"
+            let meal: String        // "breakfast"
+            let placeholder: String // user-facing text
+        }
+
+        let slots: [MealSlot] = [
+            .init(date: "2026-05-29", time: "08:00", day: "Friday",   meal: "breakfast", placeholder: "donuts and coffee"),
+            .init(date: "2026-05-29", time: "12:30", day: "Friday",   meal: "lunch",     placeholder: "TBD — share ideas"),
+            .init(date: "2026-05-29", time: "18:30", day: "Friday",   meal: "dinner",    placeholder: "TBD — share ideas"),
+            .init(date: "2026-05-30", time: "08:00", day: "Saturday", meal: "breakfast", placeholder: "TBD — share ideas"),
+            .init(date: "2026-05-30", time: "12:30", day: "Saturday", meal: "lunch",     placeholder: "TBD — share ideas"),
+            .init(date: "2026-05-30", time: "18:30", day: "Saturday", meal: "dinner",    placeholder: "TBD — share ideas"),
+            .init(date: "2026-05-31", time: "08:00", day: "Sunday",   meal: "breakfast", placeholder: "TBD — share ideas"),
+            .init(date: "2026-05-31", time: "12:30", day: "Sunday",   meal: "lunch",     placeholder: "TBD — share ideas"),
+            .init(date: "2026-05-31", time: "18:30", day: "Sunday",   meal: "dinner",    placeholder: "TBD — share ideas"),
+            .init(date: "2026-06-01", time: "08:00", day: "Monday",   meal: "breakfast", placeholder: "TBD — share ideas"),
+            .init(date: "2026-06-01", time: "12:30", day: "Monday",   meal: "lunch",     placeholder: "TBD — share ideas")
+        ]
+
+        for slot in slots {
+            guard let stamp = formatter.date(from: "\(slot.date) \(slot.time)") else { continue }
+            let id = "meal-seed-\(slot.date)-\(slot.meal)"
+            let body = "\(slot.day) \(slot.meal): \(slot.placeholder) #meals"
+            let message = BitchatMessage(
+                id: id,
+                sender: "system",
+                content: body,
+                timestamp: stamp,
+                isRelay: false
+            )
+            timelineStore.append(message, to: .mesh)
+        }
+        userDefaults.set(currentVersion, forKey: seedKey)
+        // Persist so the seeds aren't re-injected on the next launch.
+        MeshTimelinePersistence.shared.saveNow(timelineStore.messages(for: .mesh))
+    }
+
     // MARK: - Helper for System Messages
     func addSystemMessage(_ content: String, timestamp: Date = Date()) {
         let systemMessage = BitchatMessage(
@@ -3760,6 +3958,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         // Persist mesh messages to mesh timeline always
         if !isGeo && finalMessage.sender != "system" {
             timelineStore.append(finalMessage, to: .mesh)
+            MeshTimelinePersistence.shared.scheduleSave(timelineStore.messages(for: .mesh))
         }
 
         // Persist geochat messages to per-geohash timeline
@@ -3787,6 +3986,43 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
             if !messages.contains(where: { $0.id == finalMessage.id }) {
                 publicMessagePipeline.enqueue(finalMessage)
             }
+        }
+
+        // Trip channel notification: if the message references any of the configured
+        // trip channels and we're not the sender, fire a local notification.
+        notifyForTripChannelIfNeeded(finalMessage)
+    }
+
+    private func notifyForTripChannelIfNeeded(_ message: BitchatMessage) {
+        guard message.sender != "system",
+              message.sender != nickname else { return }
+        let channels = TripScheduleManager.shared.channels
+        guard !channels.isEmpty else { return }
+        let body = message.content
+
+        // If app is foreground AND user is viewing the trip chat, suppress notifications
+        // for the channel they're currently looking at (filter matches, or no filter ⇒ all visible).
+        #if os(iOS)
+        let suppressActiveChannel: (String) -> Bool = { channelName in
+            guard UIApplication.shared.applicationState == .active,
+                  TripChatGate.shared.isActive else { return false }
+            if let active = self.hashtagFilter, !active.isEmpty {
+                return active.caseInsensitiveCompare(channelName) == .orderedSame
+            }
+            return true // no filter ⇒ unified view, everything is visible
+        }
+        #else
+        let suppressActiveChannel: (String) -> Bool = { _ in false }
+        #endif
+
+        for channel in channels where body.range(of: channel.name, options: .caseInsensitive) != nil {
+            if suppressActiveChannel(channel.name) { return }
+            NotificationService.shared.sendChannelMessageNotification(
+                channel: channel.name,
+                sender: message.sender,
+                message: body
+            )
+            return // one notification per message even if multiple tags
         }
     }
     

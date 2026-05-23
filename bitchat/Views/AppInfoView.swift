@@ -17,11 +17,11 @@ struct AppInfoView: View {
     }
     
     private var textColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
+        TripTheme.uiTint
     }
     
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.green.opacity(0.8) : Color(red: 0, green: 0.5, blue: 0).opacity(0.8)
+        TripTheme.uiTint.opacity(0.8)
     }
     
     // MARK: - Constants
@@ -220,11 +220,11 @@ struct NetworkPrivacySection: View {
     @ObservedObject private var networkService = NetworkActivationService.shared
     
     private var textColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
+        TripTheme.uiTint
     }
     
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.green.opacity(0.8) : Color(red: 0, green: 0.5, blue: 0).opacity(0.8)
+        TripTheme.uiTint.opacity(0.8)
     }
     
     var body: some View {
@@ -289,11 +289,11 @@ struct DataDisclosureSection: View {
     @State private var isExpanded = false
     
     private var textColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
+        TripTheme.uiTint
     }
     
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.green.opacity(0.8) : Color(red: 0, green: 0.5, blue: 0).opacity(0.8)
+        TripTheme.uiTint.opacity(0.8)
     }
     
     private var warningColor: Color {
@@ -452,11 +452,11 @@ struct AboutSection: View {
     @Environment(\.colorScheme) var colorScheme
     
     private var textColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
+        TripTheme.uiTint
     }
     
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.green.opacity(0.8) : Color(red: 0, green: 0.5, blue: 0).opacity(0.8)
+        TripTheme.uiTint.opacity(0.8)
     }
     
     var body: some View {
@@ -556,7 +556,7 @@ struct BulletPoint: View {
     @Environment(\.colorScheme) var colorScheme
     
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.green.opacity(0.8) : Color(red: 0, green: 0.5, blue: 0).opacity(0.8)
+        TripTheme.uiTint.opacity(0.8)
     }
     
     init(_ text: String) {
@@ -585,7 +585,7 @@ struct SectionHeader: View {
     @Environment(\.colorScheme) var colorScheme
     
     private var textColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
+        TripTheme.uiTint
     }
     
     init(_ title: LocalizedStringKey) {
@@ -609,11 +609,11 @@ struct FeatureRow: View {
     @Environment(\.colorScheme) var colorScheme
     
     private var textColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
+        TripTheme.uiTint
     }
     
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.green.opacity(0.8) : Color(red: 0, green: 0.5, blue: 0).opacity(0.8)
+        TripTheme.uiTint.opacity(0.8)
     }
     
     var body: some View {

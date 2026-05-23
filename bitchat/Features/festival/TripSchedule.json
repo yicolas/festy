@@ -18,12 +18,12 @@
     { "id": "info", "name": "Info", "icon": "info.circle", "type": "info" }
   ],
   "channels": [
-    { "id": "general", "name": "#general", "description": "Main trip coordination and updates", "icon": "person.3.fill" },
-    { "id": "driving", "name": "#driving", "description": "Driver changes, ETAs, and regrouping", "icon": "car.fill" },
-    { "id": "travel", "name": "#travel", "description": "Stops, route notes, and logistics", "icon": "map.fill" },
+    { "id": "announcements", "name": "#announcements", "description": "Instructor-only high-priority notices", "icon": "megaphone.fill" },
+    { "id": "main", "name": "#main", "description": "Main trip coordination and updates — start here. Post here for anything not related to the categories below.", "icon": "person.3.fill" },
+    { "id": "cars", "name": "#cars", "description": "Car group chats — find your car's chat by driver's first name", "icon": "car.fill" },
+    { "id": "driving", "name": "#driving", "description": "Driver changes, ETAs, and regrouping", "icon": "speedometer" },
     { "id": "meals", "name": "#meals", "description": "Food timing, dinner plans, and dietary callouts", "icon": "fork.knife" },
-    { "id": "gear", "name": "#gear", "description": "Field gear and supply check-ins", "icon": "backpack.fill" },
-    { "id": "announcements", "name": "#announcements", "description": "Instructor-only high-priority notices", "icon": "megaphone.fill" }
+    { "id": "gear", "name": "#gear", "description": "Let everyone know if something is broken, missing, or you need to borrow. Also serves as lost &amp; found.", "icon": "backpack.fill" }
   ],
   "days": [
     {
@@ -49,8 +49,8 @@
           "driveTime": "2:30",
           "bathroom": true,
           "food": true,
-          "presenters": ["Abby Keebler"],
-          "notes": "Departure briefing and Day 1 opening talk."
+          "presenters": [],
+          "notes": "Departure briefing and Day 1 opening. No talks at departure."
         },
         {
           "id": "d1-allensworth",
@@ -58,7 +58,9 @@
           "location": {
             "id": "allensworth",
             "name": "Colonel Allensworth State Historic Park",
-            "address": "4011 Grant Dr, Earlimart, CA 93219"
+            "address": "4011 Grant Dr, Earlimart, CA 93219",
+            "latitude": 35.8634,
+            "longitude": -119.3938
           },
           "arrive": "11:30 AM",
           "duration": "1:00",
@@ -66,8 +68,8 @@
           "driveTime": "1:40",
           "bathroom": true,
           "food": true,
-          "presenters": ["Olivia Alcabes", "Virginia (Gigi) Pistilli"],
-          "notes": "Lunch stop; agriculture and watershed discussion."
+          "presenters": ["Nick Anderson", "Abby Keebler", "Olivia Alcabes"],
+          "notes": "Anderson: Colonel Allen Allensworth — From Slavery to Founding a Town. Keebler: Tejon Oil Country — Geologic & Human History. Alcabes: Boswells, Resnicks & Singletons — California's Billionaire Farmers."
         },
         {
           "id": "d1-hatchery",
@@ -75,7 +77,9 @@
           "location": {
             "id": "san-joaquin-hatchery",
             "name": "San Joaquin Hatchery",
-            "address": "17372 Brooktrout, Friant, CA 93626"
+            "address": "17372 Brooktrout, Friant, CA 93626",
+            "latitude": 36.9881,
+            "longitude": -119.5083
           },
           "arrive": "2:10 PM",
           "duration": "0:30",
@@ -83,8 +87,8 @@
           "driveTime": "0:10",
           "bathroom": true,
           "food": false,
-          "presenters": ["Amelie Sharples", "Madi Tongco"],
-          "notes": "Fish lifecycle and hatchery operations."
+          "presenters": ["Amelie Sharples"],
+          "notes": "Sharples: What Happens at a Fish Hatchery? Life Cycle of a Salmonid."
         },
         {
           "id": "d1-vernal-pools",
@@ -92,7 +96,7 @@
           "location": {
             "id": "vernal-pools",
             "name": "Vernal Pools + Mortar Bowls",
-            "address": "36.971921, -119.716667 & 36.9783, -119.715079",
+            "address": "36.9719, -119.7167",
             "latitude": 36.971921,
             "longitude": -119.716667
           },
@@ -102,8 +106,8 @@
           "driveTime": "0:45",
           "bathroom": false,
           "food": false,
-          "presenters": ["Sarah Davis"],
-          "notes": "Field ecology stop; second coordinate noted in address."
+          "presenters": ["Sarah Davis", "Ruth Moorman"],
+          "notes": "Davis: Vernal Pools — A Disappearing Ecosystem. Moorman: Atmospheric Rivers & Flooding in California (handout)."
         },
         {
           "id": "d1-museum",
@@ -111,7 +115,9 @@
           "location": {
             "id": "museum-sierra",
             "name": "Museum of the Sierra",
-            "address": "42642 Tollhouse Rd, Shaver Lake, CA 93664"
+            "address": "42642 Tollhouse Rd, Shaver Lake, CA 93664",
+            "latitude": 37.1064,
+            "longitude": -119.3148
           },
           "arrive": "4:05 PM",
           "duration": "0:45",
@@ -119,15 +125,15 @@
           "driveTime": "1:30",
           "bathroom": true,
           "food": false,
-          "presenters": ["Sophia Ree", "Amanda Bednarick"],
-          "notes": "Sierra batholith and granite context."
+          "presenters": ["Marisa Langley"],
+          "notes": "Langley: Big Creek Hydroelectric Project."
         },
         {
           "id": "d1-mono-creek",
-          "title": "Mono Creek Campground",
+          "title": "Mono Creek Campground (Night 1)",
           "location": {
             "id": "mono-creek-campground",
-            "name": "Mono Creek Campground",
+            "name": "Mono Creek Campground (sites 001, 003, 004, 005, 006)",
             "address": "37.354671, -118.996900",
             "latitude": 37.354671,
             "longitude": -118.9969
@@ -138,12 +144,12 @@
           "driveTime": "0:10",
           "bathroom": true,
           "food": true,
-          "presenters": ["Ava Barbano", "Marisa Langley"],
-          "notes": "Dinner and camp setup."
+          "presenters": ["Amanda Bednarick", "Sophia Ree", "Zhehao (Garry) Zhang", "Debarun Mukherjee", "Yi Lin", "Richard Horak"],
+          "notes": "Dinner + camp setup. Bednarick: Granite Crystallization, Types (S/I/A) & Protoliths. Ree: Magmatic History of the Sierra Nevada Batholith. Zhang: Geochemistry of Mono / Remington / Miracle Hot Springs. Mukherjee: John Muir & the Preservation of the Sierra Nevada. Lin: The John Muir Trail. Horak: Yosemite Toad & Skin Bacteria."
         },
         {
           "id": "d1-mono-hot-springs",
-          "title": "Mono Hot Springs",
+          "title": "Mono Hot Springs (informal soak)",
           "location": {
             "id": "mono-hot-springs",
             "name": "Mono Hot Springs",
@@ -157,8 +163,8 @@
           "driveTime": "",
           "bathroom": true,
           "food": false,
-          "presenters": ["Zhehao (Garry) Zhang"],
-          "notes": "Hot springs geochemistry stop."
+          "presenters": [],
+          "notes": "Informal soak — short drive from camp. Talks continue on return to camp."
         }
       ]
     },
@@ -171,7 +177,7 @@
       "items": [
         {
           "id": "d2-mono-creek",
-          "title": "Mono Creek Campground",
+          "title": "Mono Creek Campground (breakfast / burn scar)",
           "location": {
             "id": "mono-creek-campground",
             "name": "Mono Creek Campground",
@@ -186,7 +192,7 @@
           "bathroom": true,
           "food": true,
           "presenters": ["Jarek Kwiecinski"],
-          "notes": "Morning briefing on fire ecology."
+          "notes": "Breakfast and pack up. Kwiecinski: Fire Ecology of the Western Sierra & Effects of Suppression / Climate Change (delivered in the burn scar)."
         },
         {
           "id": "d2-simonian",
@@ -194,7 +200,9 @@
           "location": {
             "id": "simonian-farms",
             "name": "Simonian Farms",
-            "address": "2629 S Clovis Ave, Fresno, CA 93725"
+            "address": "2629 S Clovis Ave, Fresno, CA 93725",
+            "latitude": 36.7128,
+            "longitude": -119.7014
           },
           "arrive": "12:10 PM",
           "duration": "1:00",
@@ -202,8 +210,8 @@
           "driveTime": "1:50",
           "bathroom": true,
           "food": true,
-          "presenters": ["Madi Tongco"],
-          "notes": "Lunch + food systems discussion."
+          "presenters": ["Konnor von Emster", "Rachel Nazareth"],
+          "notes": "Lunch. von Emster: History & Science of Sierra Nevada Snow Surveys. Nazareth: Milankovitch Cycles & Sierra Glaciation."
         },
         {
           "id": "d2-boyden-1",
@@ -221,8 +229,8 @@
           "driveTime": "0:00",
           "bathroom": true,
           "food": false,
-          "presenters": ["Koki Yoshioka", "Waqar Mirza"],
-          "notes": "25 adults booked; need 7 more slots."
+          "presenters": ["Koki Yoshioka"],
+          "notes": "25 adults booked; need 7 more slots. Yoshioka: Boyden Cave & the Kings Canyon Roof Pendant."
         },
         {
           "id": "d2-boyden-2",
@@ -240,16 +248,18 @@
           "driveTime": "0:00",
           "bathroom": true,
           "food": false,
-          "presenters": ["Ben Thyer", "Elin Stenmark"],
-          "notes": "Second cave group rotation."
+          "presenters": ["Elin Stenmark"],
+          "notes": "Stenmark: Glacial Geomorphology — Arêtes, Cirques, Glacial Lakes & Moraines."
         },
         {
           "id": "d2-kings-canyon",
-          "title": "Kings Canyon Nonsense",
+          "title": "Bubbs Creek / Rae Lakes Loop (3mi)",
           "location": {
-            "id": "kings-canyon-nonsense",
-            "name": "Kings Canyon Nonsense",
-            "address": "Placeholder stop details"
+            "id": "bubbs-creek-trailhead",
+            "name": "Bubbs Creek / Rae Lakes Loop Trailhead",
+            "address": "Roads End, Kings Canyon National Park, CA",
+            "latitude": 36.79665,
+            "longitude": -118.584614
           },
           "arrive": "3:00 PM",
           "duration": "3:00",
@@ -257,16 +267,18 @@
           "driveTime": "1:15",
           "bathroom": true,
           "food": false,
-          "presenters": ["Rachel Nazareth", "Nathan Lim", "Debarun Mukherjee", "Konnor von Emster"],
-          "notes": "Placeholder naming retained from planning sheet."
+          "presenters": ["Waqar Mirza", "Ben Thyer"],
+          "notes": "3 mile loop from Roads End trailhead, concurrent with cavern groups. Possible swim if temperature permits. Mirza: Granite Exhumation & Weathering Styles (Exfoliation, Spheroidal, Freeze/Thaw). Thyer: Geochronology & Incremental Assembly of Plutons."
         },
         {
           "id": "d2-ikigai",
-          "title": "Ikigai Sanctuary",
+          "title": "Ikigai Sanctuary (Night 2)",
           "location": {
             "id": "ikigai-sanctuary",
             "name": "Ikigai Sanctuary",
-            "address": "40580 Ruth Hill Rd, Yokuts Valley, CA 93675"
+            "address": "40580 Ruth Hill Rd, Yokuts Valley, CA 93675",
+            "latitude": 36.7374,
+            "longitude": -119.1583
           },
           "arrive": "7:15 PM",
           "duration": "",
@@ -274,8 +286,8 @@
           "driveTime": "",
           "bathroom": true,
           "food": true,
-          "presenters": [],
-          "notes": "Evening arrival; details to finalize."
+          "presenters": ["Madi Tongco", "Ava Barbano"],
+          "notes": "Evening arrival. Tongco: Antibiotic Resistance in Cattle, Salmon & the California Food Supply. Barbano: Friant Dam, Ancient Lake Tulare & Impacts on Pre-Contact Native California."
         }
       ]
     },
@@ -288,11 +300,13 @@
       "items": [
         {
           "id": "d3-ikigai",
-          "title": "Ikigai Sanctuary",
+          "title": "Ikigai Sanctuary (breakfast / pack)",
           "location": {
             "id": "ikigai-sanctuary",
             "name": "Ikigai Sanctuary",
-            "address": "40580 Ruth Hill Rd, Yokuts Valley, CA 93675"
+            "address": "40580 Ruth Hill Rd, Yokuts Valley, CA 93675",
+            "latitude": 36.7374,
+            "longitude": -119.1583
           },
           "arrive": "7:00 AM",
           "duration": "1:30",
@@ -300,8 +314,8 @@
           "driveTime": "3:20",
           "bathroom": true,
           "food": false,
-          "presenters": ["Pablo Drake Hernandez"],
-          "notes": "Morning cultural context briefing."
+          "presenters": [],
+          "notes": "Breakfast and pack up Ikigai camp."
         },
         {
           "id": "d3-kern-lunch",
@@ -309,7 +323,9 @@
           "location": {
             "id": "kern-rivers-edge",
             "name": "Kern River's Edge Campground",
-            "address": "15775 Sierra Way, Kernville, CA 93238"
+            "address": "15775 Sierra Way, Kernville, CA 93238",
+            "latitude": 35.7515,
+            "longitude": -118.4234
           },
           "arrive": "11:50 AM",
           "duration": "0:55",
@@ -317,8 +333,8 @@
           "driveTime": "0:15",
           "bathroom": true,
           "food": true,
-          "presenters": ["Tuyako Khristoforova"],
-          "notes": "Quickly drop stuff and change for river; dry bag lunch."
+          "presenters": ["Maia Hannahs"],
+          "notes": "Quickly drop stuff and change for river; dry-bag lunch. Hannahs: Field Guide to Plants of the High & Low Sierra."
         },
         {
           "id": "d3-rafting",
@@ -326,7 +342,9 @@
           "location": {
             "id": "sierra-south-rafting",
             "name": "Rafting - Sierra South",
-            "address": "11300 Kernville Rd, Kernville, CA 93238"
+            "address": "11300 Kernville Rd, Kernville, CA 93238",
+            "latitude": 35.7359,
+            "longitude": -118.4365
           },
           "arrive": "1:00 PM",
           "duration": "1:30",
@@ -334,16 +352,18 @@
           "driveTime": "0:35",
           "bathroom": false,
           "food": false,
-          "presenters": ["Richard Horak"],
-          "notes": "30 adults booked; need 2 additional slots."
+          "presenters": [],
+          "notes": "1.5 hr float, class II max. 30 adults booked; need 2 additional slots."
         },
         {
           "id": "d3-south-creek",
-          "title": "South Creek Falls / 7 Teacups / Hike / Beach",
+          "title": "South Creek Falls / Seven Teacups / Hike / Beach",
           "location": {
             "id": "south-creek-falls",
-            "name": "South Creek Falls / 7 Teacups",
-            "address": "Placeholder coordinate"
+            "name": "South Creek Falls / Seven Teacups",
+            "address": "Trailhead off Sierra Way near Kernville, CA",
+            "latitude": 35.976242,
+            "longitude": -118.500188
           },
           "arrive": "3:05 PM",
           "duration": "0:30",
@@ -351,8 +371,8 @@
           "driveTime": "1:00",
           "bathroom": false,
           "food": false,
-          "presenters": ["Maia Hannahs"],
-          "notes": "Plant and field guide segment."
+          "presenters": ["Zachary Glaser"],
+          "notes": "Glaser: Diminishing Sierra Snowpack & Downstream Effects on Reservoirs / Drinking Water."
         },
         {
           "id": "d3-isabella-dam",
@@ -360,7 +380,9 @@
           "location": {
             "id": "isabella-dam",
             "name": "Isabella Dam",
-            "address": "Isabella Main Dam, Lake Isabella, CA 93240"
+            "address": "Isabella Main Dam, Lake Isabella, CA 93240",
+            "latitude": 35.644,
+            "longitude": -118.4793
           },
           "arrive": "4:35 PM",
           "duration": "0:30",
@@ -368,8 +390,8 @@
           "driveTime": "0:20",
           "bathroom": true,
           "food": false,
-          "presenters": ["Zachary Glaser"],
-          "notes": "Reservoir and snowpack downstream effects."
+          "presenters": ["Elizabeth Heiny"],
+          "notes": "Heiny: Geothermal Energy in California — Casa Diablo IV."
         },
         {
           "id": "d3-kern-dinner",
@@ -377,7 +399,9 @@
           "location": {
             "id": "kern-rivers-edge",
             "name": "Kern River's Edge Campground",
-            "address": "15775 Sierra Way, Kernville, CA 93238"
+            "address": "15775 Sierra Way, Kernville, CA 93238",
+            "latitude": 35.7515,
+            "longitude": -118.4234
           },
           "arrive": "5:25 PM",
           "duration": "2:00",
@@ -385,16 +409,18 @@
           "driveTime": "0:32",
           "bathroom": true,
           "food": true,
-          "presenters": [],
-          "notes": "Dinner + camp logistics."
+          "presenters": ["Pablo Drake Hernandez", "Tuyako Khristoforova"],
+          "notes": "Dinner + camp logistics. Drake Hernandez: Creation Stories in Yokut & Tübatulabal Cultures. Khristoforova: Hospital Rock — Tübatulabal, Yokuts & Potwisha Native Americans."
         },
         {
           "id": "d3-remington",
-          "title": "Remington Hot Springs",
+          "title": "Remington Hot Springs (informal soak)",
           "location": {
             "id": "remington-hot-springs",
             "name": "Remington Hot Springs",
-            "address": "Kern County hot springs area"
+            "address": "Kern County hot springs area",
+            "latitude": 35.5836,
+            "longitude": -118.507
           },
           "arrive": "7:57 PM",
           "duration": "2:00",
@@ -402,8 +428,8 @@
           "driveTime": "",
           "bathroom": false,
           "food": false,
-          "presenters": ["Simon Andren"],
-          "notes": "Geothermal topic slot."
+          "presenters": [],
+          "notes": "Informal soak south of Kernville along Sierra Way."
         }
       ]
     },
@@ -420,20 +446,41 @@
           "location": {
             "id": "kern-rivers-edge",
             "name": "Kern River's Edge Campground",
-            "address": "15775 Sierra Way, Kernville, CA 93238"
+            "address": "15775 Sierra Way, Kernville, CA 93238",
+            "latitude": 35.7515,
+            "longitude": -118.4234
           },
           "arrive": "7:30 AM",
           "duration": "2:00",
           "leave": "9:30 AM",
-          "driveTime": "3:10",
+          "driveTime": "0:00",
           "bathroom": true,
           "food": false,
           "presenters": [],
-          "notes": "Pack up and retreat departure."
+          "notes": "Breakfast and break Kern River's Edge camp."
+        },
+        {
+          "id": "d4-bookhounds",
+          "title": "BookHounds (used bookstore, Bakersfield)",
+          "location": {
+            "id": "bookhounds",
+            "name": "BookHounds",
+            "address": "2710 L St, Bakersfield, CA 93301",
+            "latitude": 35.3776,
+            "longitude": -119.0204
+          },
+          "arrive": "9:30 AM",
+          "duration": "0:30",
+          "leave": "10:00 AM",
+          "driveTime": "2:00",
+          "bathroom": true,
+          "food": false,
+          "presenters": [],
+          "notes": "Used bookstore stop in Bakersfield."
         },
         {
           "id": "d4-soda-lake",
-          "title": "Soda Lake",
+          "title": "Soda Lake (Carrizo Plain)",
           "location": {
             "id": "soda-lake",
             "name": "Soda Lake",
@@ -441,18 +488,18 @@
             "latitude": 35.219592,
             "longitude": -119.897953
           },
-          "arrive": "12:40 PM",
-          "duration": "0:20",
-          "leave": "1:00 PM",
+          "arrive": "12:00 PM",
+          "duration": "0:30",
+          "leave": "12:30 PM",
           "driveTime": "0:10",
           "bathroom": true,
           "food": false,
-          "presenters": ["Korbi Thalhammer", "Annie Edwards"],
-          "notes": "Soda lake thenardite + valley fever context."
+          "presenters": ["Annie Edwards"],
+          "notes": "Edwards: Thenardite Mineralogy & Soda Lake."
         },
         {
           "id": "d4-painted-rock",
-          "title": "Native American Painted Rock + Lunch",
+          "title": "Painted Rock (Carrizo Plain) + Lunch",
           "location": {
             "id": "painted-rock",
             "name": "Native American Painted Rock",
@@ -460,33 +507,14 @@
             "latitude": 35.14544,
             "longitude": -119.8619
           },
-          "arrive": "1:10 PM",
+          "arrive": "12:40 PM",
           "duration": "1:00",
-          "leave": "2:10 PM",
-          "driveTime": "0:20",
+          "leave": "1:40 PM",
+          "driveTime": "0:50",
           "bathroom": false,
           "food": true,
-          "presenters": [],
-          "notes": "Lunch stop with placeholder cultural notes."
-        },
-        {
-          "id": "d4-matre-ranch",
-          "title": "Matre Ranch Interpretive Site",
-          "location": {
-            "id": "matre-ranch",
-            "name": "Matre Ranch Interpretive Site",
-            "address": "35.090799, -119.630085",
-            "latitude": 35.090799,
-            "longitude": -119.630085
-          },
-          "arrive": "2:30 PM",
-          "duration": "0:20",
-          "leave": "2:50 PM",
-          "driveTime": "1:20",
-          "bathroom": true,
-          "food": false,
-          "presenters": [],
-          "notes": "Interpretive stop placeholder details."
+          "presenters": ["Korbi Thalhammer"],
+          "notes": "Lunch stop. Thalhammer: Carrizo Plain, Global Desertification & Valley Fever (Soil Fungus)."
         },
         {
           "id": "d4-pine-mountain",
@@ -494,16 +522,75 @@
           "location": {
             "id": "pine-mountain-store",
             "name": "Pine Mountain General Store",
-            "address": "2513 Freeman Dr, Frazier Park, CA 93225"
+            "address": "2513 Freeman Dr, Frazier Park, CA 93225",
+            "latitude": 34.8222,
+            "longitude": -118.9594
           },
-          "arrive": "4:10 PM",
+          "arrive": "2:30 PM",
           "duration": "0:30",
-          "leave": "4:40 PM",
-          "driveTime": "1:40",
+          "leave": "3:00 PM",
+          "driveTime": "1:00",
           "bathroom": true,
           "food": false,
-          "presenters": ["Sophia Westerkamp"],
-          "notes": "Final regroup and road snacks."
+          "presenters": [],
+          "notes": "Fuel and restroom stop on the way out of the Grapevine."
+        },
+        {
+          "id": "d4-mwd-foothill",
+          "title": "MWD Foothill Power Plant",
+          "location": {
+            "id": "mwd-foothill-power-plant",
+            "name": "MWD Foothill Power Plant",
+            "address": "32130 Lake Hughes Rd, Castaic, CA 91384",
+            "latitude": 34.5483,
+            "longitude": -118.6342
+          },
+          "arrive": "4:00 PM",
+          "duration": "0:30",
+          "leave": "4:30 PM",
+          "driveTime": "0:10",
+          "bathroom": false,
+          "food": false,
+          "presenters": [],
+          "notes": "Quick stop along the State Water Project corridor."
+        },
+        {
+          "id": "d4-castaic-lake",
+          "title": "Castaic Lake Swim Beach",
+          "location": {
+            "id": "castaic-lake-swim-beach",
+            "name": "Castaic Lake Swim Beach",
+            "address": "G94P+FG, Castaic, CA",
+            "latitude": 34.505,
+            "longitude": -118.6126
+          },
+          "arrive": "4:40 PM",
+          "duration": "0:40",
+          "leave": "5:20 PM",
+          "driveTime": "0:10",
+          "bathroom": true,
+          "food": false,
+          "presenters": [],
+          "notes": "Swim / beach stop at Castaic Lake."
+        },
+        {
+          "id": "d4-aqueduct-cascades",
+          "title": "Los Angeles Aqueduct Cascades (Sylmar)",
+          "location": {
+            "id": "la-aqueduct-cascades",
+            "name": "Los Angeles Aqueduct Cascades",
+            "address": "Foothill Blvd, Sylmar, CA 91342",
+            "latitude": 34.3163,
+            "longitude": -118.4889
+          },
+          "arrive": "5:30 PM",
+          "duration": "0:30",
+          "leave": "6:00 PM",
+          "driveTime": "0:30",
+          "bathroom": false,
+          "food": false,
+          "presenters": [],
+          "notes": "Bingo & word search for the drive home."
         },
         {
           "id": "d4-arms-circle",
@@ -515,7 +602,7 @@
             "latitude": 34.13616,
             "longitude": -118.12675
           },
-          "arrive": "6:20 PM",
+          "arrive": "6:30 PM",
           "duration": "",
           "leave": "",
           "driveTime": "",
@@ -535,7 +622,9 @@
         "Trip leaders: Nicolas Anderson, Joseph Kirschvink, Sophia Westerkamp.",
         "Submit required trip contact information forms before departure.",
         "Approved drivers and training records are coordinated with division staff.",
-        "Use buddy checks at each stop and hydrate before every drive block."
+        "Use buddy checks at each stop and hydrate before every drive block.",
+        "Mono Creek (~7,400 ft) can drop below freezing overnight even in late May — pack layers.",
+        "Valley Fever risk in Carrizo Plain; see Cal/OSHA briefing in the trip book."
       ]
     },
     {
@@ -543,8 +632,9 @@
       "title": "Offline & Maps",
       "bullets": [
         "Mesh chat works without cell service; keep Bluetooth on.",
-        "Import each day route into Organic Maps before leaving service.",
-        "Map tab includes stop pins + live friend locations when sharing is enabled.",
+        "Map tab draws all 4 driving routes from cached OSM data once you've pre-downloaded them via the Offline button on the map.",
+        "Color-coded day routes match the day pills on the Schedule tab. Toggle days on/off via the Routes button.",
+        "Pin labels + live friend locations appear on the same map when sharing is enabled.",
         "Use #announcements for high-priority updates from trip leads."
       ]
     },
@@ -553,16 +643,17 @@
       "title": "Logistics",
       "bullets": [
         "Dates: Fri May 29 - Mon Jun 1, 2026 (4 days / 3 nights).",
-        "Primary destinations include Mono Creek, Kings Canyon, and Kernville.",
+        "Primary destinations: Mono Creek, Kings Canyon, Kernville, Carrizo Plain.",
         "Vehicles: GPS F350 plus enterprise rental cars (per safety plan).",
-        "Placeholder notes remain for incomplete stop details and can be edited in future trip JSON."
+        "Forest Service road conditions to Mono Creek & Ikigai must be verified before departure (fs.usda.gov/sierra, fs.usda.gov/sequoia).",
+        "Kern River flow & rafting conditions: dreamflows.com/flows.php."
       ]
     }
   ],
   "mapConfig": {
-    "centerLatitude": 36.3,
-    "centerLongitude": -119.1,
-    "latitudeDelta": 3.4,
+    "centerLatitude": 35.8,
+    "centerLongitude": -119.0,
+    "latitudeDelta": 3.6,
     "longitudeDelta": 2.7,
     "routeLinks": [
       { "id": "route-day-1", "title": "Day 1 Route", "url": "https://maps.app.goo.gl/wvCerfVojKr4BpJG6" },

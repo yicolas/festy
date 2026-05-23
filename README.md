@@ -1,6 +1,6 @@
-<img width="256" height="256" alt="Festivus Mestivus Icon" src="bitchat/Assets.xcassets/AppIcon.appiconset/icon_256x256@2x.png" />
+<img width="256" height="256" alt="GE136C Icon" src="bitchat/Assets.xcassets/AppIcon.appiconset/icon_256x256@2x.png" />
 
-## Festivus Mestivus (FM)
+## GE136C
 
 A festival companion app for offline mesh communication. Find your friends, share locations, and stay connected even when cell networks are overloaded.
 
@@ -17,7 +17,7 @@ This project is a fork of [bitchat by permissionlesstech](https://github.com/per
 - Location-based geohash channels
 - Core chat UI and message handling
 
-**What Festivus Mestivus adds:**
+**What GE136C adds:**
 - Festival mode with schedule/lineup view
 - Custom festival channels (#meetup, #lost-found, etc.)
 - Stage-based location channels with geohash auto-join
@@ -48,8 +48,8 @@ This project is a fork of [bitchat by permissionlesstech](https://github.com/per
 
 ```bash
 # Clone the repo
-git clone https://github.com/MDunitz/bitchat.git festivus-mestivus
-cd festivus-mestivus
+git clone https://github.com/MDunitz/bitchat.git ge136c
+cd ge136c
 
 # Copy local config
 cp Configs/Local.xcconfig.example Configs/Local.xcconfig

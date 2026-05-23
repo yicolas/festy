@@ -85,11 +85,11 @@ struct ContentView: View {
     }
 
     private var textColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
+        TripTheme.uiTint
     }
 
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.green.opacity(0.8) : Color(red: 0, green: 0.5, blue: 0).opacity(0.8)
+        TripTheme.uiTint.opacity(0.8)
     }
 
     private var headerLineLimit: Int? {
@@ -103,7 +103,7 @@ struct ContentView: View {
     private var peopleSheetSubtitle: String? {
         switch locationManager.selectedChannel {
         case .mesh:
-            return "#mesh"
+            return "#channels"
         case .location(let channel):
             return "#\(channel.geohash.lowercased())"
         }
@@ -346,11 +346,19 @@ struct ContentView: View {
     // MARK: - Message List View
     
     private func messagesView(privatePeer: PeerID?, isAtBottom: Binding<Bool>) -> some View {
-        let messages: [BitchatMessage] = {
+        let rawMessages: [BitchatMessage] = {
             if let peerID = privatePeer {
                 return viewModel.getPrivateChatMessages(for: peerID)
             }
             return viewModel.messages
+        }()
+
+        // Apply hashtag filter only to public timelines, not to DMs.
+        let messages: [BitchatMessage] = {
+            guard privatePeer == nil,
+                  let tag = viewModel.hashtagFilter,
+                  !tag.isEmpty else { return rawMessages }
+            return rawMessages.filter { $0.content.range(of: tag, options: .caseInsensitive) != nil }
         }()
 
         let currentWindowCount: Int = {
@@ -625,11 +633,11 @@ struct ContentView: View {
                     prompt: Text(
                         String(localized: "content.input.message_placeholder", comment: "Placeholder shown in the chat composer")
                     )
-                    .foregroundColor(secondaryTextColor.opacity(0.6))
+                    .foregroundColor(.secondary)
                 )
                 .textFieldStyle(.plain)
                 .font(.bitchatSystem(size: 15, design: .monospaced))
-                .foregroundColor(textColor)
+                .foregroundColor(.primary)
                 .focused($isTextFieldFocused)
                 .autocorrectionDisabled(true)
 #if os(iOS)
@@ -670,8 +678,11 @@ struct ContentView: View {
     }
     
     private func handleOpenURL(_ url: URL) {
-        guard url.scheme == "festivusmestivus" else { return }
+        guard url.scheme == "ge136c" else { return }
         switch url.host {
+        case "join":
+            TripModeManager.shared.enable()
+            return
         case "user":
             let id = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             let peerID = PeerID(str: id.removingPercentEncoding ?? id)
@@ -1184,8 +1195,7 @@ struct ContentView: View {
         switch locationManager.selectedChannel {
         case .location:
             let n = viewModel.geohashPeople.count
-            let standardGreen = (colorScheme == .dark) ? Color.green : Color(red: 0, green: 0.5, blue: 0)
-            return (n, n > 0 ? standardGreen : Color.secondary)
+            return (n, n > 0 ? TripTheme.uiTint : Color.secondary)
         case .mesh:
             let counts = viewModel.allPeers.reduce(into: (others: 0, mesh: 0)) { counts, peer in
                 guard peer.peerID != viewModel.meshService.myPeerID else { return }
@@ -1310,8 +1320,11 @@ struct ContentView: View {
                 // Location channels button '#'
                 Button(action: { showLocationChannelsSheet = true }) {
                     let badgeText: String = {
+                        if let tag = viewModel.hashtagFilter, !tag.isEmpty {
+                            return tag.hasPrefix("#") ? tag : "#\(tag)"
+                        }
                         switch locationManager.selectedChannel {
-                        case .mesh: return "#mesh"
+                        case .mesh: return "#channels"
                         case .location(let ch): return "#\(ch.geohash)"
                         }
                     }()

@@ -54,19 +54,21 @@ struct TripScheduleView: View {
     private var dayPickerView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(scheduleManager.days, id: \.self) { day in
+                ForEach(Array(scheduleManager.days.enumerated()), id: \.element) { index, day in
+                    let isSelected = scheduleManager.selectedDay == day
+                    let dayColor = TripTheme.dayColor(index)
                     Button(action: { scheduleManager.selectedDay = day }) {
                         Text(scheduleManager.formatDayForDisplay(day))
                             .font(.system(.subheadline, design: .monospaced))
-                            .fontWeight(scheduleManager.selectedDay == day ? .bold : .regular)
+                            .fontWeight(isSelected ? .bold : .regular)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                            .background(scheduleManager.selectedDay == day ? TripTheme.accentSoft : Color.clear)
-                            .foregroundColor(scheduleManager.selectedDay == day ? TripTheme.primaryText : TripTheme.secondaryText)
+                            .background(isSelected ? dayColor.opacity(0.18) : Color.clear)
+                            .foregroundColor(isSelected ? TripTheme.primaryText : TripTheme.secondaryText)
                             .cornerRadius(18)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 18)
-                                    .stroke(scheduleManager.selectedDay == day ? TripTheme.accent : Color.gray.opacity(0.35), lineWidth: 1)
+                                    .stroke(isSelected ? dayColor : Color.gray.opacity(0.35), lineWidth: 1.5)
                             )
                     }
                 }
@@ -113,7 +115,7 @@ struct TripItemRowView: View {
                     Text(item.title)
                         .font(.system(.body, design: .monospaced))
                         .fontWeight(.semibold)
-                        .foregroundColor(TripTheme.primaryText)
+                        .foregroundColor(TripTheme.onSurfaceText)
 
                     if let address = item.location?.address, !address.isEmpty {
                         Text(address)
@@ -151,10 +153,10 @@ struct TripItemRowView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white)
+        .background(TripTheme.surface)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                .stroke(TripTheme.stroke, lineWidth: 1)
         )
         .cornerRadius(10)
     }
@@ -162,7 +164,7 @@ struct TripItemRowView: View {
     private func badge(_ text: String) -> some View {
         Text(text)
             .font(.system(.caption2, design: .monospaced))
-            .foregroundColor(TripTheme.primaryText)
+            .foregroundColor(TripTheme.onSurfaceText)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(TripTheme.accentSoft)

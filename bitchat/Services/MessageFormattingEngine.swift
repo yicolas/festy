@@ -24,6 +24,10 @@ protocol MessageFormattingContext: AnyObject {
     /// Gets the color for a message's sender
     func senderColor(for message: BitchatMessage, isDark: Bool) -> Color
 
+    /// User-picked color for the current user's own messages.
+    /// Defaults to GE136C orange.
+    var selfColor: Color { get }
+
     /// Resolves a peer ID to a clickable URL
     func peerURL(for peerID: PeerID) -> URL?
 }
@@ -112,7 +116,7 @@ final class MessageFormattingEngine {
         }
 
         var result = AttributedString()
-        let baseColor: Color = isSelf ? .orange : context.senderColor(for: message, isDark: isDark)
+        let baseColor: Color = isSelf ? context.selfColor : context.senderColor(for: message, isDark: isDark)
 
         // Format system messages differently
         if message.sender == "system" {
@@ -154,7 +158,7 @@ final class MessageFormattingEngine {
     ) -> AttributedString {
         let isDark = colorScheme == .dark
         let isSelf = context.isSelfMessage(message)
-        let baseColor: Color = isSelf ? .orange : context.senderColor(for: message, isDark: isDark)
+        let baseColor: Color = isSelf ? context.selfColor : context.senderColor(for: message, isDark: isDark)
 
         if message.sender == "system" {
             var style = AttributeContainer()
@@ -401,7 +405,9 @@ final class MessageFormattingEngine {
         guard !text.isEmpty else { return AttributedString() }
 
         var style = AttributeContainer()
-        style.foregroundColor = baseColor
+        // Message body text is always primary (black in light, white in dark) for
+        // readability. Sender name remains tinted via formatSenderHeader.
+        style.foregroundColor = Color.primary
         style.font = isSelf
             ? .bitchatSystem(size: 14, weight: .bold, design: .monospaced)
             : .bitchatSystem(size: 14, design: .monospaced)

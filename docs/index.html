@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GE136C — offline trip companion</title>
+<meta name="description" content="GE136C is an offline-first trip chat app built on Bluetooth mesh networking. Stay connected with your group when cell service drops." />
+<meta property="og:title" content="GE136C — offline trip chat" />
+<meta property="og:description" content="Bluetooth mesh chat for trips with no cell service." />
+<meta name="theme-color" content="#FF7E15" />
+<style>
+  :root {
+    --accent: #FF7E15;
+    --bg: #ffffff;
+    --bg-dark: #0a0a0a;
+    --fg: #111111;
+    --muted: #555;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "SF Mono", Menlo, monospace; color: var(--fg); background: var(--bg); }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  main { flex: 1; max-width: 640px; margin: 0 auto; padding: 36px 22px 60px; }
+  .hero { text-align: center; padding-top: 24px; }
+  .logo {
+    width: 128px; height: 128px; border-radius: 28px; margin: 0 auto 18px;
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 28px; color: #fff; letter-spacing: 0.5px;
+    box-shadow: 0 8px 28px rgba(255,126,21,0.35), 0 2px 6px rgba(0,0,0,0.15);
+    border: 2px solid var(--accent);
+  }
+  h1 { font-size: 32px; margin: 6px 0 4px; letter-spacing: 0.5px; }
+  .tagline { color: var(--muted); margin: 0 0 30px; font-size: 15px; }
+  .cta-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .btn {
+    display: block; width: 100%; padding: 14px 18px; font-size: 16px;
+    border-radius: 14px; text-align: center; text-decoration: none;
+    font-weight: 600; transition: transform 0.1s ease, opacity 0.2s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.secondary { background: #f3f3f3; color: var(--fg); border: 1px solid #e0e0e0; }
+  section { margin-top: 28px; }
+  h2 { font-size: 16px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px; }
+  .card {
+    background: #fafafa; border: 1px solid #ececec; border-radius: 14px;
+    padding: 16px 18px; margin-bottom: 12px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .card p { margin: 4px 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .feature { font-size: 14px; padding: 12px; background: #fafafa; border-radius: 10px; border: 1px solid #ececec; }
+  code { background: #f0f0f0; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+  footer { text-align: center; padding: 24px 16px; color: var(--muted); font-size: 12px; border-top: 1px solid #eee; }
+  a { color: var(--accent); }
+  @media (prefers-color-scheme: dark) {
+    html, body { background: var(--bg-dark); color: #f0f0f0; }
+    .btn.secondary { background: #1c1c1c; color: #f0f0f0; border-color: #2a2a2a; }
+    .card, .feature { background: #131313; border-color: #1f1f1f; }
+    .card p { color: #aaa; }
+    .tagline { color: #aaa; }
+    code { background: #1c1c1c; color: #f0f0f0; }
+    footer { border-color: #1f1f1f; color: #aaa; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <div class="logo" aria-hidden="true">GE136C</div>
+    <h1>GE136C</h1>
+    <p class="tagline">Offline trip companion. Bluetooth mesh chat for the Sierras.</p>
+  </div>
+
+  <div class="cta-row">
+    <a class="btn primary" href="ge136c://join">I already have the app — open it</a>
+    <a class="btn secondary" href="#install">How to install</a>
+  </div>
+
+  <section id="install">
+    <h2>Install</h2>
+    <div class="card">
+      <h3>Option 1 — TestFlight (easiest, when available)</h3>
+      <p>
+        If a TestFlight build is live, the trip leader will send a separate
+        invite link. Tap it on your iPhone, install TestFlight from the App
+        Store if prompted, then accept the GE136C invite.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Option 2 — Build it yourself with Xcode</h3>
+      <p>
+        Free, no developer account needed beyond your Apple ID. On a Mac:
+      </p>
+      <p>
+        1. Clone the repo: <code>git clone https://github.com/yicolas/festy.git</code><br>
+        2. Open <code>bitchat.xcodeproj</code> in Xcode.<br>
+        3. Plug in your iPhone, pick it as the destination, hit ⌘R.<br>
+        4. On the iPhone: Settings → General → VPN &amp; Device Management →
+        trust the developer certificate.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Option 3 — Sideloading tools</h3>
+      <p>
+        Advanced users can use AltStore / SideStore / Sideloadly to install a
+        signed <code>.ipa</code> from the GitHub Releases page. Requires a Mac
+        or AltServer running.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it does</h2>
+    <div class="features">
+      <div class="feature">Offline mesh chat over Bluetooth — no cell service needed.</div>
+      <div class="feature">Trip channels (#general, #cars, #meals, etc.) keep coordination organized.</div>
+      <div class="feature">Pre-downloadable OSM topo tiles + multi-day driving routes for offline navigation.</div>
+      <div class="feature">End-to-end encrypted trip chat — strangers can't read your group messages.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Privacy</h2>
+    <div class="card">
+      <p>
+        No accounts, no phone numbers, no tracking. Chat history, map tiles,
+        and route caches are stored on your device and stay until you clear
+        them. Nothing leaves the device except the encrypted mesh chat
+        packets to other GE136C participants in Bluetooth range.
+      </p>
+    </div>
+  </section>
+</main>
+<footer>
+  <a href="https://github.com/yicolas/festy">github.com/yicolas/festy</a>
+</footer>
+</body>
+</html>

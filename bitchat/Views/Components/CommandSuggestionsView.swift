@@ -82,7 +82,7 @@ struct CommandSuggestionsView: View {
     
     CommandSuggestionsView(
         messageText: $messageText,
-        textColor: .green,
+        textColor: TripTheme.uiTint,
         backgroundColor: .primary,
         secondaryTextColor: .secondary
     )

@@ -75,6 +75,22 @@ final class NotificationService {
         sendLocalNotification(title: title, body: body, identifier: identifier)
     }
     
+    /// Notification for a message that mentions a trip channel hashtag.
+    /// Format: title = channel, subtitle = sender, body = message.
+    func sendChannelMessageNotification(channel: String, sender: String, message: String) {
+        guard !isRunningTests else { return }
+        let content = UNMutableNotificationContent()
+        content.title = channel
+        content.subtitle = sender
+        content.body = message
+        content.sound = .default
+        content.threadIdentifier = "channel-\(channel.lowercased())"
+
+        let identifier = "channel-\(channel)-\(UUID().uuidString)"
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
+
     func sendPrivateMessageNotification(from sender: String, message: String, peerID: PeerID) {
         let title = "🔒 DM from \(sender)"
         let body = message
