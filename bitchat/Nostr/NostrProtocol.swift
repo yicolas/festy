@@ -19,6 +19,58 @@ struct NostrProtocol {
         case giftWrap = 1059 // NIP-59 gift wrap
         case ephemeralEvent = 20000
         case geohashPresence = 20001
+        /// NIP-78 parameterized replaceable application data — used for GE136C
+        /// trip-scoped peer selfies. Filtered by `#d` tag = "ge136c.selfie".
+        case appData = 30078
+    }
+
+    /// d-tag used by GE136C to scope NIP-78 events to peer selfies.
+    static let selfieDTag = "ge136c.selfie"
+
+    /// Shared "k" tag value used by GE136C trip notes so they can be filtered
+    /// across all authors. Each note gets its own d-tag (`ge136c.note.<uuid>`)
+    /// so updates are parameterized-replaceable per note.
+    static let tripNoteKTag = "ge136c.notes"
+
+    /// Create a NIP-78 parameterized-replaceable event that publishes the
+    /// caller's selfie. The relay keeps exactly one copy per (pubkey, kind, d).
+    static func createSelfieEvent(
+        content: String,
+        senderIdentity: NostrIdentity
+    ) throws -> NostrEvent {
+        let tags = [["d", selfieDTag]]
+        let event = NostrEvent(
+            pubkey: senderIdentity.publicKeyHex,
+            createdAt: Date(),
+            kind: .appData,
+            tags: tags,
+            content: content
+        )
+        let schnorrKey = try senderIdentity.schnorrSigningKey()
+        return try event.sign(with: schnorrKey)
+    }
+
+    /// Create a NIP-78 event for a single trip note. Each note has its own
+    /// `d` tag so an author can edit/replace it later. The shared `k` tag
+    /// (`ge136c.notes`) lets subscribers fetch every author's notes at once.
+    static func createTripNoteEvent(
+        noteID: String,
+        content: String,
+        senderIdentity: NostrIdentity
+    ) throws -> NostrEvent {
+        let tags = [
+            ["d", "ge136c.note.\(noteID)"],
+            ["k", tripNoteKTag]
+        ]
+        let event = NostrEvent(
+            pubkey: senderIdentity.publicKeyHex,
+            createdAt: Date(),
+            kind: .appData,
+            tags: tags,
+            content: content
+        )
+        let schnorrKey = try senderIdentity.schnorrSigningKey()
+        return try event.sign(with: schnorrKey)
     }
     
     /// Create a NIP-17 private message

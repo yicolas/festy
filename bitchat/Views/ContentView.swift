@@ -57,6 +57,8 @@ struct ContentView: View {
     @State private var showLocationNotes = false
     @State private var notesGeohash: String? = nil
     @State private var imagePreviewURL: URL? = nil
+    @State private var showClearChatConfirm: Bool = false
+    @State private var showBlockPeerConfirm: Bool = false
     @State private var recordingAlertMessage: String = ""
     @State private var showRecordingAlert = false
     @State private var isRecordingVoiceNote = false
@@ -347,10 +349,18 @@ struct ContentView: View {
     
     private func messagesView(privatePeer: PeerID?, isAtBottom: Binding<Bool>) -> some View {
         let rawMessages: [BitchatMessage] = {
+            let base: [BitchatMessage]
             if let peerID = privatePeer {
-                return viewModel.getPrivateChatMessages(for: peerID)
+                base = viewModel.getPrivateChatMessages(for: peerID)
+            } else {
+                base = viewModel.messages
             }
-            return viewModel.messages
+            // Defensive: location + selfie control packets must never render as chat.
+            return base.filter { msg in
+                !msg.content.hasPrefix(FriendLocationService.locationMarker)
+                    && !msg.content.hasPrefix(SelfieSyncService.requestMarker)
+                    && !msg.content.hasPrefix(SelfieSyncService.responseMarker)
+            }
         }()
 
         // Apply hashtag filter only to public timelines, not to DMs.
@@ -358,6 +368,39 @@ struct ContentView: View {
             guard privatePeer == nil,
                   let tag = viewModel.hashtagFilter,
                   !tag.isEmpty else { return rawMessages }
+
+            // #main is a catch-all: show everything EXCEPT messages tagged with
+            // a #car-X that isn't this user's own car AND any #meals messages
+            // (those live exclusively in the #meals channel so they don't
+            // clog the main feed).
+            if tag.caseInsensitiveCompare("#main") == .orderedSame {
+                let myCarTag = CarAssignmentStore.shared.assignedTag?.lowercased()
+                let carRegex = try? NSRegularExpression(pattern: "#car-([a-zA-Z0-9-]+)", options: .caseInsensitive)
+                return rawMessages.filter { msg in
+                    let content = msg.content
+                    // Drop meal posts from #main so the channel stays focused
+                    // on incoming chatter.
+                    if content.range(of: "#meals", options: .caseInsensitive) != nil {
+                        return false
+                    }
+                    guard let regex = carRegex else { return true }
+                    let nsRange = NSRange(content.startIndex..., in: content)
+                    let matches = regex.matches(in: content, options: [], range: nsRange)
+                    // No car tag → include
+                    if matches.isEmpty { return true }
+                    // Has a car tag — only include if it matches my car
+                    for match in matches {
+                        if let r = Range(match.range(at: 1), in: content) {
+                            let foundTag = "#car-" + String(content[r]).lowercased()
+                            if let mine = myCarTag, mine == foundTag {
+                                return true
+                            }
+                        }
+                    }
+                    return false
+                }
+            }
+
             return rawMessages.filter { $0.content.range(of: tag, options: .caseInsensitive) != nil }
         }()
 
@@ -1012,8 +1055,42 @@ struct ContentView: View {
                                 : String(localized: "content.accessibility.add_favorite", comment: "Accessibility label to add a favorite")
                             )
                         }
+
+                        // Block / unblock the DM partner. Confirm-gated.
+                        let isBlocked: Bool = {
+                            if privatePeerID.isGeoDM || privatePeerID.isGeoChat {
+                                return viewModel.isGeohashUserBlocked(pubkeyHexLowercased: privatePeerID.bare.lowercased())
+                            }
+                            return viewModel.isPeerBlocked(headerContext.headerPeerID)
+                        }()
+                        Button(action: {
+                            if isBlocked {
+                                // Unblock directly — low-risk action.
+                                viewModel.togglePeerBlock(privatePeerID.isGeoDM ? privatePeerID : headerContext.headerPeerID,
+                                                         displayName: headerContext.displayName)
+                            } else {
+                                showBlockPeerConfirm = true
+                            }
+                        }) {
+                            Image(systemName: isBlocked ? "hand.raised.slash.fill" : "hand.raised")
+                                .font(.bitchatSystem(size: 14))
+                                .foregroundColor(isBlocked ? Color.red : textColor)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(isBlocked ? "Unblock peer" : "Block peer")
                     }
                     .frame(maxWidth: .infinity)
+                    .confirmationDialog("Block \(headerContext.displayName)?",
+                                        isPresented: $showBlockPeerConfirm,
+                                        titleVisibility: .visible) {
+                        Button("Block", role: .destructive) {
+                            viewModel.togglePeerBlock(privatePeerID.isGeoDM ? privatePeerID : headerContext.headerPeerID,
+                                                     displayName: headerContext.displayName)
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("You won't receive messages from this person anymore. You can unblock from this same screen.")
+                    }
 
                     Spacer(minLength: 0)
 
@@ -1211,15 +1288,10 @@ struct ContentView: View {
     
     private var mainHeaderView: some View {
         HStack(spacing: 0) {
-            Text(verbatim: "FM/")
+            Text(verbatim: "GE136C/")
                 .font(.bitchatSystem(size: 18, weight: .medium, design: .monospaced))
                 .foregroundColor(textColor)
-                .onTapGesture(count: 3) {
-                    // PANIC: Triple-tap to clear all data
-                    viewModel.panicClearAllData()
-                }
-                .onTapGesture(count: 1) {
-                    // Single tap for app info
+                .onTapGesture {
                     showAppInfo = true
                 }
             
@@ -1277,13 +1349,12 @@ struct ContentView: View {
                         String(localized: "content.accessibility.open_unread_private_chat", comment: "Accessibility label for the unread private chat button")
                     )
                 }
-                // Notes icon (mesh only and when location is authorized), to the left of #mesh
-                if case .mesh = locationManager.selectedChannel, locationManager.permissionState == .authorized {
+                // Notes icon removed from chat header — moved to the Map tab
+                // so users add notes pinned to their current location there.
+                if false, case .mesh = locationManager.selectedChannel, locationManager.permissionState == .authorized {
                     Button(action: {
-                        // Kick a one-shot refresh and show the sheet immediately.
                         LocationChannelManager.shared.enableLocationChannels()
                         LocationChannelManager.shared.refreshChannels()
-                        // If we already have a block geohash, pass it; otherwise wait in the sheet.
                         notesGeohash = LocationChannelManager.shared.availableChannels.first(where: { $0.level == .building })?.geohash
                         showLocationNotes = true
                     }) {
@@ -1317,12 +1388,13 @@ struct ContentView: View {
                     )
                 }
 
-                // Location channels button '#'
+                // Location channels button '#'. Always shows "#channels" as the
+                // badge so the header acts as the channel-picker entry point,
+                // independent of which channel is currently filtered (the
+                // active channel is already shown in the sub-header above the
+                // chat list).
                 Button(action: { showLocationChannelsSheet = true }) {
                     let badgeText: String = {
-                        if let tag = viewModel.hashtagFilter, !tag.isEmpty {
-                            return tag.hasPrefix("#") ? tag : "#\(tag)"
-                        }
                         switch locationManager.selectedChannel {
                         case .mesh: return "#channels"
                         case .location(let ch): return "#\(ch.geohash)"
@@ -1370,6 +1442,19 @@ struct ContentView: View {
                 .lineLimit(headerLineLimit)
                 .fixedSize(horizontal: true, vertical: false)
 
+                // Clear-chat button (mesh public channel only). Tap → confirm sheet.
+                if case .mesh = locationManager.selectedChannel {
+                    Button(action: { showClearChatConfirm = true }) {
+                        Image(systemName: "trash")
+                            .font(.bitchatSystem(size: 12))
+                            .foregroundColor(Color.secondary)
+                            .padding(4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear chat log")
+                }
+
                 // QR moved to the PEOPLE header in the sidebar when on mesh channel
             }
             .layoutPriority(3)
@@ -1385,6 +1470,16 @@ struct ContentView: View {
         }
         .frame(height: headerHeight)
         .padding(.horizontal, 12)
+        .confirmationDialog("Clear this chat log?",
+                            isPresented: $showClearChatConfirm,
+                            titleVisibility: .visible) {
+            Button("Clear chat log", role: .destructive) {
+                viewModel.clearCurrentPublicTimeline()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes messages from your device only. Other phones keep their copies.")
+        }
         .sheet(isPresented: $showLocationChannelsSheet) {
             LocationChannelsSheet(isPresented: $showLocationChannelsSheet)
                 .environmentObject(viewModel)

@@ -92,6 +92,15 @@ struct AEAD {
 class FriendLocationService: NSObject, ObservableObject {
     static let shared = FriendLocationService()
 
+    /// Wire-level marker prefix for location packets sent as chat-channel
+    /// messages. The leading control char ensures no collision with real text.
+    static let locationMarker = "\u{1}GE136C-LOC\u{1}"
+
+    /// Closure invoked when this device wants to broadcast its location.
+    /// `ChatViewModel` sets this in init so we can fan the encoded string out
+    /// over the existing BLE-mesh chat transport.
+    var broadcaster: ((String) -> Void)?
+
     // MARK: - Configuration
     /// How often to broadcast location (seconds)
     private let broadcastInterval: TimeInterval = 30
@@ -220,26 +229,52 @@ class FriendLocationService: NSObject, ObservableObject {
         timer.resume()
     }
 
-    private func broadcastLocation(aeadKey: SymmetricKey? = nil) {
-        guard let location = myLocation else { return }
-
-        let payload = LocationSharePayload(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude, accuracy: location.horizontalAccuracy, timestamp: UInt64(location.timestamp.timeIntervalSince1970 * 1000.0))
-
-        guard !FavoritesPersistenceService.shared.favorites.values.filter({ $0.isMutual }).isEmpty else {
-            print("📍 No mutual favorites to share location with")
+    private func broadcastLocation() {
+        guard let location = myLocation else {
+            print("📍 broadcastLocation: no GPS fix yet, skipping")
             return
         }
-
-        var data = payload.toData()
-        if let key = aeadKey {
-            do { data = try AEAD.encrypt(payload: data, using: key) } catch { print("📍 AEAD encrypt failed: \(error)"); return }
+        guard let broadcaster else {
+            print("📍 No broadcaster wired up — location not sent")
+            return
         }
-
-        // TODO: Integrate with MeshService to actually send encrypted/packed data
-        // meshService.broadcastToFavorites(type: FriendLocationService.locationSharePacketType, payload: data)
-
+        let lat = location.coordinate.latitude
+        let lng = location.coordinate.longitude
+        let acc = location.horizontalAccuracy
+        let ts = Int(location.timestamp.timeIntervalSince1970)
+        let content = "\(Self.locationMarker)\(lat),\(lng),\(acc),\(ts)"
+        broadcaster(content)
         lastBroadcastTime = Date()
-        print("📍 Broadcasting location (encrypted: \(aeadKey != nil))")
+    }
+
+    /// Called by `ChatViewModel.didReceiveMessage` when an incoming BLE-mesh
+    /// chat-channel message starts with our location marker. We parse the
+    /// suffix and update the friend's location entry — no AEAD because the
+    /// payload contains only coordinates + accuracy + timestamp.
+    func ingestLocationMessage(content: String, senderNoiseKey: Data?, senderNickname: String) {
+        guard content.hasPrefix(Self.locationMarker) else { return }
+        let body = content.dropFirst(Self.locationMarker.count)
+        let parts = body.split(separator: ",")
+        guard parts.count >= 4,
+              let lat = Double(parts[0]),
+              let lng = Double(parts[1]),
+              let acc = Double(parts[2]),
+              let ts  = TimeInterval(parts[3]) else {
+            print("📍 Malformed location packet from \(senderNickname): \(body)")
+            return
+        }
+        // Use a deterministic id even when we don't yet have a noise key
+        // (e.g., peer is observed once but not paired into favorites yet).
+        let id = senderNoiseKey ?? Data(senderNickname.utf8)
+        let friend = FriendLocation(
+            id: id,
+            nickname: senderNickname,
+            coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lng),
+            accuracy: acc,
+            timestamp: Date(timeIntervalSince1970: ts),
+            isStale: false
+        )
+        friendLocations[id] = friend
     }
 
     private func setupStalenessTimer() {

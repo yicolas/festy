@@ -922,6 +922,29 @@ struct NostrFilter: Encodable {
         }
         tagFilters?[tag] = values
     }
+
+    /// NIP-78 trip selfies (kind 30078) filtered to GE136C's selfie d-tag and
+    /// the supplied set of peer Nostr pubkeys. One latest event per author.
+    static func tripSelfies(authors: [String], since: Date? = nil) -> NostrFilter {
+        var filter = NostrFilter()
+        filter.kinds = [30078]
+        filter.authors = authors
+        filter.since = since?.timeIntervalSince1970.toInt()
+        filter.tagFilters = ["d": [NostrProtocol.selfieDTag]]
+        return filter
+    }
+
+    /// NIP-78 trip notes (kind 30078) shared by every GE136C user. Filtered
+    /// by the common `#k` tag so we get everyone's notes without needing the
+    /// per-note `d` tag list up front.
+    static func tripNotes(since: Date? = nil, limit: Int = 500) -> NostrFilter {
+        var filter = NostrFilter()
+        filter.kinds = [30078]
+        filter.since = since?.timeIntervalSince1970.toInt()
+        filter.tagFilters = ["k": [NostrProtocol.tripNoteKTag]]
+        filter.limit = limit
+        return filter
+    }
 }
 
 // Dynamic coding key for tag filters

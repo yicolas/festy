@@ -32,6 +32,8 @@ struct FriendMapView: View {
     @ObservedObject var routeCache = RouteCache.shared
     @ObservedObject var tileCache = TileCacheManager.shared
     @ObservedObject var dayVisibility = DayRouteVisibility.shared
+    @ObservedObject var notesService = TripNotesService.shared
+    @EnvironmentObject var viewModel: ChatViewModel
 
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 36.8, longitude: -119.3),
@@ -43,13 +45,23 @@ struct FriendMapView: View {
     @State private var dayRoutesExpanded: Bool = false
     @State private var showingOfflinePrompt: Bool = false
     @State private var showingOfflineSheet: Bool = false
+    /// Non-nil while the user is actively dropping a new note. The annotation
+    /// reference lets the user drag the pin on the map; the parent reads its
+    /// final coordinate at Save time.
+    @State private var draftNote: DraftNoteAnnotation?
+    @State private var draftNoteText: String = ""
+    @State private var viewingNote: TripNote?
     @AppStorage("ge136c.hasPromptedOfflineDownload") private var hasPromptedOfflineDownload: Bool = false
 
     var body: some View {
         ZStack {
             MainTripMap(
                 region: $region,
-                selectedFriend: $selectedFriend
+                selectedFriend: $selectedFriend,
+                draftAnnotation: draftNote,
+                onSelectNote: { note in
+                    viewingNote = note
+                }
             )
             .edgesIgnoringSafeArea(.all)
 
@@ -79,6 +91,11 @@ struct FriendMapView: View {
                     selectedFriendCard(friend)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+
+                if draftNote != nil {
+                    draftNoteCard
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
             .padding()
 
@@ -96,6 +113,9 @@ struct FriendMapView: View {
                     }
                     daysSideButton
                     sideButton(icon: "scope", text: "Fit") { fitAllPoints() }
+                    sideButton(icon: "note.text.badge.plus", text: "Notes") {
+                        startNewNote()
+                    }
                     offlineSideButton
                     Spacer()
                 }
@@ -117,6 +137,9 @@ struct FriendMapView: View {
         }
         .sheet(item: $showingTrail) { trail in
             TrailSheet(trail: trail)
+        }
+        .sheet(item: $viewingNote) { note in
+            TripNoteDetailSheet(note: note)
         }
         .onAppear {
             initializeRegionFromTripConfig()
@@ -182,7 +205,7 @@ struct FriendMapView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .frame(width: 52)
-            .background(Color.white.opacity(0.92))
+            .background(TripTheme.surface)
             .cornerRadius(12)
             .shadow(radius: 1.5)
         }
@@ -211,7 +234,7 @@ struct FriendMapView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .frame(width: 52)
-            .background(Color.white.opacity(0.92))
+            .background(TripTheme.surface)
             .cornerRadius(12)
             .shadow(radius: 1.5)
         }
@@ -244,11 +267,12 @@ struct FriendMapView: View {
             Text(text)
                 .font(.system(size: 9, design: .monospaced))
         }
-        .foregroundColor(TripTheme.primaryText)
+        .foregroundColor(TripTheme.onSurfaceText)
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .frame(width: 52)
-        .background(Color.white.opacity(0.92))
+        .background(TripTheme.surface)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(TripTheme.stroke, lineWidth: 0.5))
         .cornerRadius(12)
         .shadow(radius: 1.5)
     }
@@ -306,7 +330,7 @@ struct FriendMapView: View {
                 }
             }
             .padding(10)
-            .background(Color.white.opacity(0.92))
+            .background(TripTheme.surface)
             .cornerRadius(10)
             .shadow(radius: 2)
         }
@@ -376,9 +400,89 @@ struct FriendMapView: View {
             }
         }
         .padding()
-        .background(Color.white.opacity(0.95))
+        .background(TripTheme.surface)
         .cornerRadius(12)
         .shadow(radius: 4)
+    }
+
+    /// Sticky-note draft card shown while the user is positioning + typing a
+    /// new pin. The map shows a draggable yellow placeholder; this card
+    /// captures the body and exits the mode on Save / Cancel.
+    private var draftNoteCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "note.text.badge.plus")
+                    .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.10))
+                Text("New note")
+                    .font(.system(.headline, design: .monospaced))
+                    .foregroundColor(TripTheme.primaryText)
+                Spacer()
+                Text("Drag pin to refine")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundColor(TripTheme.secondaryText)
+            }
+
+            TextField("What's here?", text: $draftNoteText, axis: .vertical)
+                .lineLimit(1...4)
+                .font(.system(.body, design: .monospaced))
+                .padding(8)
+                .background(TripTheme.background)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(TripTheme.stroke, lineWidth: 0.5))
+                .cornerRadius(8)
+
+            HStack(spacing: 8) {
+                Button(action: { cancelDraftNote() }) {
+                    Text("Cancel")
+                        .font(.system(.subheadline, design: .monospaced))
+                        .foregroundColor(TripTheme.secondaryText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(TripTheme.background)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(TripTheme.stroke, lineWidth: 0.5))
+                        .cornerRadius(8)
+                }
+                Button(action: { saveDraftNote() }) {
+                    Text("Save note")
+                        .font(.system(.subheadline, design: .monospaced))
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(canSaveDraft ? TripTheme.accent : TripTheme.accent.opacity(0.4))
+                        .cornerRadius(8)
+                }
+                .disabled(!canSaveDraft)
+            }
+        }
+        .padding()
+        .background(TripTheme.surface)
+        .cornerRadius(12)
+        .shadow(radius: 4)
+    }
+
+    private var canSaveDraft: Bool {
+        !draftNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Drop a fresh draggable placeholder at the current map center.
+    private func startNewNote() {
+        // Don't stack drafts — bail if one's already in progress.
+        guard draftNote == nil else { return }
+        draftNoteText = ""
+        draftNote = DraftNoteAnnotation(coordinate: region.center)
+    }
+
+    private func cancelDraftNote() {
+        draftNote = nil
+        draftNoteText = ""
+    }
+
+    private func saveDraftNote() {
+        guard let draft = draftNote, canSaveDraft else { return }
+        let body = draftNoteText.trimmingCharacters(in: .whitespacesAndNewlines)
+        notesService.addNote(at: draft.coordinate, body: body, author: viewModel.nickname)
+        draftNote = nil
+        draftNoteText = ""
     }
 
     private var friendListSheet: some View {
@@ -394,10 +498,8 @@ struct FriendMapView: View {
                             region.center = friend.coordinate
                             showingList = false
                         }) {
-                            HStack {
-                                Circle()
-                                    .fill(friend.isStale ? Color.gray : TripTheme.accent)
-                                    .frame(width: 10, height: 10)
+                            HStack(spacing: 10) {
+                                FriendRosterAvatar(friend: friend)
 
                                 Text(friend.nickname)
                                     .font(.system(.body, design: .monospaced))
@@ -503,7 +605,7 @@ private struct TripStopPin: View {
                 .lineLimit(1)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Color.white.opacity(0.95))
+                .background(TripTheme.surface)
                 .cornerRadius(4)
         }
     }
@@ -558,25 +660,40 @@ struct TripMapTab: View {
             if locationService.isSharing {
                 FriendMapView()
             } else {
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     Spacer()
 
-                    Image(systemName: "location.slash")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(.white)
+                                .frame(width: 52, height: 52)
+                                .background(Color.white.opacity(0.18))
+                                .cornerRadius(12)
 
-                    Text("Live location sharing is off")
-                        .font(.system(.title3, design: .monospaced))
-                        .foregroundColor(TripTheme.primaryText)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Turn on location to unlock the map")
+                                    .font(.system(.headline, design: .monospaced))
+                                    .foregroundColor(.white)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text("Required to see your dot, the trip stops, and friend locations.")
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundColor(Color.white.opacity(0.85))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
 
-                    Text("Turn it on to see friend dots layered over the GE136C route pins.")
-                        .font(.system(.subheadline, design: .monospaced))
-                        .foregroundColor(TripTheme.secondaryText)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-
-                    FriendLocationToggle()
-                        .padding(.horizontal, 20)
+                        FriendLocationToggle()
+                            .padding(10)
+                            .background(TripTheme.surface)
+                            .cornerRadius(10)
+                    }
+                    .padding(16)
+                    .background(TripTheme.accent)
+                    .cornerRadius(14)
+                    .shadow(color: TripTheme.accent.opacity(0.35), radius: 12, x: 0, y: 4)
+                    .padding(.horizontal, 16)
 
                     Spacer()
                 }
@@ -748,11 +865,21 @@ final class DayRouteVisibility: ObservableObject {
 struct MainTripMap: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     @Binding var selectedFriend: FriendLocation?
+    /// Optional in-progress note placeholder. When non-nil, rendered as a
+    /// draggable yellow pin so the user can position it before saving.
+    var draftAnnotation: DraftNoteAnnotation? = nil
+    /// Tap callback for an existing note annotation. Parent presents details.
+    var onSelectNote: ((TripNote) -> Void)? = nil
     @ObservedObject private var locationService = FriendLocationService.shared
     @ObservedObject private var scheduleManager = TripScheduleManager.shared
     @ObservedObject private var tileCache = TileCacheManager.shared
     @ObservedObject private var routeCache = RouteCache.shared
     @ObservedObject private var dayVisibility = DayRouteVisibility.shared
+    /// Observed so that a fresh selfie arriving over Nostr/BLE forces a
+    /// SwiftUI update, which in turn calls updateUIView and re-renders pins.
+    @ObservedObject private var selfieStore = PeerSelfieStore.shared
+    /// Observed so that newly received Nostr notes appear without a tap.
+    @ObservedObject private var notesService = TripNotesService.shared
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
@@ -791,8 +918,12 @@ struct MainTripMap: UIViewRepresentable {
             }
         }
 
-        // Annotations (rebuild deterministically each pass).
-        let existing = map.annotations.filter { !($0 is MKUserLocation) }
+        // Annotations: rebuild stops/friends/notes deterministically each pass
+        // BUT preserve any DraftNoteAnnotation across rebuilds so an in-progress
+        // drag isn't interrupted by unrelated state churn (friend pings, etc.).
+        let existing = map.annotations.filter {
+            !($0 is MKUserLocation) && !($0 is DraftNoteAnnotation)
+        }
         map.removeAnnotations(existing)
 
         var anns: [MKAnnotation] = []
@@ -803,7 +934,21 @@ struct MainTripMap: UIViewRepresentable {
         for friend in locationService.locatedFriends {
             anns.append(FriendAnnotation(friend: friend, isSelected: selectedFriend?.id == friend.id))
         }
+        for note in notesService.notes {
+            anns.append(TripNoteAnnotation(note: note))
+        }
         map.addAnnotations(anns)
+
+        // Sync the draft pin separately: add it the first time it appears,
+        // remove it when SwiftUI clears the draft (Save/Cancel).
+        let currentDrafts = map.annotations.compactMap { $0 as? DraftNoteAnnotation }
+        if let draft = draftAnnotation {
+            if !currentDrafts.contains(where: { $0 === draft }) {
+                map.addAnnotation(draft)
+            }
+        } else if !currentDrafts.isEmpty {
+            map.removeAnnotations(currentDrafts)
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
@@ -849,6 +994,59 @@ struct MainTripMap: UIViewRepresentable {
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             if annotation is MKUserLocation { return nil }
+
+            // In-progress draft pin: yellow, draggable, no callout.
+            if annotation is DraftNoteAnnotation {
+                let id = "trip-note-draft"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: id) as? MKMarkerAnnotationView
+                    ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: id)
+                view.annotation = annotation
+                view.canShowCallout = false
+                view.displayPriority = .required
+                view.isDraggable = true
+                view.markerTintColor = UIColor(red: 1.0, green: 0.85, blue: 0.10, alpha: 1.0)
+                view.glyphImage = UIImage(systemName: "plus")
+                view.glyphTintColor = .black
+                return view
+            }
+
+            // Yellow sticky-note pin for user-dropped trip notes.
+            if let note = annotation as? TripNoteAnnotation {
+                let id = "trip-note"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: id) as? MKMarkerAnnotationView
+                    ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: id)
+                view.annotation = annotation
+                view.canShowCallout = true
+                view.displayPriority = .defaultHigh
+                view.isDraggable = false
+                view.markerTintColor = UIColor(red: 1.0, green: 0.85, blue: 0.10, alpha: 1.0)
+                view.glyphImage = UIImage(systemName: "note.text")
+                view.glyphTintColor = .black
+                // Truncate to first line for the callout title.
+                let firstLine = note.note.body.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? note.note.body
+                note.title = firstLine.isEmpty ? "Note" : String(firstLine.prefix(48))
+                return view
+            }
+
+            // For friend annotations, if we have a cached selfie, render a
+            // circular avatar pin instead of the system marker. Otherwise fall
+            // back to the existing MKMarkerAnnotationView style.
+            if let friend = annotation as? FriendAnnotation,
+               let avatar = friendSelfie(for: friend) {
+                let id = "trip-friend-avatar"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: id)
+                    ?? MKAnnotationView(annotation: annotation, reuseIdentifier: id)
+                view.annotation = annotation
+                view.canShowCallout = true
+                view.displayPriority = .required
+                let ringColor: UIColor = friend.isSelected
+                    ? UIColor(red: 0.18, green: 0.55, blue: 0.92, alpha: 1.0)
+                    : (friend.friend.isStale ? .systemGray : UIColor(red: 1.00, green: 0.49, blue: 0.08, alpha: 1.0))
+                view.image = Self.circularSelfieImage(from: avatar, ringColor: ringColor, diameter: 44)
+                view.centerOffset = CGPoint(x: 0, y: -22)
+                return view
+            }
+
             let id = "trip-pin"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: id) as? MKMarkerAnnotationView
                 ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: id)
@@ -870,10 +1068,48 @@ struct MainTripMap: UIViewRepresentable {
             return view
         }
 
+        private func friendSelfie(for annotation: FriendAnnotation) -> UIImage? {
+            PeerSelfieStore.shared.cachedImage(forNoiseKey: annotation.friend.id)
+        }
+
+        /// Renders a circular avatar with a colored ring suitable for an
+        /// MKAnnotationView. Diameter is the full output size (image + ring).
+        private static func circularSelfieImage(from source: UIImage,
+                                                ringColor: UIColor,
+                                                diameter: CGFloat) -> UIImage {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = UIScreen.main.scale
+            let renderer = UIGraphicsImageRenderer(size: CGSize(width: diameter, height: diameter), format: format)
+            return renderer.image { ctx in
+                let rect = CGRect(x: 0, y: 0, width: diameter, height: diameter)
+                let ringWidth: CGFloat = 2.5
+                let imageRect = rect.insetBy(dx: ringWidth, dy: ringWidth)
+                let path = UIBezierPath(ovalIn: imageRect)
+                ctx.cgContext.saveGState()
+                path.addClip()
+                source.draw(in: imageRect)
+                ctx.cgContext.restoreGState()
+                ringColor.setStroke()
+                let stroke = UIBezierPath(ovalIn: rect.insetBy(dx: ringWidth / 2, dy: ringWidth / 2))
+                stroke.lineWidth = ringWidth
+                stroke.stroke()
+            }
+        }
+
         func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            // Selecting the draft pin must not surface the note-detail sheet.
+            if view.annotation is DraftNoteAnnotation { return }
             if let friend = view.annotation as? FriendAnnotation {
                 DispatchQueue.main.async { [weak self] in
                     self?.parent.selectedFriend = friend.friend
+                }
+                return
+            }
+            if let noteAnn = view.annotation as? TripNoteAnnotation {
+                let note = noteAnn.note
+                mapView.deselectAnnotation(noteAnn, animated: false)
+                DispatchQueue.main.async { [weak self] in
+                    self?.parent.onSelectNote?(note)
                 }
             }
         }
@@ -882,6 +1118,35 @@ struct MainTripMap: UIViewRepresentable {
 
 final class DayPolyline: MKPolyline {
     var dayIndex: Int = 0
+}
+
+/// 28pt circle that shows the peer's cached selfie if we have one, falling
+/// back to a colored dot when we don't. Used by the live-locations roster.
+private struct FriendRosterAvatar: View {
+    let friend: FriendLocation
+    @ObservedObject private var selfieStore = PeerSelfieStore.shared
+
+    var body: some View {
+        Group {
+            if let image = selfieStore.cachedImage(forNoiseKey: friend.id) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 28, height: 28)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(ringColor, lineWidth: 1.5))
+            } else {
+                Circle()
+                    .fill(ringColor)
+                    .frame(width: 14, height: 14)
+                    .frame(width: 28, height: 28)
+            }
+        }
+    }
+
+    private var ringColor: Color {
+        friend.isStale ? .gray : TripTheme.accent
+    }
 }
 
 final class TripStopAnnotation: NSObject, MKAnnotation {
@@ -907,6 +1172,79 @@ final class FriendAnnotation: NSObject, MKAnnotation {
         self.friend = friend
         self.isSelected = isSelected
         super.init()
+    }
+}
+
+/// Yellow sticky-note pin annotation for user-dropped trip notes.
+final class TripNoteAnnotation: NSObject, MKAnnotation {
+    let note: TripNote
+    var title: String?
+    var coordinate: CLLocationCoordinate2D { note.coordinate }
+
+    init(note: TripNote) {
+        self.note = note
+        super.init()
+    }
+}
+
+/// Mutable annotation backing an in-progress note. The user is drawing this
+/// pin on the map: drag adjusts `coordinate`, and on Save the parent reads the
+/// final coordinate to publish. `@objc dynamic` makes the property KVO-compliant
+/// which MKMapView requires for draggable annotations.
+final class DraftNoteAnnotation: NSObject, MKAnnotation {
+    @objc dynamic var coordinate: CLLocationCoordinate2D
+    var title: String?
+
+    init(coordinate: CLLocationCoordinate2D) {
+        self.coordinate = coordinate
+        self.title = "Drag to refine"
+        super.init()
+    }
+}
+
+/// Read-only details for a single trip note. Lets the local author delete
+/// their own note from their device (Nostr-side is replaceable, not deletable).
+struct TripNoteDetailSheet: View {
+    let note: TripNote
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var notesService = TripNotesService.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Image(systemName: "note.text")
+                    .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.10))
+                Text(note.author)
+                    .font(.system(.headline, design: .monospaced))
+                    .foregroundColor(TripTheme.primaryText)
+                Spacer()
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(TripTheme.secondaryText)
+                }
+            }
+            Text(note.body)
+                .font(.system(.body, design: .monospaced))
+                .foregroundColor(TripTheme.primaryText)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundColor(TripTheme.secondaryText)
+            Button(role: .destructive, action: {
+                notesService.removeNote(note)
+                dismiss()
+            }) {
+                Label("Remove from my map", systemImage: "trash")
+                    .font(.system(.subheadline, design: .monospaced))
+            }
+            .padding(.top, 8)
+            Spacer()
+        }
+        .padding()
+        .background(TripTheme.background.ignoresSafeArea())
+        .presentationDetents([.fraction(0.35), .medium])
     }
 }
 #endif
@@ -993,6 +1331,41 @@ final class TileCacheManager: ObservableObject {
     @Published var preferredSource: Source {
         didSet { UserDefaults.standard.set(preferredSource.rawValue, forKey: "ge136c.tileSource") }
     }
+
+    enum DetailLevel: String, CaseIterable, Identifiable {
+        case low, mid, best
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .low:  return "Low"
+            case .mid:  return "Mid"
+            case .best: return "Best"
+            }
+        }
+        /// Zoom-level ranges. "best" widens the LOW end (z=7) so the initial
+        /// trip-overview zoom renders offline, plus z=13 for street labels.
+        /// "mid" goes deeper than best (z=15 = small buildings) but keeps the
+        /// floor at z=10 so the download stays in the low-hundreds-of-MB range
+        /// instead of running into OSM tile-server policy at z=16+.
+        var zooms: ClosedRange<Int> {
+            switch self {
+            case .low:  return 10...13
+            case .mid:  return 10...15
+            case .best: return 7...13
+            }
+        }
+        var blurb: String {
+            switch self {
+            case .low:  return "road labels, smaller download"
+            case .mid:  return "street + building labels, biggest download"
+            case .best: return "wide overview + roads, balanced"
+            }
+        }
+    }
+
+    @Published var preferredDetail: DetailLevel {
+        didSet { UserDefaults.standard.set(preferredDetail.rawValue, forKey: "ge136c.tileDetail") }
+    }
     @Published private(set) var cachedTileCount: Int = 0
     @Published private(set) var cachedBytes: Int = 0
 
@@ -1012,6 +1385,12 @@ final class TileCacheManager: ObservableObject {
         } else {
             preferredSource = .openTopoMap
         }
+        if let raw = UserDefaults.standard.string(forKey: "ge136c.tileDetail"),
+           let lvl = DetailLevel(rawValue: raw) {
+            preferredDetail = lvl
+        } else {
+            preferredDetail = .best
+        }
         Task { await refreshCacheStats() }
     }
 
@@ -1029,6 +1408,30 @@ final class TileCacheManager: ObservableObject {
             .appendingPathComponent("\(z)", isDirectory: true)
             .appendingPathComponent("\(x)", isDirectory: true)
             .appendingPathComponent("\(y).png")
+    }
+
+    /// Highest zoom level that has at least one cached tile. Used to cap the
+    /// MKTileOverlay's `maximumZ` so zooms past the cached range fall back to
+    /// upscaled tiles instead of stalled network requests.
+    nonisolated static func maxCachedZoom(source: Source) -> Int? {
+        let dir = cacheRoot().appendingPathComponent(source.rawValue, isDirectory: true)
+        guard let entries = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else {
+            return nil
+        }
+        let zooms = entries.compactMap { Int($0) }
+        return zooms.max()
+    }
+
+    /// Lowest cached zoom — symmetric helper to `maxCachedZoom`. Lets the
+    /// overlay set `minimumZ` properly so MKMapView doesn't request tiles
+    /// below the cached range (which would hard-fail and blank the view).
+    nonisolated static func minCachedZoom(source: Source) -> Int? {
+        let dir = cacheRoot().appendingPathComponent(source.rawValue, isDirectory: true)
+        guard let entries = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else {
+            return nil
+        }
+        let zooms = entries.compactMap { Int($0) }
+        return zooms.min()
     }
 
     func cacheRoot() -> URL { Self.cacheRoot() }
@@ -1071,7 +1474,8 @@ final class TileCacheManager: ObservableObject {
         return (tiles.count, tiles.count * preferredSource.bytesPerTileEstimate)
     }
 
-    func startDownload(zooms: ClosedRange<Int> = 10...12) {
+    func startDownload(zooms: ClosedRange<Int>? = nil) {
+        let zooms = zooms ?? preferredDetail.zooms
         downloadTask?.cancel()
         let source = preferredSource
         let tiles = Self.tilesForBBox(Self.tripBBox(), zooms: zooms)
@@ -1321,9 +1725,16 @@ final class CachedTileOverlay: MKTileOverlay {
     init(source: TileCacheManager.Source) {
         self.source = source
         super.init(urlTemplate: source.urlTemplate)
-        canReplaceMapContent = true
-        maximumZ = 17
-        minimumZ = 1
+        // false → Apple base map fills the gaps when our cache doesn't cover
+        // the current zoom (online), and we get a blank-but-not-frozen view
+        // offline. true would hide Apple Maps entirely.
+        canReplaceMapContent = false
+        // Cap at the highest actually-cached zoom so MKMapView upscales rather
+        // than chasing dead network requests when the user zooms past it.
+        let highest = TileCacheManager.maxCachedZoom(source: source) ?? 13
+        let lowest  = TileCacheManager.minCachedZoom(source: source) ?? 1
+        maximumZ = max(1, highest)
+        minimumZ = max(1, lowest)
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
@@ -1332,8 +1743,11 @@ final class CachedTileOverlay: MKTileOverlay {
             result(data, nil)
             return
         }
-        // Cache miss → fall back to network (won't help fully offline, but useful in the field with intermittent signal).
-        super.loadTile(at: path, result: result)
+        // Cache miss — return immediately rather than hitting the network.
+        // On airplane mode this prevents the multi-second hang that froze the
+        // map when zoomed past the cached zoom range. MKMapView will fall back
+        // to the upscaled tile from `maximumZ`.
+        result(nil, NSError(domain: "ge136c.tiles", code: 1, userInfo: nil))
     }
 }
 
@@ -1459,7 +1873,10 @@ struct OfflineTripMapSheet: View {
 #if DEBUG
 struct FriendMapView_Previews: PreviewProvider {
     static var previews: some View {
-        FriendMapView()
+        // Preview omitted: FriendMapView depends on ChatViewModel which has
+        // non-trivial init dependencies (keychain, identity bridge). Run on
+        // device/simulator to exercise it.
+        EmptyView()
     }
 }
 #endif

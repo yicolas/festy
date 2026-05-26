@@ -1,90 +1,66 @@
 import SwiftUI
-import CryptoKit
 #if os(iOS)
 import UIKit
 #endif
 
-/// Cryptographic gate for the trip-mode chat. The shared password is the
-/// caller's responsibility to deliver out-of-band (we receive it verbally).
-/// Anyone without the password sees only ciphertext blobs.
+/// Stores the user's own selfie locally so it can render on the map pin and
+/// later be propagated to peers. Persists to Application Support so it survives
+/// app updates but is wiped by the standard "Erase all content".
 @MainActor
-final class TripChatGate: ObservableObject {
-    static let shared = TripChatGate()
+final class UserSelfieStore: ObservableObject {
+    static let shared = UserSelfieStore()
+    private let promptedKey = "ge136c.hasPromptedSelfie"
+    private let filename = "ge136c-selfie.jpg"
 
-    // Out-of-band trip passcode. Shared verbally.
-    static let passcode = "magnetite!"
+    @Published var image: UIImage?
+    @Published var hasPrompted: Bool {
+        didSet { UserDefaults.standard.set(hasPrompted, forKey: promptedKey) }
+    }
 
-    // Recognizable marker so receivers can distinguish encrypted payloads.
-    // The leading control char keeps it from colliding with normal text.
-    private static let marker = "\u{1}GE136C\u{1}"
+    private var fileURL: URL {
+        let base = (try? FileManager.default.url(for: .applicationSupportDirectory,
+                                                 in: .userDomainMask,
+                                                 appropriateFor: nil,
+                                                 create: true)) ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent(filename)
+    }
 
-    @Published private(set) var isUnlocked: Bool = false
-    /// Set true while the user is viewing the trip-mode chat tab. Send-path
-    /// encryption only applies when this is true.
-    @Published var isActive: Bool = false
-
-    private var key: SymmetricKey?
-    private let persistedKey = "ge136c.chatUnlocked"
-
-    init() {
-        // Restore unlock state across launches. The passcode is hardcoded so
-        // re-deriving the key is safe; persistence is purely a UX convenience.
-        if UserDefaults.standard.bool(forKey: persistedKey) {
-            let hashed = SHA256.hash(data: Data((TripChatGate.passcode + ":ge136c-v1").utf8))
-            key = SymmetricKey(data: Data(hashed))
-            isUnlocked = true
+    private init() {
+        hasPrompted = UserDefaults.standard.bool(forKey: promptedKey)
+        if let data = try? Data(contentsOf: fileURL),
+           let img = UIImage(data: data) {
+            image = img
         }
     }
 
-    func unlock(with attempt: String) -> Bool {
-        guard attempt == TripChatGate.passcode else { return false }
-        let hashed = SHA256.hash(data: Data((TripChatGate.passcode + ":ge136c-v1").utf8))
-        key = SymmetricKey(data: Data(hashed))
-        isUnlocked = true
-        UserDefaults.standard.set(true, forKey: persistedKey)
-        return true
-    }
-
-    func lock() {
-        key = nil
-        isUnlocked = false
-        UserDefaults.standard.set(false, forKey: persistedKey)
-    }
-
-    func encrypt(_ plaintext: String) -> String? {
-        guard let key, let data = plaintext.data(using: .utf8) else { return nil }
-        do {
-            let box = try ChaChaPoly.seal(data, using: key)
-            return TripChatGate.marker + box.combined.base64EncodedString()
-        } catch {
-            return nil
+    func save(_ image: UIImage) {
+        let resized = Self.resize(image, maxDimension: 256)
+        self.image = resized
+        if let data = resized.jpegData(compressionQuality: 0.65) {
+            try? data.write(to: fileURL, options: .atomic)
         }
+        hasPrompted = true
+        // Push the new selfie out to peers over Nostr + BLE.
+        SelfieSyncService.shared.publishOwnSelfie()
     }
 
-    /// Returns nil if the input isn't a marker payload at all.
-    /// Returns `.locked` if the marker is present but no key is loaded.
-    /// Returns `.plaintext(...)` on a successful decrypt.
-    enum DecryptResult {
-        case notEncrypted
-        case locked
-        case plaintext(String)
+    func delete() {
+        image = nil
+        try? FileManager.default.removeItem(at: fileURL)
     }
 
-    func decrypt(_ wrapped: String) -> DecryptResult {
-        guard wrapped.hasPrefix(TripChatGate.marker) else { return .notEncrypted }
-        guard let key else { return .locked }
-        let b64 = String(wrapped.dropFirst(TripChatGate.marker.count))
-        guard let combined = Data(base64Encoded: b64),
-              let box = try? ChaChaPoly.SealedBox(combined: combined),
-              let plain = try? ChaChaPoly.open(box, using: key),
-              let str = String(data: plain, encoding: .utf8) else {
-            return .locked
-        }
-        return .plaintext(str)
+    func markPrompted() {
+        hasPrompted = true
     }
 
-    static func hasEncryptedMarker(_ s: String) -> Bool {
-        s.hasPrefix(marker)
+    private static func resize(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let scale = min(maxDimension / image.size.width, maxDimension / image.size.height, 1)
+        if scale >= 1 { return image }
+        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
     }
 }
 
@@ -231,6 +207,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 struct TripContentView: View {
     @EnvironmentObject var viewModel: ChatViewModel
     @ObservedObject var tripManager = TripModeManager.shared
+    @ObservedObject private var selfieStore = UserSelfieStore.shared
     @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
 
     private var preferredColorScheme: ColorScheme? {
@@ -261,6 +238,14 @@ struct TripContentView: View {
             NicknamePromptView()
                 .environmentObject(viewModel)
         }
+        #if os(iOS)
+        .fullScreenCover(isPresented: Binding(
+            get: { viewModel.hasChosenNickname && !selfieStore.hasPrompted },
+            set: { _ in }
+        )) {
+            SelfiePromptView()
+        }
+        #endif
     }
 }
 
@@ -279,6 +264,125 @@ struct GlobalMeshBanner: View {
         .background(Color.orange)
     }
 }
+
+#if os(iOS)
+/// Camera picker wrapper for the selfie capture.
+struct CameraPicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            picker.sourceType = .camera
+            picker.cameraDevice = .front
+        } else {
+            picker.sourceType = .photoLibrary
+        }
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPicker
+        init(_ p: CameraPicker) { parent = p }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let img = info[.originalImage] as? UIImage {
+                parent.image = img
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+    }
+}
+
+struct SelfiePromptView: View {
+    @ObservedObject private var store = UserSelfieStore.shared
+    @State private var showingCamera = false
+    @State private var pickedImage: UIImage?
+
+    var body: some View {
+        VStack(spacing: 22) {
+            Spacer()
+
+            VStack(spacing: 12) {
+                if let img = pickedImage ?? store.image {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 140, height: 140)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(TripTheme.accent, lineWidth: 3))
+                } else {
+                    Image(systemName: "person.crop.circle.fill.badge.plus")
+                        .font(.system(size: 80))
+                        .foregroundColor(TripTheme.accent)
+                }
+
+                Text("Add your face")
+                    .font(.system(.title2, design: .monospaced))
+                    .fontWeight(.bold)
+                    .foregroundColor(TripTheme.primaryText)
+
+                Text("So your dot on the trip map is recognizable. You can change or delete this any time.")
+                    .font(.system(.subheadline, design: .monospaced))
+                    .foregroundColor(TripTheme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+
+            VStack(spacing: 10) {
+                Button(action: { showingCamera = true }) {
+                    Label(pickedImage != nil || store.image != nil ? "Retake selfie" : "Take selfie", systemImage: "camera")
+                        .font(.system(.body, design: .monospaced))
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(TripTheme.accent)
+                        .cornerRadius(10)
+                }
+                if pickedImage != nil {
+                    Button(action: {
+                        if let img = pickedImage { store.save(img) }
+                    }) {
+                        Text("Use this photo")
+                            .font(.system(.body, design: .monospaced))
+                            .fontWeight(.semibold)
+                            .foregroundColor(TripTheme.accent)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(TripTheme.accentSoft)
+                            .cornerRadius(10)
+                    }
+                }
+                Button(action: { store.markPrompted() }) {
+                    Text("Skip for now")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(TripTheme.secondaryText)
+                        .padding(.vertical, 8)
+                }
+            }
+            .padding(.horizontal, 40)
+
+            Spacer()
+        }
+        .background(TripTheme.background.ignoresSafeArea())
+        .sheet(isPresented: $showingCamera) {
+            CameraPicker(image: $pickedImage)
+                .ignoresSafeArea()
+        }
+    }
+}
+#endif
 
 struct NicknamePromptView: View {
     @EnvironmentObject var viewModel: ChatViewModel
@@ -357,9 +461,16 @@ struct NicknamePromptView: View {
 struct TripMainView: View {
     @EnvironmentObject var viewModel: ChatViewModel
     @ObservedObject var scheduleManager = TripScheduleManager.shared
+    @ObservedObject private var selfieStore = UserSelfieStore.shared
     @State private var selectedTabId: String = "schedule"
     @State private var isShowingShareSheet = false
     @State private var isShowingColorPicker = false
+    @State private var isShowingSelfieMenu = false
+    @State private var isShowingSettings = false
+    #if os(iOS)
+    @State private var isShowingSelfieCamera = false
+    @State private var pickedSelfieImage: UIImage?
+    #endif
     @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
 
     private var tabs: [TripTab] {
@@ -443,6 +554,8 @@ struct TripMainView: View {
 
     private var tripBanner: some View {
         HStack {
+            selfieThumb
+
             Image(systemName: "car.fill")
                 .foregroundColor(TripTheme.accent)
 
@@ -467,27 +580,11 @@ struct TripMainView: View {
                 } label: {
                     Label("Share invite", systemImage: "square.and.arrow.up")
                 }
-                Divider()
-                Menu {
-                    Button { colorSchemePreference = "system" } label: {
-                        Label("System default", systemImage: colorSchemePreference == "system" ? "checkmark" : "iphone")
-                    }
-                    Button { colorSchemePreference = "light" } label: {
-                        Label("Light", systemImage: colorSchemePreference == "light" ? "checkmark" : "sun.max")
-                    }
-                    Button { colorSchemePreference = "dark" } label: {
-                        Label("Dark", systemImage: colorSchemePreference == "dark" ? "checkmark" : "moon")
-                    }
-                } label: {
-                    Label("Appearance", systemImage: "circle.lefthalf.filled")
-                }
-                #if os(iOS)
                 Button {
-                    isShowingColorPicker = true
+                    isShowingSettings = true
                 } label: {
-                    Label("Text color…", systemImage: "paintpalette")
+                    Label("How to use & Settings", systemImage: "gear")
                 }
-                #endif
             } label: {
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 18, weight: .semibold))
@@ -500,6 +597,10 @@ struct TripMainView: View {
         .padding(.horizontal)
         .padding(.vertical, 10)
         .background(TripTheme.accentSoft)
+        .sheet(isPresented: $isShowingSettings) {
+            AppInfoView()
+                .environmentObject(viewModel)
+        }
         #if os(iOS)
         .sheet(isPresented: $isShowingShareSheet) {
             ShareSheet(activityItems: [InviteLink.shareText])
@@ -507,6 +608,57 @@ struct TripMainView: View {
         .sheet(isPresented: $isShowingColorPicker) {
             TextColorPickerSheet()
         }
+        .sheet(isPresented: $isShowingSelfieCamera, onDismiss: {
+            if let img = pickedSelfieImage {
+                selfieStore.save(img)
+                pickedSelfieImage = nil
+            }
+        }) {
+            CameraPicker(image: $pickedSelfieImage)
+                .ignoresSafeArea()
+        }
+        .confirmationDialog("Your selfie",
+                            isPresented: $isShowingSelfieMenu,
+                            titleVisibility: .visible) {
+            Button("Retake") { isShowingSelfieCamera = true }
+            if selfieStore.image != nil {
+                Button("Delete", role: .destructive) { selfieStore.delete() }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private var selfieThumb: some View {
+        #if os(iOS)
+        Button {
+            if selfieStore.image == nil {
+                isShowingSelfieCamera = true
+            } else {
+                isShowingSelfieMenu = true
+            }
+        } label: {
+            Group {
+                if let img = selfieStore.image {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image(systemName: "person.crop.circle.fill.badge.plus")
+                        .font(.system(size: 18))
+                        .foregroundColor(TripTheme.accent)
+                }
+            }
+            .frame(width: 28, height: 28)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(TripTheme.accent, lineWidth: 1.5))
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(selfieStore.image == nil ? "Add selfie" : "Change or delete selfie")
+        #else
+        EmptyView()
         #endif
     }
 
@@ -538,33 +690,22 @@ struct TripMainView: View {
     }
 }
 
-/// Hosts the chat tab inside trip mode: marks the gate as active while visible,
-/// gates the chat behind a passcode prompt, and shows an encryption banner.
+/// Hosts the chat tab inside trip mode. Used to gate the chat behind an
+/// encryption passcode; that gate was removed to make group messaging
+/// frictionless. Now just renders the channel subheader + chat content.
 struct TripChatHost: View {
-    @ObservedObject private var gate = TripChatGate.shared
     @EnvironmentObject private var viewModel: ChatViewModel
-    @State private var passcodeAttempt: String = ""
-    @State private var showError: Bool = false
 
     var body: some View {
-        ZStack {
-            if gate.isUnlocked {
-                VStack(spacing: 0) {
-                    channelSubheader
-                    encryptedBanner
-                    if viewModel.hashtagFilter == "#cars" {
-                        CarGroupsOverview()
-                            .environmentObject(viewModel)
-                    } else {
-                        ContentView()
-                    }
-                }
+        VStack(spacing: 0) {
+            channelSubheader
+            if viewModel.hashtagFilter == "#cars" {
+                CarGroupsOverview()
+                    .environmentObject(viewModel)
             } else {
-                passcodeView
+                ContentView()
             }
         }
-        .onAppear { gate.isActive = true }
-        .onDisappear { gate.isActive = false }
     }
 
     /// Shows which #channel the user is currently filtered to, right below the
@@ -597,80 +738,6 @@ struct TripChatHost: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(TripTheme.subheaderBackground)
-    }
-
-    private var encryptedBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "lock.shield.fill")
-            Text("GE136C — encrypted mesh chat. Geohash & other channels stay public.")
-                .lineLimit(2)
-            Spacer()
-        }
-        .font(.system(.caption2, design: .monospaced))
-        .foregroundColor(.white)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(TripTheme.accent)
-    }
-
-    private var passcodeView: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Image(systemName: "lock.fill")
-                .font(.system(size: 48))
-                .foregroundColor(TripTheme.accent)
-            Text("Trip chat is locked")
-                .font(.system(.title3, design: .monospaced))
-                .fontWeight(.bold)
-                .foregroundColor(TripTheme.primaryText)
-            Text("Enter the trip passcode shared verbally to unlock encrypted chat.")
-                .font(.system(.caption, design: .monospaced))
-                .foregroundColor(TripTheme.secondaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-
-            SecureField("passcode", text: $passcodeAttempt)
-                .font(.system(.body, design: .monospaced))
-                .textFieldStyle(.roundedBorder)
-                .autocorrectionDisabled()
-                #if os(iOS)
-                .textInputAutocapitalization(.never)
-                .submitLabel(.go)
-                #endif
-                .onSubmit(tryUnlock)
-                .padding(.horizontal, 40)
-
-            if showError {
-                Text("Incorrect passcode.")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.red)
-            }
-
-            Button(action: tryUnlock) {
-                Text("Unlock")
-                    .font(.system(.body, design: .monospaced))
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(passcodeAttempt.isEmpty ? TripTheme.accent.opacity(0.4) : TripTheme.accent)
-                    .cornerRadius(10)
-            }
-            .disabled(passcodeAttempt.isEmpty)
-            .padding(.horizontal, 40)
-            Spacer()
-        }
-        .background(TripTheme.background)
-    }
-
-    private func tryUnlock() {
-        guard !passcodeAttempt.isEmpty else { return }
-        if gate.unlock(with: passcodeAttempt) {
-            passcodeAttempt = ""
-            showError = false
-        } else {
-            showError = true
-        }
     }
 }
 
@@ -872,10 +939,13 @@ struct CarGroupsOverview: View {
 
 struct TripInfoView: View {
     @ObservedObject var scheduleManager = TripScheduleManager.shared
+    @EnvironmentObject var viewModel: ChatViewModel
+    @State private var showAppInfo: Bool = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                howToCard
                 photoUploadCard
                 feedbackCard
 
@@ -929,6 +999,44 @@ struct TripInfoView: View {
             .padding()
         }
         .background(TripTheme.background)
+        .sheet(isPresented: $showAppInfo) {
+            AppInfoView()
+                .environmentObject(viewModel)
+        }
+    }
+
+    /// One-tap entry into the unified "How to use & Settings" page. The
+    /// detailed walkthrough lives there now instead of being duplicated as an
+    /// inline expandable card.
+    private var howToCard: some View {
+        Button(action: { showAppInfo = true }) {
+            HStack(spacing: 10) {
+                Image(systemName: "book.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(TripTheme.accent)
+                    .cornerRadius(10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("How to use & Settings")
+                        .font(.system(.headline, design: .monospaced))
+                        .foregroundColor(TripTheme.onSurfaceText)
+                    Text("Guide + every user setting")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(TripTheme.secondaryText)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(TripTheme.secondaryText)
+            }
+            .contentShape(Rectangle())
+            .padding(14)
+            .background(TripTheme.surface)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(TripTheme.stroke, lineWidth: 1))
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
     }
 
     private var feedbackCard: some View {
@@ -1016,7 +1124,7 @@ struct OfflineMapsCard: View {
     @ObservedObject private var routes = RouteCache.shared
     @State private var showingMap = false
 
-    private var estimate: (tileCount: Int, bytes: Int) { cache.estimate(zooms: 10...12) }
+    private var estimate: (tileCount: Int, bytes: Int) { cache.estimate(zooms: cache.preferredDetail.zooms) }
 
     private func formatMB(_ bytes: Int) -> String {
         String(format: "%.0f MB", Double(bytes) / 1_000_000.0)
@@ -1044,6 +1152,23 @@ struct OfflineMapsCard: View {
                     }
                 }
                 .pickerStyle(.segmented)
+            }
+
+            // Detail level picker
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Detail level")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(TripTheme.primaryText)
+                Picker("Detail level", selection: $cache.preferredDetail) {
+                    ForEach(TileCacheManager.DetailLevel.allCases) { lvl in
+                        Text(lvl.label).tag(lvl)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text("Zooms \(cache.preferredDetail.zooms.lowerBound)–\(cache.preferredDetail.zooms.upperBound) (\(cache.preferredDetail.blurb)). Higher detail = bigger download but readable at max zoom.")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundColor(TripTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             // Status / action

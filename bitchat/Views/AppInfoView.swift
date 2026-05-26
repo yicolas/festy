@@ -10,7 +10,17 @@ import SwiftUI
 struct AppInfoView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
+    @EnvironmentObject var viewModel: ChatViewModel
     @ObservedObject private var networkService = NetworkActivationService.shared
+    @State private var showClearChatConfirm: Bool = false
+    @State private var showTextColorPicker: Bool = false
+    #if os(iOS)
+    @ObservedObject private var selfieStore = UserSelfieStore.shared
+    @ObservedObject private var locationService = FriendLocationService.shared
+    @State private var showSelfieCamera: Bool = false
+    @State private var pickedSelfie: UIImage?
+    #endif
+    @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
     
     private var backgroundColor: Color {
         colorScheme == .dark ? Color.black : Color.white
@@ -143,31 +153,60 @@ struct AppInfoView: View {
     @ViewBuilder
     private var infoContent: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Header
+            // Header — GE136C trip rebrand. Tagline calls out that this page
+            // doubles as the how-to guide AND the settings hub.
             VStack(alignment: .center, spacing: 8) {
-                Text(Strings.appName)
+                Text("GE136C")
                     .font(.bitchatSystem(size: 32, weight: .bold, design: .monospaced))
                     .foregroundColor(textColor)
-                
-                Text(Strings.tagline)
+
+                Text("How to use & Settings")
                     .font(.bitchatSystem(size: 16, design: .monospaced))
                     .foregroundColor(secondaryTextColor)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical)
-            
-            // How to Use
-            VStack(alignment: .leading, spacing: 16) {
-                SectionHeader(Strings.HowToUse.title)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(Strings.HowToUse.instructions.enumerated()), id: \.offset) { _, instruction in
-                        Text(instruction)
-                    }
-                }
-                .font(.bitchatSystem(size: 14, design: .monospaced))
-                .foregroundColor(textColor)
+            // How to Use — trip-specific guide moved here from the Info tab
+            // so there's one canonical place for the walkthrough.
+            VStack(alignment: .leading, spacing: 16) {
+                SectionHeader("HOW TO USE")
+
+                howSection("Tabs at the bottom", items: [
+                    ("calendar", "Schedule — every stop + presenter for each day"),
+                    ("number", "Channels — jump to a #channel chat"),
+                    ("map", "Map — pins, routes, friend dots, notes"),
+                    ("bubble.left.and.bubble.right", "Chat — talk to the group, filtered by channel"),
+                    ("info.circle", "Info — schedule details + about page entry")
+                ])
+                howSection("Channels", items: [
+                    ("person.3.fill", "#main — main trip chat, start here"),
+                    ("megaphone.fill", "#announcements — instructor-only high-priority notices"),
+                    ("car.fill", "#cars — pick your car by driver's first name, then chat with carmates"),
+                    ("speedometer", "#driving — ETAs, regrouping, driver changes"),
+                    ("fork.knife", "#meals — dinner menus & food coordination"),
+                    ("backpack.fill", "#gear — broken / missing / lost & found")
+                ])
+                howSection("Map buttons (left side)", items: [
+                    ("list.bullet", "Live — see who's sharing location right now"),
+                    ("figure.hiking", "Trails — view the Kings Canyon / South Creek hike polylines"),
+                    ("calendar", "Routes — toggle which day routes appear on the map"),
+                    ("scope", "Fit — zoom out to fit every stop + friend"),
+                    ("note.text.badge.plus", "Notes — drop a draggable yellow pin, then add a note"),
+                    ("arrow.down.circle", "Offline — download topo tiles + driving routes for no-service areas")
+                ])
+                howSection("Top-right menu", items: [
+                    ("line.3.horizontal", "Switch tabs, share invite, open this How to use & Settings page")
+                ])
+                howSection("Pro tips", items: [
+                    ("location.fill", "Turn on Share live location to see your dot on the map and unlock the map view"),
+                    ("hand.tap.fill", "Tap a channel from Channels OR from #filter to jump straight in"),
+                    ("square.and.pencil", "Typing in #driving auto-appends the tag — no need to type the # yourself")
+                ])
             }
+
+            // Settings — all user-controlled toggles + actions in one place.
+            settingsSection
 
             // Features
             VStack(alignment: .leading, spacing: 16) {
@@ -193,23 +232,258 @@ struct AppInfoView: View {
                 FeatureRow(info: Strings.Privacy.noTracking)
 
                 FeatureRow(info: Strings.Privacy.ephemeral)
-
-                FeatureRow(info: Strings.Privacy.panic)
+                // Panic-mode row removed: panic clear is out of scope for the
+                // trip use case and was removed from the app.
             }
-            
+
             // Network & Privacy Settings
             NetworkPrivacySection()
-            
+
             // Trip Mode
             TripAppInfoSection()
-            
+
             // Data & Third Parties
             DataDisclosureSection()
-            
+
             // About & Attribution
             AboutSection()
         }
         .padding()
+        .confirmationDialog("Clear chat history?",
+                            isPresented: $showClearChatConfirm,
+                            titleVisibility: .visible) {
+            Button("Clear chat", role: .destructive) {
+                viewModel.clearCurrentPublicTimeline()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Removes messages from this device only. Other phones keep their copies.")
+        }
+        #if os(iOS)
+        .sheet(isPresented: $showTextColorPicker) {
+            TextColorPickerSheet()
+        }
+        .sheet(isPresented: $showSelfieCamera, onDismiss: {
+            if let img = pickedSelfie {
+                selfieStore.save(img)
+                pickedSelfie = nil
+            }
+        }) {
+            CameraPicker(image: $pickedSelfie)
+                .ignoresSafeArea()
+        }
+        #endif
+    }
+
+    /// User-controlled settings consolidated. Appears between "How to use" and
+    /// the static feature/privacy descriptions so the most interactive controls
+    /// are near the top.
+    @ViewBuilder
+    private var settingsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionHeader("SETTINGS")
+
+            #if os(iOS)
+            // Selfie management
+            HStack(alignment: .center, spacing: 12) {
+                Group {
+                    if let img = selfieStore.image {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 44, height: 44)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(TripTheme.accent, lineWidth: 1.5))
+                    } else {
+                        Image(systemName: "person.crop.circle.fill.badge.plus")
+                            .font(.system(size: 32))
+                            .foregroundColor(TripTheme.accent)
+                            .frame(width: 44, height: 44)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Profile picture")
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .foregroundColor(textColor)
+                    Text(selfieStore.image == nil ? "Add a selfie for the map" : "Tap to retake")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(secondaryTextColor)
+                }
+                Spacer()
+                if selfieStore.image != nil {
+                    Button(role: .destructive) { selfieStore.delete() } label: {
+                        Image(systemName: "trash")
+                    }
+                }
+                Button { showSelfieCamera = true } label: {
+                    Image(systemName: "camera")
+                        .foregroundColor(textColor)
+                }
+            }
+            .padding(.vertical, 4)
+            #endif
+
+            // Appearance (light/dark/system)
+            Menu {
+                Button { colorSchemePreference = "system" } label: {
+                    Label("System default", systemImage: colorSchemePreference == "system" ? "checkmark" : "iphone")
+                }
+                Button { colorSchemePreference = "light" } label: {
+                    Label("Light", systemImage: colorSchemePreference == "light" ? "checkmark" : "sun.max")
+                }
+                Button { colorSchemePreference = "dark" } label: {
+                    Label("Dark", systemImage: colorSchemePreference == "dark" ? "checkmark" : "moon")
+                }
+            } label: {
+                settingsRow(icon: "circle.lefthalf.filled",
+                             title: "Appearance",
+                             subtitle: appearanceSubtitle)
+            }
+
+            #if os(iOS)
+            Button(action: { showTextColorPicker = true }) {
+                settingsRow(icon: "paintpalette",
+                             title: "Text color",
+                             subtitle: "Pick the color your messages display in")
+            }
+            .buttonStyle(.plain)
+
+            // Location sharing toggle
+            Toggle(isOn: Binding(
+                get: { locationService.isSharing },
+                set: { newValue in
+                    if newValue { locationService.startSharing() }
+                    else { locationService.stopSharing() }
+                }
+            )) {
+                HStack(spacing: 12) {
+                    Image(systemName: locationService.isSharing ? "location.fill" : "location.slash")
+                        .font(.system(size: 18))
+                        .foregroundColor(textColor)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Share my location")
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundColor(textColor)
+                        Text("Broadcasts your position to trip peers every ~30s")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(secondaryTextColor)
+                    }
+                }
+            }
+            .tint(textColor)
+            #endif
+
+            // Clear chat
+            Button(action: { showClearChatConfirm = true }) {
+                settingsRow(icon: "trash",
+                             title: "Clear chat history",
+                             subtitle: "Removes locally cached messages. Peers keep theirs.")
+            }
+            .buttonStyle(.plain)
+
+            // Favorites list
+            NavigationLink {
+                FavoritesListView()
+            } label: {
+                settingsRow(icon: "star.fill",
+                             title: "Favorites",
+                             subtitle: "\(FavoritesPersistenceService.shared.favorites.count) saved",
+                             chevron: true)
+            }
+        }
+    }
+
+    /// Trip-specific guide block reused inside the How-To section.
+    @ViewBuilder
+    private func howSection(_ title: String, items: [(String, String)]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(.caption, design: .monospaced))
+                .fontWeight(.bold)
+                .foregroundColor(TripTheme.accent)
+            ForEach(items, id: \.1) { icon, desc in
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: icon)
+                        .foregroundColor(TripTheme.accent)
+                        .frame(width: 18)
+                    Text(desc)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(textColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var appearanceSubtitle: String {
+        switch colorSchemePreference {
+        case "light": return "Light"
+        case "dark": return "Dark"
+        default: return "Follows system"
+        }
+    }
+
+    @ViewBuilder
+    private func settingsRow(icon: String, title: String, subtitle: String, chevron: Bool = false) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(textColor)
+                .frame(width: 30)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(textColor)
+                Text(subtitle)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(secondaryTextColor)
+            }
+            Spacer()
+            if chevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundColor(secondaryTextColor)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+/// Read-only list of favorited peers (mutual + one-way). Lives inside the
+/// Settings sheet so users can audit who they've added.
+struct FavoritesListView: View {
+    @ObservedObject private var favorites = FavoritesPersistenceService.shared
+
+    var body: some View {
+        let entries = favorites.favorites.values.sorted { $0.peerNickname < $1.peerNickname }
+        List {
+            if entries.isEmpty {
+                Text("No favorites yet. Star someone in a DM to add them.")
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundColor(TripTheme.secondaryText)
+            } else {
+                ForEach(entries, id: \.peerNoisePublicKey) { fav in
+                    HStack(spacing: 10) {
+                        Image(systemName: fav.isMutual ? "person.2.fill" : "person.fill")
+                            .foregroundColor(TripTheme.accent)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(fav.peerNickname)
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundColor(TripTheme.primaryText)
+                            Text(fav.isMutual ? "Mutual" : "You favorited them")
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundColor(TripTheme.secondaryText)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Favorites")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
 }
 

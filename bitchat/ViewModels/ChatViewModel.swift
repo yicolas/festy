@@ -484,6 +484,45 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         // Prune any media (images, voice notes, files) older than the retention window.
         MediaRetention.pruneNow()
 
+        // Wire the location service to actually broadcast — pre-encryption-removal
+        // this was a no-op TODO. Locations are sent as marker-prefixed mesh
+        // messages over the existing chat transport (BLE today; Nostr is TODO).
+        FriendLocationService.shared.broadcaster = { [weak self] content in
+            guard let self else { return }
+            let id = UUID().uuidString
+            print("📍 BROADCAST → \(content.prefix(60))")
+            self.meshService.sendMessage(content, mentions: [], messageID: id, timestamp: Date())
+        }
+
+        // Selfie sync over BLE uses the same chat transport with a marker
+        // prefix so it never renders as user chat. Nostr publish happens
+        // inside SelfieSyncService directly.
+        SelfieSyncService.shared.broadcaster = { [weak self] content in
+            guard let self else { return }
+            let id = UUID().uuidString
+            self.meshService.sendMessage(content, mentions: [], messageID: id, timestamp: Date())
+        }
+
+        // On launch, if we already have a selfie, publish it once to Nostr so
+        // peers can pull it without waiting for the next manual retake. Also
+        // prime the subscription with the current known peer set.
+        Task { @MainActor in
+            let authors = Set(FavoritesPersistenceService.shared.favorites.values
+                .compactMap { $0.peerNostrPublicKey?.lowercased() }
+                .filter { !$0.isEmpty })
+            SelfieSyncService.shared.refreshNostrSubscription(authors: authors)
+            #if os(iOS)
+            if UserSelfieStore.shared.image != nil {
+                SelfieSyncService.shared.publishOwnSelfie()
+            }
+            #endif
+
+            // Pull any trip-note pins everyone has dropped + republish ours
+            // so peers see the latest set.
+            TripNotesService.shared.startNostrSubscription()
+            TripNotesService.shared.republishAllLocal()
+        }
+
         // Restore persisted mesh timeline (7-day rolling window).
         let persistedMesh = MeshTimelinePersistence.shared.load()
         for msg in persistedMesh {
@@ -970,6 +1009,37 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
     func isPeerBlocked(_ peerID: PeerID) -> Bool {
         return unifiedPeerService.isBlocked(peerID)
     }
+
+    /// UI-facing toggle used by the DM block button. Handles both mesh peers
+    /// (block by Noise fingerprint) and geohash DM peers (block by Nostr
+    /// pubkey). Removes any visible private-chat history for the peer.
+    @MainActor
+    func togglePeerBlock(_ peerID: PeerID, displayName: String) {
+        if peerID.isGeoDM || peerID.isGeoChat {
+            let hex = peerID.bare.lowercased()
+            if identityManager.isNostrBlocked(pubkeyHexLowercased: hex) {
+                unblockGeohashUser(pubkeyHexLowercased: hex, displayName: displayName)
+            } else {
+                blockGeohashUser(pubkeyHexLowercased: hex, displayName: displayName)
+            }
+            endPrivateChat()
+            return
+        }
+        guard let fingerprint = unifiedPeerService.getFingerprint(for: peerID) else {
+            addSystemMessage("could not identify \(displayName) for blocking")
+            return
+        }
+        let nowBlocked = !identityManager.isBlocked(fingerprint: fingerprint)
+        identityManager.setBlocked(fingerprint, isBlocked: nowBlocked)
+        privateChats.removeValue(forKey: peerID)
+        unreadPrivateMessages.remove(peerID)
+        if nowBlocked {
+            addSystemMessage("blocked \(displayName). you will no longer receive their messages")
+            endPrivateChat()
+        } else {
+            addSystemMessage("unblocked \(displayName)")
+        }
+    }
     
     // Helper method to find current peer ID for a fingerprint
     @MainActor
@@ -1067,25 +1137,18 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
             return
         }
 
-        let gate = TripChatGate.shared
         let inMesh: Bool = { if case .mesh = activeChannel { return true }; return false }()
 
         // Per-channel input scope: when a hashtag filter is active, auto-append
         // the tag (to the trimmed user input) so the user just types and sends.
         // No double-tagging if the user happened to type the hashtag themselves.
-        // Note: `scoped` is what we use for BOTH the local display copy and the
-        // payload that gets encrypted+sent over the mesh. Local display has to
-        // contain the tag or the filter hides the user's own messages.
         let scoped: String = {
             guard inMesh, let tag = hashtagFilter, !tag.isEmpty else { return trimmed }
             if trimmed.range(of: tag, options: .caseInsensitive) != nil { return trimmed }
             return "\(trimmed) \(tag)"
         }()
 
-        // Trip-chat encryption: if we're inside the trip-mode chat tab and the
-        // gate is unlocked, wrap outgoing content with shared-key ciphertext.
-        // Only applies to the mesh channel — geohash/Nostr channels stay public.
-        let content = (gate.isActive && gate.isUnlocked && inMesh) ? (gate.encrypt(scoped) ?? scoped) : scoped
+        let content = scoped
 
         if selectedPrivateChatPeer != nil {
             // Update peer ID in case it changed due to reconnection
@@ -1972,148 +2035,6 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
     }
     
     
-    // MARK: - Emergency Functions
-    
-    // PANIC: Emergency data clearing for activist safety
-    @MainActor
-    func panicClearAllData() {
-        // Messages are processed immediately - nothing to flush
-        
-        // Clear all messages
-        messages.removeAll()
-        privateChatManager.privateChats.removeAll()
-        privateChatManager.unreadMessages.removeAll()
-        
-        // Delete all keychain data (including Noise and Nostr keys)
-        _ = keychain.deleteAllKeychainData()
-        
-        // Clear UserDefaults identity data
-        userDefaults.removeObject(forKey: "bitchat.noiseIdentityKey")
-        userDefaults.removeObject(forKey: "bitchat.messageRetentionKey")
-        
-        // Clear verified fingerprints
-        verifiedFingerprints.removeAll()
-        // Verified fingerprints are cleared when identity data is cleared below
-        
-        // Reset nickname to anonymous
-        nickname = "anon\(Int.random(in: 1000...9999))"
-        saveNickname()
-        
-        // Clear favorites and peer mappings
-        // Clear through SecureIdentityStateManager instead of directly
-        identityManager.clearAllIdentityData()
-        peerIDToPublicKeyFingerprint.removeAll()
-        
-        // Clear persistent favorites from keychain
-        FavoritesPersistenceService.shared.clearAllFavorites()
-        
-        // Identity manager has cleared persisted identity data above
-        
-        // Clear autocomplete state
-        autocompleteSuggestions.removeAll()
-        showAutocomplete = false
-        autocompleteRange = nil
-        selectedAutocompleteIndex = 0
-        
-        // Clear selected private chat
-        selectedPrivateChatPeer = nil
-        selectedPrivateChatFingerprint = nil
-        
-        // Clear read receipt tracking
-        sentReadReceipts.removeAll()
-        deduplicationService.clearAll()
-
-        // Clear all caches
-        invalidateEncryptionCache()
-        
-        // IMPORTANT: Clear Nostr-related state
-        // Disconnect from Nostr relays and clear subscriptions
-        nostrRelayManager?.disconnect()
-        nostrRelayManager = nil
-        
-        // Clear Nostr identity associations
-        idBridge.clearAllAssociations()
-        
-        // Disconnect from all peers and clear persistent identity
-        // This will force creation of a new identity (new fingerprint) on next launch
-        meshService.emergencyDisconnectAll()
-        if let bleService = meshService as? BLEService {
-            bleService.resetIdentityForPanic(currentNickname: nickname)
-        }
-        
-        // No need to force UserDefaults synchronization
-        
-        // Reinitialize Nostr with new identity
-        // This will generate new Nostr keys derived from new Noise keys
-        Task { @MainActor in
-            // Small delay to ensure cleanup completes
-            try? await Task.sleep(nanoseconds: TransportConfig.uiAsyncShortSleepNs) // 0.1 seconds
-            
-            // Reinitialize Nostr relay manager with new identity
-            nostrRelayManager = NostrRelayManager()
-            setupNostrMessageHandling()
-            nostrRelayManager?.connect()
-        }
-        
-        // Delete ALL media files (incoming and outgoing) in background
-        Task.detached(priority: .utility) {
-            do {
-                let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-                let filesDir = base.appendingPathComponent("files", isDirectory: true)
-
-                // Delete the entire files directory and recreate it
-                if FileManager.default.fileExists(atPath: filesDir.path) {
-                    try FileManager.default.removeItem(at: filesDir)
-                    SecureLogger.info("🗑️ Deleted all media files during panic clear", category: .session)
-                }
-
-                // Recreate empty directory structure
-                try FileManager.default.createDirectory(at: filesDir, withIntermediateDirectories: true, attributes: nil)
-                try FileManager.default.createDirectory(at: filesDir.appendingPathComponent("voicenotes/incoming", isDirectory: true), withIntermediateDirectories: true, attributes: nil)
-                try FileManager.default.createDirectory(at: filesDir.appendingPathComponent("voicenotes/outgoing", isDirectory: true), withIntermediateDirectories: true, attributes: nil)
-                try FileManager.default.createDirectory(at: filesDir.appendingPathComponent("images/incoming", isDirectory: true), withIntermediateDirectories: true, attributes: nil)
-                try FileManager.default.createDirectory(at: filesDir.appendingPathComponent("images/outgoing", isDirectory: true), withIntermediateDirectories: true, attributes: nil)
-                try FileManager.default.createDirectory(at: filesDir.appendingPathComponent("files/incoming", isDirectory: true), withIntermediateDirectories: true, attributes: nil)
-                try FileManager.default.createDirectory(at: filesDir.appendingPathComponent("files/outgoing", isDirectory: true), withIntermediateDirectories: true, attributes: nil)
-            } catch {
-                SecureLogger.error("Failed to clear media files during panic: \(error)", category: .session)
-            }
-
-            // BCH-01-013: Clear iOS app switcher snapshots
-            // These are stored in Library/Caches/Snapshots/<bundle_id>/
-            #if os(iOS)
-            Self.clearAppSwitcherSnapshots()
-            #endif
-        }
-
-        // Force immediate UI update for panic mode
-        // UI updates immediately - no flushing needed
-
-    }
-
-    /// BCH-01-013: Clear iOS app switcher snapshots during panic mode
-    /// iOS stores preview screenshots in Library/Caches/Snapshots/<bundle_id>/
-    /// These could reveal sensitive information visible in the app at the time
-    #if os(iOS)
-    private nonisolated static func clearAppSwitcherSnapshots() {
-        do {
-            let cacheDir = try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
-            let snapshotsDir = cacheDir.appendingPathComponent("Snapshots", isDirectory: true)
-
-            // Clear all snapshots (iOS stores them in subdirectories by bundle ID and scene)
-            if FileManager.default.fileExists(atPath: snapshotsDir.path) {
-                let contents = try FileManager.default.contentsOfDirectory(at: snapshotsDir, includingPropertiesForKeys: nil)
-                for item in contents {
-                    try FileManager.default.removeItem(at: item)
-                }
-                SecureLogger.info("🗑️ Cleared app switcher snapshots during panic clear", category: .session)
-            }
-        } catch {
-            SecureLogger.error("Failed to clear app switcher snapshots: \(error)", category: .session)
-        }
-    }
-    #endif
-
     // MARK: - Autocomplete
     
     func updateAutocomplete(for text: String, cursorPosition: Int) {
@@ -2827,6 +2748,11 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         // Clear messages from current timeline
         messages.removeAll()
         timelineStore.clear(channel: activeChannel)
+        // Wipe on-disk persistence too — without this the next launch repopulates
+        // the cleared messages from the JSON file.
+        if case .mesh = activeChannel {
+            MeshTimelinePersistence.shared.clear()
+        }
 
         // Delete associated media files (images, voice notes, files) in background
         // Only delete from current chat to avoid removing private chat media
@@ -3092,71 +3018,92 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
             guard !isMessageBlocked(message) else { return }
             guard !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || message.isPrivate else { return }
 
-            // Trip-chat decryption: unwrap encrypted payloads from the trip group.
-            let wasEncrypted = TripChatGate.hasEncryptedMarker(message.content)
-            let delivered = Self.decryptTripContentIfNeeded(message)
-            let decryptSucceeded = wasEncrypted &&
-                delivered.content != message.content &&
-                !delivered.content.hasPrefix("🔒")
-
-            // Auto-favorite anyone in the trip group (i.e., anyone whose
-            // GE136C-encrypted message we just decrypted with the shared key).
-            if decryptSucceeded {
-                autoFavoriteTripGroupMember(message: delivered)
+            // Location packet interception — these are marker-prefixed control
+            // messages, not chat content. Route to FriendLocationService and
+            // never hit the chat timeline or notifications.
+            if message.content.contains("GE136C-LOC") {
+                print("📍 RX from \(message.sender) — has marker prefix? \(message.content.hasPrefix(FriendLocationService.locationMarker)). First 80: \(message.content.prefix(80))")
+            }
+            if message.content.hasPrefix(FriendLocationService.locationMarker) {
+                let noiseKey: Data? = {
+                    guard let peerID = message.senderPeerID else { return nil }
+                    return unifiedPeerService.peers.first(where: { $0.peerID == peerID })?.noisePublicKey
+                }()
+                FriendLocationService.shared.ingestLocationMessage(
+                    content: message.content,
+                    senderNoiseKey: noiseKey,
+                    senderNickname: message.sender
+                )
+                return
             }
 
+            // Selfie sync packets — request + response markers, never chat.
+            if message.content.hasPrefix(SelfieSyncService.requestMarker)
+                || message.content.hasPrefix(SelfieSyncService.responseMarker) {
+                let noiseKey: Data? = {
+                    guard let peerID = message.senderPeerID else { return nil }
+                    return unifiedPeerService.peers.first(where: { $0.peerID == peerID })?.noisePublicKey
+                }()
+                SelfieSyncService.shared.handleIncomingBLEMessage(
+                    content: message.content,
+                    senderNoiseKey: noiseKey,
+                    senderNickname: message.sender
+                )
+                return
+            }
+
+            // Auto-favorite trip-mode peers we see for the first time so the
+            // map's friend / location features work without manual setup.
+            autoFavoriteTripPeer(message: message)
+
             // Route to appropriate handler
-            if delivered.isPrivate {
-                handlePrivateMessage(delivered)
+            if message.isPrivate {
+                handlePrivateMessage(message)
             } else {
-                handlePublicMessage(delivered)
+                handlePublicMessage(message)
             }
 
             // Post-processing
-            checkForMentions(delivered)
-            sendHapticFeedback(for: delivered)
+            checkForMentions(message)
+            sendHapticFeedback(for: message)
         }
     }
 
-    /// Adds the sender of a successfully-decrypted GE136C message to favorites,
-    /// silently and idempotently. Lets the map's friend features work without
-    /// the user having to manually favorite everyone.
-    private func autoFavoriteTripGroupMember(message: BitchatMessage) {
+    /// Silently adds the sender of any non-self mesh message to favorites so
+    /// the map and friend features work without each user manually favoriting
+    /// everyone in the group. Idempotent.
+    private func autoFavoriteTripPeer(message: BitchatMessage) {
         guard message.sender != "system", message.sender != nickname else { return }
+        guard !message.isPrivate else { return }
         guard let peerID = message.senderPeerID else { return }
-        // Lookup the stable Noise public key for this peer.
         guard let noiseKey = unifiedPeerService.peers.first(where: { $0.peerID == peerID })?.noisePublicKey else { return }
+
+        // Ask this peer for their selfie if we don't already have it cached.
+        // BLE-only — Nostr fetches are pull (subscription) so they happen via
+        // `refreshSelfieSubscription` when we learn the peer's Nostr pubkey.
+        SelfieSyncService.shared.requestSelfie(fromNoiseKey: noiseKey)
+
         let status = FavoritesPersistenceService.shared.getFavoriteStatus(for: noiseKey)
-        if status?.isFavorite == true { return }
+        if status?.isFavorite == true {
+            refreshSelfieSubscription()
+            return
+        }
         let nostrKey = status?.peerNostrPublicKey ?? idBridge.getNostrPublicKey(for: noiseKey)
         FavoritesPersistenceService.shared.addFavorite(
             peerNoisePublicKey: noiseKey,
             peerNostrPublicKey: nostrKey,
             peerNickname: message.sender
         )
+        refreshSelfieSubscription()
     }
 
-    private static func decryptTripContentIfNeeded(_ message: BitchatMessage) -> BitchatMessage {
-        guard TripChatGate.hasEncryptedMarker(message.content) else { return message }
-        let newContent: String
-        switch TripChatGate.shared.decrypt(message.content) {
-        case .plaintext(let plain): newContent = plain
-        case .locked:               newContent = "🔒 [encrypted — unlock chat to read]"
-        case .notEncrypted:         return message
-        }
-        return BitchatMessage(
-            id: message.id,
-            sender: message.sender,
-            content: newContent,
-            timestamp: message.timestamp,
-            isRelay: message.isRelay,
-            originalSender: message.originalSender,
-            isPrivate: message.isPrivate,
-            recipientNickname: message.recipientNickname,
-            senderPeerID: message.senderPeerID,
-            mentions: message.mentions,
-            deliveryStatus: message.deliveryStatus
-        )
+    /// Re-subscribe to the Nostr selfie feed using the current set of known
+    /// peer Nostr pubkeys (from favorites). Idempotent inside SelfieSyncService.
+    private func refreshSelfieSubscription() {
+        let authors = Set(FavoritesPersistenceService.shared.favorites.values
+            .compactMap { $0.peerNostrPublicKey?.lowercased() }
+            .filter { !$0.isEmpty })
+        SelfieSyncService.shared.refreshNostrSubscription(authors: authors)
     }
 
     /// Find message index trying both short (16-hex) and long (64-hex) peer ID formats.
@@ -3317,6 +3264,32 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
 
     func didReceivePublicMessage(from peerID: PeerID, nickname: String, content: String, timestamp: Date, messageID: String?) {
         Task { @MainActor in
+            // Location packet interception — these are control messages, not
+            // chat content. Route to FriendLocationService and never hit the
+            // chat timeline or notifications.
+            if content.hasPrefix(FriendLocationService.locationMarker) {
+                let noiseKey: Data? = unifiedPeerService.peers.first(where: { $0.peerID == peerID })?.noisePublicKey
+                print("📍 RX from \(nickname) — ingesting location packet (noiseKey: \(noiseKey != nil))")
+                FriendLocationService.shared.ingestLocationMessage(
+                    content: content,
+                    senderNoiseKey: noiseKey,
+                    senderNickname: nickname
+                )
+                return
+            }
+
+            // Selfie sync packets — request + response markers, never chat.
+            if content.hasPrefix(SelfieSyncService.requestMarker)
+                || content.hasPrefix(SelfieSyncService.responseMarker) {
+                let noiseKey: Data? = unifiedPeerService.peers.first(where: { $0.peerID == peerID })?.noisePublicKey
+                SelfieSyncService.shared.handleIncomingBLEMessage(
+                    content: content,
+                    senderNoiseKey: noiseKey,
+                    senderNickname: nickname
+                )
+                return
+            }
+
             let normalized = content.trimmingCharacters(in: .whitespacesAndNewlines)
             let publicMentions = parseMentions(from: normalized)
             let msg = BitchatMessage(
@@ -3763,9 +3736,27 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
     /// Bumping the seed version regenerates them.
     private func seedMealPlaceholdersIfNeeded() {
         let seedKey = "ge136c.mealPlaceholdersSeededVersion"
-        let currentVersion = 1
+        // Bump when meal contents change so existing users get the update.
+        // v2: replaced dinner placeholders with full menus from the dinners CSV.
+        // v3: removed breakfast/lunch placeholders — only dinners are seeded
+        //     because the rest are user-coordinated in chat.
+        let currentVersion = 3
         let stored = userDefaults.integer(forKey: seedKey)
         guard stored < currentVersion else { return }
+
+        // When re-seeding (stored > 0), evict the previous version's seed
+        // messages first so the new ones aren't deduped by ID match AND so
+        // dropped slots (breakfast/lunch) don't linger after upgrade. IDs
+        // follow the pattern `meal-seed-<date>-<meal>`.
+        if stored > 0 {
+            let dateStrings = ["2026-05-29", "2026-05-30", "2026-05-31", "2026-06-01"]
+            let meals = ["breakfast", "lunch", "dinner"]
+            for date in dateStrings {
+                for meal in meals {
+                    _ = timelineStore.removeMessage(withID: "meal-seed-\(date)-\(meal)")
+                }
+            }
+        }
 
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .current
@@ -3782,24 +3773,45 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
             let placeholder: String // user-facing text
         }
 
+        // Dinner menus from the 2026 dinners list. Listing ingredients without
+        // amounts + the obvious allergens so people with restrictions can plan.
+        let fajitas = """
+        🌯 Fajitas
+        Ingredients: pre-cooked beef strips, bell peppers, onions, beans, Mexican cheese, sour cream, guacamole, salsa, vegan meat option, tortillas, avocado, cilantro, tortilla chips, jalapeño, tomatoes
+        Allergens: dairy (cheese, sour cream), gluten (tortillas/chips may be wheat or cross-contaminated)
+        """
+        let alfredo = """
+        🍝 Pasta Alfredo
+        Ingredients: pre-cooked chicken, alfredo sauce, zucchini, summer squash, vegetarian sausage, mushrooms, pasta, spinach
+        Allergens: dairy (alfredo sauce — cream/butter/parmesan), gluten (pasta), possibly soy/wheat in vegetarian sausage
+        """
+        let kebabs = """
+        🥙 Kebabs + Israeli Salad
+        Ingredients: chicken thighs/breasts, tofu, Greek yogurt, bell peppers, cherry tomatoes, red onion, cilantro, mint, lemon, zucchini, summer squash, eggplant, pita, tzatziki, hummus, cucumber, olives, feta cheese
+        Spices: honey, cumin, turmeric, salt, pepper, olive oil, garlic powder, onion powder, chili powder, paprika
+        Allergens: dairy (yogurt, tzatziki, feta), gluten (pita), sesame (hummus/tahini), soy (tofu)
+        """
+
+        // Dinners only — breakfast/lunch coordination happens organically in
+        // chat. Seeding all 11 slots cluttered the channel without adding info.
         let slots: [MealSlot] = [
-            .init(date: "2026-05-29", time: "08:00", day: "Friday",   meal: "breakfast", placeholder: "donuts and coffee"),
-            .init(date: "2026-05-29", time: "12:30", day: "Friday",   meal: "lunch",     placeholder: "TBD — share ideas"),
-            .init(date: "2026-05-29", time: "18:30", day: "Friday",   meal: "dinner",    placeholder: "TBD — share ideas"),
-            .init(date: "2026-05-30", time: "08:00", day: "Saturday", meal: "breakfast", placeholder: "TBD — share ideas"),
-            .init(date: "2026-05-30", time: "12:30", day: "Saturday", meal: "lunch",     placeholder: "TBD — share ideas"),
-            .init(date: "2026-05-30", time: "18:30", day: "Saturday", meal: "dinner",    placeholder: "TBD — share ideas"),
-            .init(date: "2026-05-31", time: "08:00", day: "Sunday",   meal: "breakfast", placeholder: "TBD — share ideas"),
-            .init(date: "2026-05-31", time: "12:30", day: "Sunday",   meal: "lunch",     placeholder: "TBD — share ideas"),
-            .init(date: "2026-05-31", time: "18:30", day: "Sunday",   meal: "dinner",    placeholder: "TBD — share ideas"),
-            .init(date: "2026-06-01", time: "08:00", day: "Monday",   meal: "breakfast", placeholder: "TBD — share ideas"),
-            .init(date: "2026-06-01", time: "12:30", day: "Monday",   meal: "lunch",     placeholder: "TBD — share ideas")
+            .init(date: "2026-05-29", time: "18:30", day: "Friday",   meal: "dinner", placeholder: fajitas),
+            .init(date: "2026-05-30", time: "18:30", day: "Saturday", meal: "dinner", placeholder: alfredo),
+            .init(date: "2026-05-31", time: "18:30", day: "Sunday",   meal: "dinner", placeholder: kebabs)
         ]
 
         for slot in slots {
             guard let stamp = formatter.date(from: "\(slot.date) \(slot.time)") else { continue }
             let id = "meal-seed-\(slot.date)-\(slot.meal)"
-            let body = "\(slot.day) \(slot.meal): \(slot.placeholder) #meals"
+            // For multi-line menus, keep the channel tag on the header line so
+            // the channel filter regex hits it without trailing punctuation.
+            let isMultiline = slot.placeholder.contains("\n")
+            let body: String = {
+                if isMultiline {
+                    return "\(slot.day) \(slot.meal) #meals\n\(slot.placeholder)"
+                }
+                return "\(slot.day) \(slot.meal): \(slot.placeholder) #meals"
+            }()
             let message = BitchatMessage(
                 id: id,
                 sender: "system",
@@ -4000,16 +4012,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         guard !channels.isEmpty else { return }
         let body = message.content
 
-        // If app is foreground AND user is viewing the trip chat, suppress notifications
-        // for the channel they're currently looking at (filter matches, or no filter ⇒ all visible).
+        // If app is foreground AND the user is filtered to this channel, suppress
+        // notifications for it (they can see it inline). Other channels still fire.
         #if os(iOS)
         let suppressActiveChannel: (String) -> Bool = { channelName in
-            guard UIApplication.shared.applicationState == .active,
-                  TripChatGate.shared.isActive else { return false }
-            if let active = self.hashtagFilter, !active.isEmpty {
-                return active.caseInsensitiveCompare(channelName) == .orderedSame
-            }
-            return true // no filter ⇒ unified view, everything is visible
+            guard UIApplication.shared.applicationState == .active else { return false }
+            guard let active = self.hashtagFilter, !active.isEmpty else { return false }
+            return active.caseInsensitiveCompare(channelName) == .orderedSame
         }
         #else
         let suppressActiveChannel: (String) -> Bool = { _ in false }

@@ -2202,8 +2202,15 @@ extension BLEService: CBPeripheralDelegate {
 
             let claimedSenderID = PeerID(hexData: packet.senderID)
 
+            // Per-link sender binding only applies to direct frames (ttl == messageTTL).
+            // Relayed frames (ttl < messageTTL) legitimately carry the *original* sender's
+            // ID even though they arrive on a link bound to the relayer — see the relay
+            // path in scheduleRelay/sendPacketDirected which preserves senderID and only
+            // decrements ttl. Without this exception every multi-hop packet through a
+            // bridging peer would trip the spoofing detector.
             let trustedSenderID: PeerID?
-            if let knownPeerID = boundPeerID {
+            let isDirectFrame = packet.ttl == messageTTL
+            if let knownPeerID = boundPeerID, isDirectFrame {
                 if knownPeerID != claimedSenderID {
                     SecureLogger.warning("🚫 SECURITY: Sender ID spoofing attempt detected! Peripheral \(peripheralUUID.prefix(8))… claimed to be \(claimedSenderID.id.prefix(8))… but is bound to \(knownPeerID.id.prefix(8))…", category: .security)
                     continue

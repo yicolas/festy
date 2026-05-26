@@ -27,11 +27,19 @@ final class MeshTimelinePersistence {
     }
 
     /// Returns persisted mesh messages with anything older than 30 days dropped.
+    /// Also strips any location-share control packets that may have been written
+    /// to disk before the receive-side interception was added — those are
+    /// marker-prefixed coordinate broadcasts, not chat content.
     func load() -> [BitchatMessage] {
         guard let data = try? Data(contentsOf: fileURL) else { return [] }
         guard let arr = try? JSONDecoder().decode([BitchatMessage].self, from: data) else { return [] }
         let cutoff = Date().addingTimeInterval(-retentionInterval)
-        return arr.filter { $0.timestamp >= cutoff }
+        return arr.filter { msg in
+            msg.timestamp >= cutoff
+                && !msg.content.hasPrefix(FriendLocationService.locationMarker)
+                && !msg.content.hasPrefix(SelfieSyncService.requestMarker)
+                && !msg.content.hasPrefix(SelfieSyncService.responseMarker)
+        }
     }
 
     /// Debounced save — waits ~5s after the last call. Use this for "every append".
@@ -48,7 +56,12 @@ final class MeshTimelinePersistence {
     func saveNow(_ messages: [BitchatMessage]) {
         saveTask?.cancel()
         let cutoff = Date().addingTimeInterval(-retentionInterval)
-        let filtered = messages.filter { $0.timestamp >= cutoff }
+        let filtered = messages.filter { msg in
+            msg.timestamp >= cutoff
+                && !msg.content.hasPrefix(FriendLocationService.locationMarker)
+                && !msg.content.hasPrefix(SelfieSyncService.requestMarker)
+                && !msg.content.hasPrefix(SelfieSyncService.responseMarker)
+        }
         do {
             let data = try JSONEncoder().encode(filtered)
             try data.write(to: fileURL, options: .atomic)
