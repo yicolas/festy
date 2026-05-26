@@ -1,9 +1,9 @@
 //
-// FestMestApp.swift
-// FestMest
+// MeshyApp.swift
+// Meshy
 //
-// Trip companion app built on bitchat mesh networking
-// Original bitchat protocol: https://github.com/nickkostov/bitchat
+// Trip companion app built on bitchat mesh networking.
+// Original bitchat protocol: https://github.com/permissionlesstech/bitchat
 //
 // This is free and unencumbered software released into the public domain.
 // For more information, see <https://unlicense.org>
@@ -14,8 +14,8 @@ import SwiftUI
 import UserNotifications
 
 @main
-struct FestMestApp: App {
-    static let bundleID = Bundle.main.bundleIdentifier ?? "com.festmest.app"
+struct MeshyApp: App {
+    static let bundleID = Bundle.main.bundleIdentifier ?? "com.meshy.app"
     static let groupID = "group.\(bundleID)"
     
     @StateObject private var chatViewModel: ChatViewModel
@@ -140,15 +140,16 @@ struct FestMestApp: App {
     }
     
     private func handleURL(_ url: URL) {
-        if url.scheme == "festmest" && url.host == "share" {
+        // URL scheme matches Info.plist's CFBundleURLSchemes entry.
+        if url.scheme == "ge136c" && url.host == "share" {
             // Handle shared content
             checkForSharedContent()
         }
     }
-    
+
     private func checkForSharedContent() {
         // Check app group for shared content from extension
-        guard let userDefaults = UserDefaults(suiteName: FestMestApp.groupID) else {
+        guard let userDefaults = UserDefaults(suiteName: MeshyApp.groupID) else {
             return
         }
         

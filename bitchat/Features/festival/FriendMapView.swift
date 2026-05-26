@@ -1342,23 +1342,18 @@ final class TileCacheManager: ObservableObject {
             case .best: return "Best"
             }
         }
-        /// Zoom-level ranges. "best" widens the LOW end (z=7) so the initial
-        /// trip-overview zoom renders offline, plus z=13 for street labels.
-        /// "mid" goes deeper than best (z=15 = small buildings) but keeps the
-        /// floor at z=10 so the download stays in the low-hundreds-of-MB range
-        /// instead of running into OSM tile-server policy at z=16+.
         var zooms: ClosedRange<Int> {
             switch self {
             case .low:  return 10...13
-            case .mid:  return 10...15
-            case .best: return 7...13
+            case .mid:  return 7...13
+            case .best: return 7...15
             }
         }
         var blurb: String {
             switch self {
-            case .low:  return "road labels, smaller download"
-            case .mid:  return "street + building labels, biggest download"
-            case .best: return "wide overview + roads, balanced"
+            case .low:  return "roads only, smallest download"
+            case .mid:  return "overview + roads, balanced"
+            case .best: return "trail-level detail, largest download"
             }
         }
     }
@@ -1372,7 +1367,7 @@ final class TileCacheManager: ObservableObject {
     private var downloadTask: Task<Void, Never>?
     private let session: URLSession = {
         let cfg = URLSessionConfiguration.default
-        cfg.httpAdditionalHeaders = ["User-Agent": "GE136C-iOS/1.0 (offline trip companion; contact via app)"]
+        cfg.httpAdditionalHeaders = ["User-Agent": "Meshy/1.0 iOS (GE136C Sierras trip; mailto:yick@duck.com)"]
         cfg.timeoutIntervalForRequest = 30
         cfg.urlCache = nil
         return URLSession(configuration: cfg)
@@ -1485,7 +1480,7 @@ final class TileCacheManager: ObservableObject {
             guard let self else { return }
             let total = tiles.count
             var done = 0
-            let maxConcurrent = 4
+            let maxConcurrent = 2
 
             await withTaskGroup(of: Void.self) { group in
                 var inFlight = 0
@@ -1724,10 +1719,9 @@ final class CachedTileOverlay: MKTileOverlay {
 
     init(source: TileCacheManager.Source) {
         self.source = source
-        super.init(urlTemplate: source.urlTemplate)
-        // false → Apple base map fills the gaps when our cache doesn't cover
-        // the current zoom (online), and we get a blank-but-not-frozen view
-        // offline. true would hide Apple Maps entirely.
+        // Pass nil so MKTileOverlay never makes live network requests as a fallback.
+        // All tile loading goes through our loadTile override (cache-only).
+        super.init(urlTemplate: nil)
         canReplaceMapContent = false
         // Cap at the highest actually-cached zoom so MKMapView upscales rather
         // than chasing dead network requests when the user zooms past it.
@@ -1760,10 +1754,12 @@ struct OfflineTripMap: UIViewRepresentable {
     }
 
     func updateUIView(_ map: MKMapView, context: Context) {
-        // Sync tile overlay (in case the user changed source).
+        // Sync tile overlay (if user has cached tiles, show them; else stick with Apple base).
         map.removeOverlays(map.overlays)
-        let tiles = CachedTileOverlay(source: TileCacheManager.shared.preferredSource)
-        map.addOverlay(tiles, level: .aboveLabels)
+        if TileCacheManager.shared.cachedTileCount > 0 {
+            let tiles = CachedTileOverlay(source: TileCacheManager.shared.preferredSource)
+            map.addOverlay(tiles, level: .aboveLabels)
+        }
 
         // Driving route polylines (one per day) on top of tiles.
         for route in RouteCache.shared.cached.values {

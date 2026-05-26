@@ -27,6 +27,17 @@ private struct MessageDisplayItem: Identifiable {
     let message: BitchatMessage
 }
 
+private struct HidesChatHeaderKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var hidesChatHeader: Bool {
+        get { self[HidesChatHeaderKey.self] }
+        set { self[HidesChatHeaderKey.self] = newValue }
+    }
+}
+
 // MARK: - Main Content View
 
 struct ContentView: View {
@@ -72,6 +83,7 @@ struct ContentView: View {
 #else
     @State private var showMacImagePicker = false
 #endif
+    @Environment(\.hidesChatHeader) private var hidesChatHeader
     @ScaledMetric(relativeTo: .body) private var headerHeight: CGFloat = 44
     @ScaledMetric(relativeTo: .subheadline) private var headerPeerIconSize: CGFloat = 11
     @ScaledMetric(relativeTo: .subheadline) private var headerPeerCountFontSize: CGFloat = 12
@@ -132,22 +144,22 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            mainHeaderView
-                .onAppear {
-                    viewModel.currentColorScheme = colorScheme
-                    #if os(macOS)
-                    // Focus message input on macOS launch, not nickname field
-                    DispatchQueue.main.async {
-                        isNicknameFieldFocused = false
-                        isTextFieldFocused = true
+            if !hidesChatHeader {
+                mainHeaderView
+                    .onAppear {
+                        viewModel.currentColorScheme = colorScheme
+                        #if os(macOS)
+                        DispatchQueue.main.async {
+                            isNicknameFieldFocused = false
+                            isTextFieldFocused = true
+                        }
+                        #endif
                     }
-                    #endif
-                }
-                .onChange(of: colorScheme) { newValue in
-                    viewModel.currentColorScheme = newValue
-                }
-
-            Divider()
+                    .onChange(of: colorScheme) { newValue in
+                        viewModel.currentColorScheme = newValue
+                    }
+                Divider()
+            }
 
             GeometryReader { geometry in
                 VStack(spacing: 0) {
@@ -479,9 +491,6 @@ struct ContentView: View {
             }
             .background(backgroundColor)
             .onOpenURL { handleOpenURL($0) }
-            .onTapGesture(count: 3) {
-                viewModel.sendMessage("/clear")
-            }
             .onAppear {
                 scrollToBottom(on: proxy, privatePeer: privatePeer, isAtBottom: isAtBottom)
             }

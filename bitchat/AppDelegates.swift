@@ -1,9 +1,9 @@
 //
 // AppDelegates.swift
-// FestMest
+// Meshy
 //
 // Application delegate classes for iOS and macOS platforms.
-// Extracted from BitchatApp.swift during FestMest refactoring.
+// Extracted from BitchatApp.swift during the Meshy refactoring.
 //
 // This is free and unencumbered software released into the public domain.
 // For more information, see <https://unlicense.org>

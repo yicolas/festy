@@ -1,8 +1,9 @@
 //
 // AppInfoView.swift
-// FestMest
+// Meshy
 //
-// App information, settings, and privacy disclosures
+// Unified "How to use & Settings" page — the only place for user controls,
+// privacy disclosures, and the trip-specific walkthrough.
 //
 
 import SwiftUI
@@ -153,15 +154,25 @@ struct AppInfoView: View {
     @ViewBuilder
     private var infoContent: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Header — GE136C trip rebrand. Tagline calls out that this page
+            // Header — Meshy/GE136C rebrand. Tagline calls out that this page
             // doubles as the how-to guide AND the settings hub.
-            VStack(alignment: .center, spacing: 8) {
-                Text("GE136C")
+            VStack(alignment: .center, spacing: 10) {
+                Image("MeshyLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 96, height: 96)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                Text("Meshy")
                     .font(.bitchatSystem(size: 32, weight: .bold, design: .monospaced))
                     .foregroundColor(textColor)
 
+                Text("GE136C Spring — Sierras 2026")
+                    .font(.bitchatSystem(size: 13, design: .monospaced))
+                    .foregroundColor(secondaryTextColor)
+
                 Text("How to use & Settings")
-                    .font(.bitchatSystem(size: 16, design: .monospaced))
+                    .font(.bitchatSystem(size: 14, design: .monospaced))
                     .foregroundColor(secondaryTextColor)
             }
             .frame(maxWidth: .infinity)
@@ -690,22 +701,8 @@ struct DataDisclosureSection: View {
             .background(textColor.opacity(0.05))
             .cornerRadius(8)
             
-            // Privacy Policy Link
-            Link(destination: URL(string: "https://github.com/MDunitz/festmest/blob/main/PRIVACY_POLICY.md")!) {
-                HStack {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 16))
-                    Text("View Full Privacy Policy")
-                        .font(.system(size: 14, weight: .medium, design: .monospaced))
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 12))
-                }
-                .foregroundColor(textColor)
-                .padding()
-                .background(textColor.opacity(0.05))
-                .cornerRadius(8)
-            }
+            // Privacy policy link removed — no canonical policy URL for Meshy
+            // yet. Reintroduce when the repo + policy doc exist.
         }
     }
     
@@ -738,25 +735,43 @@ struct AboutSection: View {
             SectionHeader("ABOUT")
             
             VStack(alignment: .leading, spacing: 12) {
-                // Attribution
+                // Attribution to upstream bitchat protocol
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 20))
                         .foregroundColor(.red)
                         .frame(width: 30)
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Built on bitchat")
                             .font(.system(size: 14, weight: .semibold, design: .monospaced))
                             .foregroundColor(textColor)
-                        
-                        Text("FestMest is built on top of bitchat, an open-source Bluetooth mesh chat protocol created by Jack Dorsey. Thank you to the bitchat team for making decentralized communication accessible to everyone.")
+
+                        Text("Meshy is built on top of bitchat, an open-source Bluetooth mesh chat protocol created by Jack Dorsey. Thank you to the bitchat team for making decentralized communication accessible to everyone.")
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(secondaryTextColor)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                
+
+                // Co-developers
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "person.2.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(TripTheme.accent)
+                        .frame(width: 30)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Co-developers")
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundColor(textColor)
+
+                        Text("Nick Anderson & Madison Dunitz")
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(secondaryTextColor)
+                    }
+                }
+
                 // Links
                 VStack(spacing: 8) {
                     Link(destination: URL(string: "https://github.com/permissionlesstech/bitchat")!) {
@@ -771,12 +786,12 @@ struct AboutSection: View {
                         }
                         .foregroundColor(textColor)
                     }
-                    
-                    Link(destination: URL(string: "https://github.com/MDunitz/festmest")!) {
+
+                    Link(destination: URL(string: "https://github.com/MDunitz")!) {
                         HStack {
                             Image(systemName: "link")
                                 .font(.system(size: 14))
-                            Text("FestMest Source Code")
+                            Text("Madison Dunitz on GitHub")
                                 .font(.system(size: 12, design: .monospaced))
                             Spacer()
                             Image(systemName: "arrow.up.right")

@@ -10,6 +10,12 @@
     "· %@'s car" : {
 
     },
+    "@%@" : {
+
+    },
+    "#channels" : {
+
+    },
     "%@" : {
 
     },
@@ -217,6 +223,16 @@
         }
       }
     },
+    "%@. Zooms %@–%@. ~%@ download." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@. Zooms %2$@–%3$@. ~%4$@ download."
+          }
+        }
+      }
+    },
     "%@/%@" : {
       "localizations" : {
         "en" : {
@@ -238,6 +254,9 @@
       }
     },
     "•" : {
+
+    },
+    "⚠︎ MANDATORY" : {
 
     },
     "Accept" : {
@@ -5622,175 +5641,175 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "bn" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "fil" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "hi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "ms" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "ne" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "ta" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "ur" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "festival mesh chat"
+            "value" : "GE136C Spring — Sierras 2026"
           }
         }
       }
@@ -6550,6 +6569,9 @@
           }
         }
       }
+    },
+    "Co-developers" : {
+
     },
     "common.cancel" : {
       "extractionState" : "manual",
@@ -20956,16 +20978,6 @@
     "Exit Trip Mode" : {
 
     },
-    "Festival Mode" : {
-      "comment" : "A header displaying \"Festival Mode\".",
-      "isCommentAutoGenerated" : true
-    },
-    "FestMest is built on top of bitchat, an open-source Bluetooth mesh chat protocol created by Jack Dorsey. Thank you to the bitchat team for making decentralized communication accessible to everyone." : {
-
-    },
-    "FestMest Source Code" : {
-
-    },
     "Find Friends" : {
       "comment" : "A heading for the section that allows users to find friends based on their location.",
       "isCommentAutoGenerated" : true
@@ -22768,6 +22780,9 @@
 
     },
     "GE136C" : {
+
+    },
+    "GE136C Spring — Sierras 2026" : {
 
     },
     "geohash_people.action.block" : {
@@ -31093,6 +31108,9 @@
         }
       }
     },
+    "Madison Dunitz on GitHub" : {
+
+    },
     "Map source" : {
 
     },
@@ -31278,7 +31296,16 @@
         }
       }
     },
+    "Meshy" : {
+
+    },
+    "Meshy is built on top of bitchat, an open-source Bluetooth mesh chat protocol created by Jack Dorsey. Thank you to the bitchat team for making decentralized communication accessible to everyone." : {
+
+    },
     "New note" : {
+
+    },
+    "Nick Anderson & Madison Dunitz" : {
 
     },
     "No car chats yet" : {
@@ -31352,6 +31379,9 @@
 
     },
     "Profile picture" : {
+
+    },
+    "Rafting Waiver" : {
 
     },
     "recording %@" : {
@@ -31752,6 +31782,9 @@
 
     },
     "Share this invite with the person:" : {
+
+    },
+    "Sign before the trip — tap to open form" : {
 
     },
     "Skip for now" : {
@@ -36298,9 +36331,6 @@
         }
       }
     },
-    "View Full Privacy Policy" : {
-
-    },
     "View map" : {
 
     },
@@ -36497,16 +36527,6 @@
     },
     "You won't receive messages from this person anymore. You can unblock from this same screen." : {
 
-    },
-    "Zooms %@–%@ (%@). Higher detail = bigger download but readable at max zoom." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Zooms %1$@–%2$@ (%3$@). Higher detail = bigger download but readable at max zoom."
-          }
-        }
-      }
     }
   },
   "version" : "1.1"

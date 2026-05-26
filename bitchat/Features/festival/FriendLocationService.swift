@@ -2,7 +2,7 @@
 // FriendLocationService.swift
 // bitchat
 //
-// Location sharing service for mutual favorites at festivals
+// Location sharing service for mutual favorites on trips
 //
 
 import Foundation

@@ -40,7 +40,6 @@
 /// - Ephemeral by design - no persistent message storage
 /// - Supports verified fingerprints for secure communication
 /// - Blocks messages from blocked users
-/// - Emergency wipe capability (triple-tap)
 ///
 /// ### User Experience
 /// - Smart autocomplete for mentions and commands

@@ -79,8 +79,8 @@ protocol KeychainManagerProtocol {
 
 final class KeychainManager: KeychainManagerProtocol {
     // Use consistent service name for all keychain items
-    private let service = FestMestApp.bundleID
-    private let appGroup = "group.\(FestMestApp.bundleID)"
+    private let service = MeshyApp.bundleID
+    private let appGroup = "group.\(MeshyApp.bundleID)"
     
     // MARK: - Identity Keys
     

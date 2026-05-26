@@ -78,7 +78,7 @@ struct FestivalMainViewWithMap: View {
             Image(systemName: "tent.fill")
                 .foregroundColor(textColor)
             
-            Text(FestivalScheduleManager.shared.festivalData?.festival.name ?? "Festival Mode")
+            Text(FestivalScheduleManager.shared.festivalData?.festival.name ?? "Trip Mode")
                 .font(.system(.subheadline, design: .monospaced))
                 .fontWeight(.bold)
                 .foregroundColor(textColor)
@@ -199,7 +199,6 @@ struct FestivalInfoViewWithLocation: View {
                     tipRow(icon: "person.2", text: "Add friends as favorites to find them later")
                     tipRow(icon: "location.fill", text: "Share location with mutual favorites only")
                     tipRow(icon: "battery.100", text: "BLE mesh is battery efficient")
-                    tipRow(icon: "hand.raised.fill", text: "Triple-tap screen to wipe all data")
                 }
                 
                 Divider()

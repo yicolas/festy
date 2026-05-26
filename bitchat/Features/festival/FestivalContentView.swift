@@ -206,7 +206,6 @@ struct ShareSheet: UIViewControllerRepresentable {
 /// Main content wrapper that shows either normal chat or trip mode.
 struct TripContentView: View {
     @EnvironmentObject var viewModel: ChatViewModel
-    @ObservedObject var tripManager = TripModeManager.shared
     @ObservedObject private var selfieStore = UserSelfieStore.shared
     @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
 
@@ -219,18 +218,9 @@ struct TripContentView: View {
     }
 
     var body: some View {
-        Group {
-            if tripManager.isEnabled {
-                TripMainView()
-                    .environmentObject(viewModel)
-            } else {
-                VStack(spacing: 0) {
-                    GlobalMeshBanner()
-                    ContentView()
-                }
-            }
-        }
-        .preferredColorScheme(preferredColorScheme)
+        TripMainView()
+            .environmentObject(viewModel)
+            .preferredColorScheme(preferredColorScheme)
         .fullScreenCover(isPresented: Binding(
             get: { !viewModel.hasChosenNickname },
             set: { _ in }
@@ -556,6 +546,12 @@ struct TripMainView: View {
         HStack {
             selfieThumb
 
+            Text("@\(viewModel.nickname)")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(TripTheme.secondaryText)
+                .lineLimit(1)
+                .frame(maxWidth: 80, alignment: .leading)
+
             Image(systemName: "car.fill")
                 .foregroundColor(TripTheme.accent)
 
@@ -695,21 +691,77 @@ struct TripMainView: View {
 /// frictionless. Now just renders the channel subheader + chat content.
 struct TripChatHost: View {
     @EnvironmentObject private var viewModel: ChatViewModel
+    @ObservedObject private var locationManager = LocationChannelManager.shared
+    @State private var showChannelPicker = false
+    @State private var showClearConfirm = false
+
+    private var peerCount: Int {
+        viewModel.allPeers.reduce(0) { count, peer in
+            guard peer.peerID != viewModel.meshService.myPeerID else { return count }
+            return (peer.isConnected || peer.isReachable) ? count + 1 : count
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
+            chatMetaBar
             channelSubheader
             if viewModel.hashtagFilter == "#cars" {
                 CarGroupsOverview()
                     .environmentObject(viewModel)
             } else {
                 ContentView()
+                    .environment(\.hidesChatHeader, true)
             }
+        }
+        .sheet(isPresented: $showChannelPicker) {
+            LocationChannelsSheet(isPresented: $showChannelPicker)
+                .environmentObject(viewModel)
+                .onAppear { viewModel.isLocationChannelsSheetPresented = true }
+                .onDisappear { viewModel.isLocationChannelsSheetPresented = false }
+        }
+        .confirmationDialog("Clear this chat log?", isPresented: $showClearConfirm, titleVisibility: .visible) {
+            Button("Clear chat log", role: .destructive) {
+                viewModel.clearCurrentPublicTimeline()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes messages from your device only. Other phones keep their copies.")
         }
     }
 
-    /// Shows which #channel the user is currently filtered to, right below the
-    /// GE136C Spring trip banner. Centered, grey background.
+    private var chatMetaBar: some View {
+        HStack(spacing: 10) {
+            Button(action: { showChannelPicker = true }) {
+                Text("#channels")
+                    .font(.system(.subheadline, design: .monospaced))
+                    .foregroundColor(TripTheme.uiTint)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            HStack(spacing: 4) {
+                Image(systemName: "person.2")
+                    .font(.system(size: 12))
+                Text("\(peerCount)")
+                    .font(.system(.caption, design: .monospaced))
+            }
+            .foregroundColor(peerCount > 0 ? TripTheme.uiTint : .secondary)
+
+            Button(action: { showClearConfirm = true }) {
+                Image(systemName: "trash")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .padding(4)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(height: 44)
+        .padding(.horizontal, 12)
+    }
+
     private var channelSubheader: some View {
         let activeTag: String = {
             if let tag = viewModel.hashtagFilter, !tag.isEmpty {
@@ -945,6 +997,7 @@ struct TripInfoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                raftingWaiverCard
                 howToCard
                 photoUploadCard
                 feedbackCard
@@ -1008,6 +1061,52 @@ struct TripInfoView: View {
     /// One-tap entry into the unified "How to use & Settings" page. The
     /// detailed walkthrough lives there now instead of being duplicated as an
     /// inline expandable card.
+    private var raftingWaiverCard: some View {
+        let url = URL(string: "https://waiver.smartwaiver.com/w/5a5fdb9184660/web/?auto_tag=fh_id_345932112")!
+        return Link(destination: url) {
+            HStack(spacing: 12) {
+                Image(systemName: "pencil.and.list.clipboard")
+                    .font(.system(size: 28))
+                    .foregroundColor(.white)
+                    .frame(width: 52, height: 52)
+                    .background(Color.red)
+                    .cornerRadius(12)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text("⚠︎ MANDATORY")
+                            .font(.system(.caption2, design: .monospaced))
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.red)
+                            .cornerRadius(4)
+                    }
+                    Text("Rafting Waiver")
+                        .font(.system(.headline, design: .monospaced))
+                        .foregroundColor(TripTheme.onSurfaceText)
+                    Text("Sign before the trip — tap to open form")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(TripTheme.secondaryText)
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.red)
+            }
+            .padding(14)
+            .background(TripTheme.surface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.red.opacity(0.5), lineWidth: 1.5)
+            )
+            .cornerRadius(12)
+        }
+    }
+
     private var howToCard: some View {
         Button(action: { showAppInfo = true }) {
             HStack(spacing: 10) {
@@ -1146,12 +1245,25 @@ struct OfflineMapsCard: View {
                 Text("Map source")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(TripTheme.primaryText)
-                Picker("Map source", selection: $cache.preferredSource) {
+                HStack(spacing: 8) {
                     ForEach(TileCacheManager.Source.allCases) { src in
-                        Text(src.displayName).tag(src)
+                        let selected = cache.preferredSource == src
+                        Button(action: { cache.preferredSource = src }) {
+                            Text(src.displayName)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(selected ? .white : TripTheme.primaryText)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .frame(maxWidth: .infinity)
+                                .background(selected ? Color.green : TripTheme.surface)
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(selected ? Color.green : Color.gray.opacity(0.3), lineWidth: 1)
+                                )
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
             }
 
             // Detail level picker
@@ -1159,13 +1271,26 @@ struct OfflineMapsCard: View {
                 Text("Detail level")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(TripTheme.primaryText)
-                Picker("Detail level", selection: $cache.preferredDetail) {
+                HStack(spacing: 8) {
                     ForEach(TileCacheManager.DetailLevel.allCases) { lvl in
-                        Text(lvl.label).tag(lvl)
+                        let selected = cache.preferredDetail == lvl
+                        Button(action: { cache.preferredDetail = lvl }) {
+                            Text(lvl.label)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(selected ? .white : TripTheme.primaryText)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .frame(maxWidth: .infinity)
+                                .background(selected ? Color.green : TripTheme.surface)
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(selected ? Color.green : Color.gray.opacity(0.3), lineWidth: 1)
+                                )
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
-                Text("Zooms \(cache.preferredDetail.zooms.lowerBound)–\(cache.preferredDetail.zooms.upperBound) (\(cache.preferredDetail.blurb)). Higher detail = bigger download but readable at max zoom.")
+                Text("\(cache.preferredDetail.blurb.capitalized). Zooms \(cache.preferredDetail.zooms.lowerBound)–\(cache.preferredDetail.zooms.upperBound). ~\(formatMB(estimate.bytes)) download.")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundColor(TripTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
