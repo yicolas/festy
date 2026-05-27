@@ -204,7 +204,14 @@ struct AppInfoView: View {
                     ("calendar", "Routes — toggle which day routes appear on the map"),
                     ("scope", "Fit — zoom out to fit every stop + friend"),
                     ("note.text.badge.plus", "Notes — drop a draggable yellow pin, then add a note"),
-                    ("arrow.down.circle", "Offline — download topo tiles + driving routes for no-service areas")
+                    ("arrow.down.circle", "Offline — opens the download sheet for topo tiles + driving routes")
+                ])
+                howSection("Downloading offline maps (do on Wi-Fi before departure)", items: [
+                    ("arrow.down.circle", "Tap Offline button on the map to open the download sheet"),
+                    ("map", "Pick a source: OpenTopoMap shows elevation contours, OpenStreetMap shows roads"),
+                    ("chart.bar", "Pick a detail level: Low (~20 MB) fits roads + valleys; Mid (~77 MB) adds towns; Best (~300 MB) shows hiking trails"),
+                    ("arrow.down.to.line", "Tap Download — tiles are cached on-device and load automatically when you're off-grid"),
+                    ("checkmark.circle", "A tile count badge on the Offline button confirms the download is ready")
                 ])
                 howSection("Top-right menu", items: [
                     ("line.3.horizontal", "Switch tabs, share invite, open this How to use & Settings page")

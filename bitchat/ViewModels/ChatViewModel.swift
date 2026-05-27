@@ -3785,7 +3785,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         Allergens: dairy (alfredo sauce — cream/butter/parmesan), gluten (pasta), possibly soy/wheat in vegetarian sausage
         """
         let kebabs = """
-        🥙 Kebabs + Israeli Salad
+        🥙 Kebabs + Salad
         Ingredients: chicken thighs/breasts, tofu, Greek yogurt, bell peppers, cherry tomatoes, red onion, cilantro, mint, lemon, zucchini, summer squash, eggplant, pita, tzatziki, hummus, cucumber, olives, feta cheese
         Spices: honey, cumin, turmeric, salt, pepper, olive oil, garlic powder, onion powder, chili powder, paprika
         Allergens: dairy (yogurt, tzatziki, feta), gluten (pita), sesame (hummus/tahini), soy (tofu)

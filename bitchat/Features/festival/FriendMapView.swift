@@ -1295,8 +1295,8 @@ final class TileCacheManager: ObservableObject {
         var id: String { rawValue }
         var displayName: String {
             switch self {
-            case .openTopoMap:   return "OpenTopoMap (topographic)"
-            case .openStreetMap: return "OpenStreetMap (standard)"
+            case .openTopoMap:   return "OpenTopoMap"
+            case .openStreetMap: return "OpenStreetMap"
             }
         }
         var urlTemplate: String {
@@ -1344,16 +1344,16 @@ final class TileCacheManager: ObservableObject {
         }
         var zooms: ClosedRange<Int> {
             switch self {
-            case .low:  return 10...13
-            case .mid:  return 7...13
-            case .best: return 7...15
+            case .low:  return 9...11
+            case .mid:  return 9...12
+            case .best: return 9...13
             }
         }
         var blurb: String {
             switch self {
-            case .low:  return "roads only, smallest download"
-            case .mid:  return "overview + roads, balanced"
-            case .best: return "trail-level detail, largest download"
+            case .low:  return "roads + valleys, LTE-friendly (~20 MB topo)"
+            case .mid:  return "town + street detail, WiFi recommended (~77 MB topo)"
+            case .best: return "hiking trails visible, WiFi only (~300 MB topo)"
             }
         }
     }

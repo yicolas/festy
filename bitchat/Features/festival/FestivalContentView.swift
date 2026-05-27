@@ -556,9 +556,11 @@ struct TripMainView: View {
                 .foregroundColor(TripTheme.accent)
 
             Text(scheduleManager.tripData?.trip.name ?? "Trip Mode")
-                .font(.system(.subheadline, design: .monospaced))
+                .font(.system(.caption, design: .monospaced))
                 .fontWeight(.bold)
                 .foregroundColor(TripTheme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             Spacer()
 
@@ -998,56 +1000,14 @@ struct TripInfoView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 raftingWaiverCard
+                campgroundWaiverCard
+                gpsContactFormCard
+                safetyCard
+                kernRiverCard
+                redCrossCard
                 howToCard
                 photoUploadCard
                 feedbackCard
-
-                if let trip = scheduleManager.tripData?.trip {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(trip.name)
-                            .font(.system(.title2, design: .monospaced))
-                            .fontWeight(.bold)
-                            .foregroundColor(TripTheme.onSurfaceText)
-
-                        Text(trip.subtitle ?? "Offline-first field trip coordination")
-                            .font(.system(.subheadline, design: .monospaced))
-                            .foregroundColor(TripTheme.secondaryText)
-
-                        Text("\(scheduleManager.formatDayForDisplay(trip.dates.start)) - \(scheduleManager.formatDayForDisplay(trip.dates.end))")
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(TripTheme.secondaryText)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(TripTheme.cardHeaderBackground)
-                    .cornerRadius(12)
-                }
-
-                ForEach(scheduleManager.infoSections) { section in
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(section.title)
-                            .font(.system(.headline, design: .monospaced))
-                            .foregroundColor(TripTheme.onSurfaceText)
-
-                        ForEach(section.bullets, id: \.self) { bullet in
-                            HStack(alignment: .top, spacing: 8) {
-                                Text("•")
-                                    .foregroundColor(TripTheme.accent)
-                                Text(bullet)
-                                    .font(.system(.subheadline, design: .monospaced))
-                                    .foregroundColor(TripTheme.onSurfaceText.opacity(0.85))
-                            }
-                        }
-                    }
-                    .padding()
-                    .background(TripTheme.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(TripTheme.stroke, lineWidth: 1)
-                    )
-                    .cornerRadius(10)
-                }
-
             }
             .padding()
         }
@@ -1058,51 +1018,220 @@ struct TripInfoView: View {
         }
     }
 
-    /// One-tap entry into the unified "How to use & Settings" page. The
-    /// detailed walkthrough lives there now instead of being duplicated as an
-    /// inline expandable card.
     private var raftingWaiverCard: some View {
-        let url = URL(string: "https://waiver.smartwaiver.com/w/5a5fdb9184660/web/?auto_tag=fh_id_345932112")!
-        return Link(destination: url) {
+        mandatoryFormCard(
+            title: "Rafting Waiver",
+            subtitle: "Sign before the trip — tap to open form",
+            icon: "pencil.and.list.clipboard",
+            url: URL(string: "https://waiver.smartwaiver.com/w/5a5fdb9184660/web/?auto_tag=fh_id_345932112")!
+        )
+    }
+
+    private func mandatoryFormCard(title: String, subtitle: String, icon: String, url: URL) -> some View {
+        Link(destination: url) {
             HStack(spacing: 12) {
-                Image(systemName: "pencil.and.list.clipboard")
+                Image(systemName: icon)
                     .font(.system(size: 28))
                     .foregroundColor(.white)
                     .frame(width: 52, height: 52)
                     .background(Color.red)
                     .cornerRadius(12)
-
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text("⚠︎ MANDATORY")
-                            .font(.system(.caption2, design: .monospaced))
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.red)
-                            .cornerRadius(4)
-                    }
-                    Text("Rafting Waiver")
+                    Text("⚠︎ MANDATORY")
+                        .font(.system(.caption2, design: .monospaced))
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.red)
+                        .cornerRadius(4)
+                    Text(title)
                         .font(.system(.headline, design: .monospaced))
                         .foregroundColor(TripTheme.onSurfaceText)
-                    Text("Sign before the trip — tap to open form")
+                    Text(subtitle)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(TripTheme.secondaryText)
                 }
-
                 Spacer()
-
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.red)
             }
             .padding(14)
             .background(TripTheme.surface)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.red.opacity(0.5), lineWidth: 1.5)
-            )
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red.opacity(0.5), lineWidth: 1.5))
+            .cornerRadius(12)
+        }
+    }
+
+    private var campgroundWaiverCard: some View {
+        mandatoryFormCard(
+            title: "Campground Liability Form",
+            subtitle: "Sign before the trip — tap to open form",
+            icon: "tent.fill",
+            url: URL(string: "https://www.adventurecentral.com/user/web/m/wfTravelerRequest.aspx?rt=99mx9L&CLUID=fbd80c4d-b022-437f-a10b-61377bde28f4")!
+        )
+    }
+
+    private var gpsContactFormCard: some View {
+        mandatoryFormCard(
+            title: "GPS Dept. Contact Info Form",
+            subtitle: "Required for all participants — tap to open form",
+            icon: "person.text.rectangle.fill",
+            url: URL(string: "https://docs.google.com/forms/d/195DZvXvDZN874nnwOBHJsKCCms7bPevjT0Tj4XImj0o/viewform?edit_requested=true")!
+        )
+    }
+
+    private var safetyCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "cross.case.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Color.orange)
+                    .cornerRadius(10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Safety & Logistics")
+                        .font(.system(.headline, design: .monospaced))
+                        .foregroundColor(TripTheme.onSurfaceText)
+                    Text("GE136C Spring 2026 · May 29 – Jun 1")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(TripTheme.secondaryText)
+                }
+            }
+
+            Divider().background(TripTheme.stroke)
+
+            safetyRow(icon: "person.3.fill",                 label: "Leaders",    value: "Nick Anderson · Joe Kirschvink · Sophia Westercamp")
+            safetyRow(icon: "phone.fill",                    label: "Nick",        value: "(415) 500-5307  T-Mobile")
+            safetyRow(icon: "phone.fill",                    label: "Joe",         value: "(213) 248-3422  Verizon")
+            safetyRow(icon: "phone.fill",                    label: "Sophia",      value: "(719) 648-5461  Verizon")
+            safetyRow(icon: "antenna.radiowaves.left.and.right", label: "Sat phone", value: "881651455634")
+
+            Divider().background(TripTheme.stroke)
+
+            safetyRow(icon: "cross.fill", label: "Hospital (Sierra)",   value: "Clovis Community MC · (559) 324-4000")
+            safetyRow(icon: "cross.fill", label: "Hospital (Kernville)", value: "Kern Valley HCD · (760) 379-2681")
+
+            Divider().background(TripTheme.stroke)
+
+            Text("KEY HAZARDS")
+                .font(.system(.caption2, design: .monospaced))
+                .fontWeight(.bold)
+                .foregroundColor(TripTheme.accent)
+            safetyBullet("Rattlesnakes — watch footing, closed-toe shoes required")
+            safetyBullet("Sun / heat — SPF 30+, hat, hydrate at every stop")
+            safetyBullet("River float — PFD + helmet + oar mandatory, optional activity, class 2 max")
+            safetyBullet("Cold nights — Mono Creek ~7,400 ft, 35 °F possible, pack layers")
+            safetyBullet("Valley Fever risk in Carrizo Plain — N95s available on request")
+            safetyBullet("First aid kits — one per vehicle, group kit with Nick")
+
+            Divider().background(TripTheme.stroke)
+
+            Text("VEHICLES")
+                .font(.system(.caption2, design: .monospaced))
+                .fontWeight(.bold)
+                .foregroundColor(TripTheme.accent)
+            Text("GPS F350 + 5 Enterprise rentals. All drivers must have defensive driving certification. Seatbelts required at all times.")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(TripTheme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .background(TripTheme.surface)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.orange.opacity(0.4), lineWidth: 1.5))
+        .cornerRadius(12)
+    }
+
+    @ViewBuilder
+    private func safetyRow(icon: String, label: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundColor(TripTheme.accent)
+                .frame(width: 16)
+            Text(label + ":")
+                .font(.system(.caption, design: .monospaced))
+                .fontWeight(.semibold)
+                .foregroundColor(TripTheme.onSurfaceText)
+                .frame(width: 95, alignment: .leading)
+            Text(value)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(TripTheme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private func safetyBullet(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("⚠")
+                .font(.system(.caption2))
+                .foregroundColor(.orange)
+            Text(text)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(TripTheme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var kernRiverCard: some View {
+        Link(destination: URL(string: "https://waterdata.usgs.gov/monitoring-location/11186000/")!) {
+            HStack(spacing: 12) {
+                Image(systemName: "water.waves")
+                    .font(.system(size: 28))
+                    .foregroundColor(.white)
+                    .frame(width: 52, height: 52)
+                    .background(Color.blue)
+                    .cornerRadius(12)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Kern River Flow Conditions")
+                        .font(.system(.headline, design: .monospaced))
+                        .foregroundColor(TripTheme.onSurfaceText)
+                    Text("Live USGS gauge at Kernville — check before rafting")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(TripTheme.secondaryText)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.blue)
+            }
+            .padding(14)
+            .background(TripTheme.surface)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.blue.opacity(0.4), lineWidth: 1.5))
+            .cornerRadius(12)
+        }
+    }
+
+    private var redCrossCard: some View {
+        Link(destination: URL(string: "https://apps.apple.com/us/app/first-aid-american-red-cross/id529379987")!) {
+            HStack(spacing: 12) {
+                Image(systemName: "cross.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(.white)
+                    .frame(width: 52, height: 52)
+                    .background(Color.red)
+                    .cornerRadius(12)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Red Cross First Aid App")
+                        .font(.system(.headline, design: .monospaced))
+                        .foregroundColor(TripTheme.onSurfaceText)
+                    Text("Step-by-step emergency guides — download before the trip")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(TripTheme.secondaryText)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.red)
+            }
+            .padding(14)
+            .background(TripTheme.surface)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red.opacity(0.4), lineWidth: 1.5))
             .cornerRadius(12)
         }
     }
@@ -1290,7 +1419,7 @@ struct OfflineMapsCard: View {
                         }
                     }
                 }
-                Text("\(cache.preferredDetail.blurb.capitalized). Zooms \(cache.preferredDetail.zooms.lowerBound)–\(cache.preferredDetail.zooms.upperBound). ~\(formatMB(estimate.bytes)) download.")
+                Text("\(cache.preferredDetail.blurb.capitalized). Zooms z\(cache.preferredDetail.zooms.lowerBound)–z\(cache.preferredDetail.zooms.upperBound) · estimated ~\(formatMB(estimate.bytes))")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundColor(TripTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
