@@ -457,11 +457,19 @@ struct TripMainView: View {
     @State private var isShowingColorPicker = false
     @State private var isShowingSelfieMenu = false
     @State private var isShowingSettings = false
+    @State private var showPeerList = false
     #if os(iOS)
     @State private var isShowingSelfieCamera = false
     @State private var pickedSelfieImage: UIImage?
     #endif
     @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
+
+    private var peerCount: Int {
+        viewModel.allPeers.reduce(0) { count, peer in
+            guard peer.peerID != viewModel.meshService.myPeerID else { return count }
+            return (peer.isConnected || peer.isReachable) ? count + 1 : count
+        }
+    }
 
     private var tabs: [TripTab] {
         scheduleManager.tabs
@@ -564,6 +572,18 @@ struct TripMainView: View {
 
             Spacer()
 
+            Button(action: { showPeerList = true }) {
+                HStack(spacing: 3) {
+                    Image(systemName: "person.2")
+                        .font(.system(size: 13))
+                    Text("\(peerCount)")
+                        .font(.system(.caption, design: .monospaced))
+                }
+                .foregroundColor(peerCount > 0 ? TripTheme.accent : .secondary)
+                .padding(.trailing, 6)
+            }
+            .buttonStyle(.plain)
+
             Menu {
                 ForEach(tabs) { tab in
                     Button {
@@ -597,6 +617,10 @@ struct TripMainView: View {
         .background(TripTheme.accentSoft)
         .sheet(isPresented: $isShowingSettings) {
             AppInfoView()
+                .environmentObject(viewModel)
+        }
+        .sheet(isPresented: $showPeerList) {
+            OnlinePeersSheet()
                 .environmentObject(viewModel)
         }
         #if os(iOS)
@@ -696,6 +720,7 @@ struct TripChatHost: View {
     @ObservedObject private var locationManager = LocationChannelManager.shared
     @State private var showChannelPicker = false
     @State private var showClearConfirm = false
+    @State private var showPeerList = false
 
     private var peerCount: Int {
         viewModel.allPeers.reduce(0) { count, peer in
@@ -722,6 +747,10 @@ struct TripChatHost: View {
                 .onAppear { viewModel.isLocationChannelsSheetPresented = true }
                 .onDisappear { viewModel.isLocationChannelsSheetPresented = false }
         }
+        .sheet(isPresented: $showPeerList) {
+            OnlinePeersSheet()
+                .environmentObject(viewModel)
+        }
         .confirmationDialog("Clear this chat log?", isPresented: $showClearConfirm, titleVisibility: .visible) {
             Button("Clear chat log", role: .destructive) {
                 viewModel.clearCurrentPublicTimeline()
@@ -743,13 +772,16 @@ struct TripChatHost: View {
 
             Spacer()
 
-            HStack(spacing: 4) {
-                Image(systemName: "person.2")
-                    .font(.system(size: 12))
-                Text("\(peerCount)")
-                    .font(.system(.caption, design: .monospaced))
+            Button(action: { showPeerList = true }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "person.2")
+                        .font(.system(size: 12))
+                    Text("\(peerCount)")
+                        .font(.system(.caption, design: .monospaced))
+                }
+                .foregroundColor(peerCount > 0 ? TripTheme.uiTint : .secondary)
             }
-            .foregroundColor(peerCount > 0 ? TripTheme.uiTint : .secondary)
+            .buttonStyle(.plain)
 
             Button(action: { showClearConfirm = true }) {
                 Image(systemName: "trash")
@@ -1207,7 +1239,7 @@ struct TripInfoView: View {
     }
 
     private var redCrossCard: some View {
-        Link(destination: URL(string: "https://apps.apple.com/us/app/first-aid-american-red-cross/id529379987")!) {
+        Link(destination: URL(string: "https://apps.apple.com/us/app/first-aid-american-red-cross/id529160691")!) {
             HStack(spacing: 12) {
                 Image(systemName: "cross.fill")
                     .font(.system(size: 28))
@@ -1343,6 +1375,124 @@ struct TripInfoView: View {
             )
             .cornerRadius(12)
         }
+    }
+}
+
+// MARK: - Online Peers Sheet
+
+struct OnlinePeersSheet: View {
+    @EnvironmentObject private var viewModel: ChatViewModel
+    @ObservedObject private var selfieStore = PeerSelfieStore.shared
+    @Environment(\.dismiss) private var dismiss
+
+    private var onlinePeers: [BitchatPeer] {
+        viewModel.allPeers.filter { peer in
+            peer.peerID != viewModel.meshService.myPeerID &&
+            (peer.isConnected || peer.isReachable)
+        }.sorted { $0.displayName.lowercased() < $1.displayName.lowercased() }
+    }
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if onlinePeers.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "person.2.slash")
+                            .font(.system(size: 48))
+                            .foregroundColor(TripTheme.secondaryText)
+                        Text("No peers visible")
+                            .font(.system(.title3, design: .monospaced, weight: .semibold))
+                            .foregroundColor(TripTheme.primaryText)
+                        Text("Others appear here when they're nearby with Bluetooth on.")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(TripTheme.secondaryText)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(TripTheme.background)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(onlinePeers, id: \.peerID) { peer in
+                                peerRow(peer)
+                                Divider()
+                                    .background(TripTheme.stroke)
+                                    .padding(.leading, 78)
+                            }
+                        }
+                    }
+                    .background(TripTheme.background)
+                }
+            }
+            .navigationTitle("\(onlinePeers.count) Online")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(TripTheme.uiTint)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func peerRow(_ peer: BitchatPeer) -> some View {
+        HStack(spacing: 14) {
+            selfieAvatar(for: peer)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(peer.displayName)
+                    .font(.system(.body, design: .monospaced, weight: .semibold))
+                    .foregroundColor(TripTheme.primaryText)
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(peer.isConnected ? TripTheme.accent : TripTheme.accent.opacity(0.5))
+                        .frame(width: 6, height: 6)
+                    Text(peer.isConnected ? "Direct BLE" : "Mesh reachable")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundColor(TripTheme.secondaryText)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    @ViewBuilder
+    private func selfieAvatar(for peer: BitchatPeer) -> some View {
+        let ring: Color = peer.isConnected ? TripTheme.accent : TripTheme.accent.opacity(0.5)
+        #if os(iOS)
+        if let img = selfieStore.cachedImage(forNoiseKey: peer.noisePublicKey) {
+            Image(uiImage: img)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(ring, lineWidth: 2))
+        } else {
+            initialsCircle(for: peer, ring: ring)
+        }
+        #else
+        initialsCircle(for: peer, ring: ring)
+        #endif
+    }
+
+    @ViewBuilder
+    private func initialsCircle(for peer: BitchatPeer, ring: Color) -> some View {
+        ZStack {
+            Circle()
+                .fill(TripTheme.accentSoft)
+                .frame(width: 50, height: 50)
+            Text(String(peer.displayName.prefix(1)).uppercased())
+                .font(.system(.title2, design: .monospaced, weight: .bold))
+                .foregroundColor(TripTheme.accent)
+        }
+        .overlay(Circle().stroke(ring, lineWidth: 2))
     }
 }
 

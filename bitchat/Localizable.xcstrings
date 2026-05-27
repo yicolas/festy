@@ -31349,6 +31349,9 @@
     "No messages yet" : {
 
     },
+    "No peers visible" : {
+
+    },
     "No trip items available" : {
 
     },
@@ -31369,6 +31372,9 @@
 
     },
     "Original bitchat Project" : {
+
+    },
+    "Others appear here when they're nearby with Bluetooth on." : {
 
     },
     "Pick the color your own messages appear in. Other people see this color on your sender name + body text in chat." : {
