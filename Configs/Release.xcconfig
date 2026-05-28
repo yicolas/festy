@@ -8,7 +8,7 @@ SWIFT_VERSION = 5.0
 DEVELOPMENT_TEAM = L3N5LHJD5Y
 CODE_SIGN_STYLE = Automatic
 
-PRODUCT_BUNDLE_IDENTIFIER = chat.bitchat
+PRODUCT_BUNDLE_IDENTIFIER = com.meshed.app
 
 // App Group identifier for sharing data between main app and extensions
 APP_GROUP_IDENTIFIER = group.$(PRODUCT_BUNDLE_IDENTIFIER)
