@@ -461,6 +461,8 @@ struct TripMainView: View {
     #if os(iOS)
     @State private var isShowingSelfieCamera = false
     @State private var pickedSelfieImage: UIImage?
+    @State private var isEditingUsername = false
+    @State private var nicknameEditText = ""
     #endif
     @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
 
@@ -642,12 +644,24 @@ struct TripMainView: View {
             CameraPicker(image: $pickedSelfieImage)
                 .ignoresSafeArea()
         }
-        .confirmationDialog("Your selfie",
+        .confirmationDialog("Your profile",
                             isPresented: $isShowingSelfieMenu,
                             titleVisibility: .visible) {
-            Button("Retake") { isShowingSelfieCamera = true }
+            Button(selfieStore.image == nil ? "Add selfie" : "Retake selfie") { isShowingSelfieCamera = true }
             if selfieStore.image != nil {
-                Button("Delete", role: .destructive) { selfieStore.delete() }
+                Button("Delete selfie", role: .destructive) { selfieStore.delete() }
+            }
+            Button("Change username") {
+                nicknameEditText = viewModel.nickname
+                isEditingUsername = true
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Change username", isPresented: $isEditingUsername) {
+            TextField("Username", text: $nicknameEditText)
+            Button("Save") {
+                let trimmed = nicknameEditText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { viewModel.confirmNickname(trimmed) }
             }
             Button("Cancel", role: .cancel) {}
         }
@@ -658,11 +672,7 @@ struct TripMainView: View {
     private var selfieThumb: some View {
         #if os(iOS)
         Button {
-            if selfieStore.image == nil {
-                isShowingSelfieCamera = true
-            } else {
-                isShowingSelfieMenu = true
-            }
+            isShowingSelfieMenu = true
         } label: {
             Group {
                 if let img = selfieStore.image {

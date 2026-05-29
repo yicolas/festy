@@ -1830,16 +1830,14 @@ private extension ContentView {
             .frame(width: 36, height: 36)
             .contentShape(Circle())
             .onTapGesture {
-                // Tap = Photo Library
-                imagePickerSourceType = .photoLibrary
-                showImagePicker = true
-            }
-            .onLongPressGesture(minimumDuration: 0.3) {
-                // Long press = Camera
                 imagePickerSourceType = .camera
                 showImagePicker = true
             }
-            .accessibilityLabel("Tap for library, long press for camera")
+            .onLongPressGesture(minimumDuration: 0.3) {
+                imagePickerSourceType = .photoLibrary
+                showImagePicker = true
+            }
+            .accessibilityLabel("Tap for camera, long press for library")
         #else
         Button(action: { showMacImagePicker = true }) {
             Image(systemName: "photo.circle.fill")
