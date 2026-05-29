@@ -22,7 +22,18 @@ struct AppInfoView: View {
     @State private var pickedSelfie: UIImage?
     #endif
     @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
-    
+    @ObservedObject private var carStore = CarAssignmentStore.shared
+    @State private var nicknameEdit: String = ""
+    @State private var isEditingNickname: Bool = false
+
+    private static let tripDrivers = ["Nick", "Amanda", "Sarah", "Eran", "Abby", "Jarek", "Sophia", "Korbi"]
+
+    private func saveNickname() {
+        let trimmed = nicknameEdit.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { viewModel.confirmNickname(trimmed) }
+        isEditingNickname = false
+    }
+
     private var backgroundColor: Color {
         colorScheme == .dark ? Color.black : Color.white
     }
@@ -339,6 +350,79 @@ struct AppInfoView: View {
                 }
             }
             .padding(.vertical, 4)
+
+            // Nickname edit
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "at")
+                    .font(.system(size: 18))
+                    .foregroundColor(textColor)
+                    .frame(width: 30)
+                if isEditingNickname {
+                    TextField("Username", text: $nicknameEdit)
+                        .font(.system(size: 14, design: .monospaced))
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .submitLabel(.done)
+                        #endif
+                        .onSubmit { saveNickname() }
+                    Button(action: saveNickname) {
+                        Text("Save")
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(TripTheme.accent)
+                            .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Username")
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundColor(textColor)
+                        Text("@\(viewModel.nickname)")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(secondaryTextColor)
+                    }
+                    Spacer()
+                    Button(action: {
+                        nicknameEdit = viewModel.nickname
+                        isEditingNickname = true
+                    }) {
+                        Image(systemName: "pencil")
+                            .foregroundColor(textColor)
+                            .padding(4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 4)
+
+            // Car group picker
+            Menu {
+                Button(action: { carStore.driver = nil }) {
+                    Label("No car", systemImage: carStore.driver == nil ? "checkmark" : "xmark.circle")
+                }
+                Divider()
+                ForEach(Self.tripDrivers, id: \.self) { name in
+                    Button(action: { carStore.driver = name }) {
+                        if let current = carStore.driver, current.lowercased() == name.lowercased() {
+                            Label(name, systemImage: "checkmark")
+                        } else {
+                            Text(name)
+                        }
+                    }
+                }
+            } label: {
+                settingsRow(
+                    icon: "car.fill",
+                    title: "Car group",
+                    subtitle: carStore.driver.map { "\($0)'s car" } ?? "Not assigned — tap to pick"
+                )
+            }
             #endif
 
             // Appearance (light/dark/system)

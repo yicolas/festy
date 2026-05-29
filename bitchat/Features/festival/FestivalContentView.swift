@@ -620,8 +620,11 @@ struct TripMainView: View {
                 .environmentObject(viewModel)
         }
         .sheet(isPresented: $showPeerList) {
-            OnlinePeersSheet()
-                .environmentObject(viewModel)
+            OnlinePeersSheet(onDMStarted: { _ in
+                showPeerList = false
+                selectedTabId = "chat"
+            })
+            .environmentObject(viewModel)
         }
         #if os(iOS)
         .sheet(isPresented: $isShowingShareSheet) {
@@ -1381,6 +1384,7 @@ struct TripInfoView: View {
 // MARK: - Online Peers Sheet
 
 struct OnlinePeersSheet: View {
+    var onDMStarted: ((PeerID) -> Void)? = nil
     @EnvironmentObject private var viewModel: ChatViewModel
     @ObservedObject private var selfieStore = PeerSelfieStore.shared
     @Environment(\.dismiss) private var dismiss
@@ -1458,6 +1462,20 @@ struct OnlinePeersSheet: View {
                 }
             }
             Spacer()
+            Button(action: {
+                viewModel.startPrivateChat(with: peer.peerID)
+                onDMStarted?(peer.peerID)
+                dismiss()
+            }) {
+                Label("Message", systemImage: "bubble.left.fill")
+                    .font(.system(.caption, design: .monospaced, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(TripTheme.accent)
+                    .cornerRadius(8)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

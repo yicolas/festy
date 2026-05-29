@@ -522,7 +522,7 @@
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = bitchatShareExtension/bitchatShareExtension.entitlements;
 				CODE_SIGN_STYLE = "$(CODE_SIGN_STYLE)";
-				DEVELOPMENT_TEAM = 9ZYQ3XT8L9;
+				DEVELOPMENT_TEAM = QH3CULU8Z7;
 				INFOPLIST_FILE = bitchatShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Meshy;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -533,7 +533,7 @@
 				);
 				MARKETING_VERSION = "$(MARKETING_VERSION)";
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER).ShareExtension";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.meshed.app.ShareExtension;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.meshy.app.ShareExtension;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -566,7 +566,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.5.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.meshed.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.meshy.app;
 				PRODUCT_NAME = bitchat;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -628,7 +628,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.5.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.meshed.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.meshy.app;
 				PRODUCT_NAME = bitchat;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -849,7 +849,7 @@
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = bitchatShareExtension/bitchatShareExtension.entitlements;
 				CODE_SIGN_STYLE = "$(CODE_SIGN_STYLE)";
-				DEVELOPMENT_TEAM = 9ZYQ3XT8L9;
+				DEVELOPMENT_TEAM = QH3CULU8Z7;
 				INFOPLIST_FILE = bitchatShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Meshy;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -860,7 +860,7 @@
 				);
 				MARKETING_VERSION = "$(MARKETING_VERSION)";
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER).ShareExtension";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.meshed.app.ShareExtension;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.meshy.app.ShareExtension;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
