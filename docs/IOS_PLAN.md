@@ -35,13 +35,13 @@ Privacy-first, offline-capable companion for festivals / group trips where cell 
 - **Trip notes** — `TripNotesService`: Nostr 30078, k-tag `ge136c.notes`, per-note d-tag `ge136c.note.<uuid>`, content `{v:1,lat,lon,body,nick?}`.
 - **Geohash channels / presence** — see `GeohashPresenceSpec.md`.
 
-## Flagged issues / hygiene (recommended; confirm delete-vs-implement before filing)
-1. **Delete the dead binary location-share stub** — `FriendLocationService.locationSharePacketType = 0x20`, `handleLocationPacket(...)`, `LocationSharePayload.to/fromData()` are unreachable and misrepresent the wire format. Delete or wire up.
-2. **Delete or implement `FestivalGroupManager`** — ~868 lines, zero callers.
+## Flagged issues / hygiene — **decision: delete all dead code (confirmed)**
+1. **Delete** the dead binary location-share stub — `FriendLocationService.locationSharePacketType = 0x20`, `handleLocationPacket(...)`, `LocationSharePayload.to/fromData()` (unreachable; misrepresents the wire format).
+2. **Delete** `FestivalGroupManager` — ~868 lines, zero callers.
 3. **Version the markers** — `\u{1}GE136C-LOC\u{1}` has no version; add e.g. `-V1` so wire changes don't silently break deployed clients.
 4. **Pick one timestamp precision** — marker path uses Int seconds; the dormant binary path uses Long ms. Document seconds as canonical (and delete the dormant spec per #1).
 5. **Document the wire format in-code** — top-of-file doc comments on `FriendLocationService.swift` / `SelfieSyncService.swift` / `TripNotesService.swift`.
-6. **`aeadKey` parameter on `handleLocationPacket`** — drop with the function (per #1) or commit to an AEAD design.
+6. **Delete** the `aeadKey` parameter on `handleLocationPacket` (goes with the function removed in #1).
 7. **Marker robustness** — `U+0001`-bracketing is fragile (works only because users don't type control chars); flag for an eventual real protocol layer. Not urgent.
 8. **Delete dead `FestivalContentView+MapTab.swift` scaffolding** — `FestivalTabWithMap` + `FestivalMainViewWithMap` have zero callers (live host is `TripMainView`). (`FestivalMapTab` itself is a live `typealias` to `TripMapTab` — keep.)
 
@@ -53,4 +53,4 @@ Privacy-first, offline-capable companion for festivals / group trips where cell 
 5. **Re-enable issue tracking** on this repo so the above become trackable issues.
 
 ## Status
-This doc is the plan. On approval, items 1–5 become issues (requires issue tracking enabled). The flagged-issue delete-vs-implement calls in items 1–8 above need a quick confirm before filing.
+This doc is the plan. On approval, forward-plan items 1–5 become issues (requires issue tracking enabled). Hygiene decision: **delete all dead code** (confirmed) — no implement path.
