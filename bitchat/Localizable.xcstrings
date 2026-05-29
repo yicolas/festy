@@ -6175,6 +6175,9 @@
         }
       }
     },
+    "Appearance" : {
+
+    },
     "at" : {
 
     },
@@ -19151,6 +19154,9 @@
         }
       }
     },
+    "Data" : {
+
+    },
     "Data: OpenStreetMap contributors. Style: OpenTopoMap or OSM standard. Tiles are fetched once over your internet connection and cached for offline use; we never share your location with the tile servers beyond the standard map request." : {
 
     },
@@ -23903,6 +23909,9 @@
 
     },
     "Loading..." : {
+
+    },
+    "Location" : {
 
     },
     "Location channels, distant private messages, and trip groups use third-party Nostr relays when internet is available." : {
@@ -31400,6 +31409,9 @@
 
     },
     "Private groups require an invite chain to join. Revoking someone also revokes everyone they invited." : {
+
+    },
+    "Profile" : {
 
     },
     "Profile picture" : {
