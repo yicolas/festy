@@ -46,11 +46,11 @@ Privacy-first, offline-capable companion for festivals / group trips where cell 
 8. **Delete dead `FestivalContentView+MapTab.swift` scaffolding** — `FestivalTabWithMap` + `FestivalMainViewWithMap` have zero callers (live host is `TripMainView`). (`FestivalMapTab` itself is a live `typealias` to `TripMapTab` — keep.)
 
 ## Forward plan
-1. **Generalize beyond GE136C (headline).** ~15 hardcoded `ge136c.*` literals — BLE markers (`GE136C-LOC`, `GE136C-SELFIE`), Nostr tags (`ge136c.notes`/`note`/`selfie`), and `AppStorage` keys (tiles, colors, cars, prompts, hidden days, meals) — block running any trip but GE136C. Derive them from the trip config / a trip id. **This is a cross-platform contract change** (the markers and k/d-tags are shared) — design the namespacing scheme jointly with Android before changing.
-2. **Hygiene cleanups** — the flagged items above (mostly deletions + doc comments + marker versioning).
-3. **Wire-format spec + versioning** — a single canonical wire-format doc (markers, bodies, Nostr kinds/tags, transports) so iOS/Android stay in sync as the protocol evolves.
-4. **Live cross-platform verification** — two-device iOS↔Android interop pass (friend location, selfie, trip notes); the iOS side of `fest-mesh-android#7`.
-5. **Re-enable issue tracking** on this repo so the above become trackable issues.
+1. **Generalize beyond GE136C (headline).** (→ #5) ~15 hardcoded `ge136c.*` literals — BLE markers (`GE136C-LOC`, `GE136C-SELFIE`), Nostr tags (`ge136c.notes`/`note`/`selfie`), and `AppStorage` keys (tiles, colors, cars, prompts, hidden days, meals) — block running any trip but GE136C. Derive them from the trip config / a trip id. **This is a cross-platform contract change** (the markers and k/d-tags are shared) — design the namespacing scheme jointly with Android before changing.
+2. **Hygiene cleanups** — the flagged items above (→ #6; marker versioning + timestamp precision #7).
+3. **Wire-format spec + versioning** (→ #8) — a single canonical wire-format doc (markers, bodies, Nostr kinds/tags, transports) so iOS/Android stay in sync as the protocol evolves.
+4. **Live cross-platform verification** (→ #9) — two-device iOS↔Android interop pass (friend location, selfie, trip notes); the iOS side of `fest-mesh-android#7`.
+5. **Issue tracking enabled** — the items above are now filed as issues #5–#9.
 
 ## Status
-This doc is the plan. On approval, forward-plan items 1–5 become issues (requires issue tracking enabled). Hygiene decision: **delete all dead code** (confirmed) — no implement path.
+This doc is the plan. Forward-plan items are filed as issues **#5–#9**. Hygiene decision: **delete all dead code** (confirmed) — no implement path.
