@@ -108,6 +108,7 @@ enum NoisePayloadType: UInt8 {
     // Verification (QR-based OOB binding)
     case verifyChallenge = 0x10     // Verification challenge
     case verifyResponse  = 0x11     // Verification response
+    case locationShare   = 0x30     // Friend-location fix, encrypted per-recipient (CSV inner payload)
     
     var description: String {
         switch self {
@@ -116,6 +117,7 @@ enum NoisePayloadType: UInt8 {
         case .delivered: return "delivered"
         case .verifyChallenge: return "verifyChallenge"
         case .verifyResponse: return "verifyResponse"
+        case .locationShare: return "locationShare"
         }
     }
 }

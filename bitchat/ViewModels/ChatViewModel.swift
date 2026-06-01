@@ -3191,6 +3191,12 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
                     privateChatManager.objectWillChange.send()
                     objectWillChange.send()
                 }
+            case .locationShare:
+                // Encrypted friend-location fix addressed to us (NoisePayloadType 0x30); inner
+                // payload is the same marker+CSV string as the plaintext path.
+                guard let content = String(data: payload, encoding: .utf8) else { return }
+                let senderName = unifiedPeerService.getPeer(by: peerID)?.nickname ?? "Unknown"
+                FriendLocationService.shared.ingestLocationMessage(content: content, senderNoiseKey: nil, senderNickname: senderName)
             case .verifyChallenge:
                 // Parse and respond
                 guard let tlv = VerificationService.shared.parseVerifyChallenge(payload) else { return }

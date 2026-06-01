@@ -1586,6 +1586,18 @@ final class BLEService: NSObject {
         guard let payload = VerificationService.shared.buildVerifyResponse(noiseKeyHex: noiseKeyHex, nonceA: nonceA) else { return }
         sendNoisePayload(payload, to: peerID)
     }
+
+    /// Encrypted friend-location fix to a chosen recipient set (NoisePayloadType 0x30).
+    /// Mirrors Android `sendEncryptedLocationShare`: per-recipient Noise encryption,
+    /// only to peers with an established session; no plaintext fallback. `content` is
+    /// the FriendLocationService marker+CSV string.
+    func sendEncryptedLocationShare(_ content: String, to peerIDs: [PeerID]) {
+        guard !peerIDs.isEmpty, let data = content.data(using: .utf8) else { return }
+        let payload = NoisePayload(type: .locationShare, data: data).encode()
+        for peerID in peerIDs where noiseService.hasEstablishedSession(with: peerID) {
+            sendNoisePayload(payload, to: peerID)
+        }
+    }
 }
 
 // MARK: - GossipSyncManager Delegate
@@ -4219,6 +4231,11 @@ extension BLEService {
                 let ts = Date(timeIntervalSince1970: Double(packet.timestamp) / 1000)
                 notifyUI { [weak self] in
                     self?.delegate?.didReceiveNoisePayload(from: peerID, type: .verifyResponse, payload: Data(payloadData), timestamp: ts)
+                }
+            case .locationShare:
+                let ts = Date(timeIntervalSince1970: Double(packet.timestamp) / 1000)
+                notifyUI { [weak self] in
+                    self?.delegate?.didReceiveNoisePayload(from: peerID, type: .locationShare, payload: Data(payloadData), timestamp: ts)
                 }
             case .none:
                 SecureLogger.warning("⚠️ Unknown noise payload type: \(payloadType)")
