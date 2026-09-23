@@ -51,7 +51,7 @@ struct FriendMapView: View {
     @State private var draftNote: DraftNoteAnnotation?
     @State private var draftNoteText: String = ""
     @State private var viewingNote: TripNote?
-    @AppStorage("ge136c.hasPromptedOfflineDownload") private var hasPromptedOfflineDownload: Bool = false
+    @AppStorage(TripNamespace.key("hasPromptedOfflineDownload")) private var hasPromptedOfflineDownload: Bool = false
 
     var body: some View {
         ZStack {
@@ -130,7 +130,7 @@ struct FriendMapView: View {
             Button("Not now", role: .cancel) { }
             Button("Open downloader") { showingOfflineSheet = true }
         } message: {
-            Text("Cell service drops in the Sierras. Pre-download the OSM topo tiles and driving routes for the trip area now while you have Wi-Fi.")
+            Text("Cell service drops on the trip (\(scheduleManager.tripData?.trip.location ?? "off-grid")). Pre-download the OSM topo tiles and driving routes for the trip area now while you have Wi-Fi.")
         }
         .sheet(isPresented: $showingList) {
             friendListSheet
@@ -827,7 +827,7 @@ struct TrailPolylineMap: View {
 @MainActor
 final class DayRouteVisibility: ObservableObject {
     static let shared = DayRouteVisibility()
-    private let key = "ge136c.hiddenDayIndices"
+    private let key = TripNamespace.key("hiddenDayIndices")
 
     @Published var hiddenIndices: Set<Int> {
         didSet {
@@ -1329,7 +1329,7 @@ final class TileCacheManager: ObservableObject {
 
     @Published var status: Status = .idle
     @Published var preferredSource: Source {
-        didSet { UserDefaults.standard.set(preferredSource.rawValue, forKey: "ge136c.tileSource") }
+        didSet { UserDefaults.standard.set(preferredSource.rawValue, forKey: AppStorageKeys.tileSource) }
     }
 
     enum DetailLevel: String, CaseIterable, Identifiable {
@@ -1359,7 +1359,7 @@ final class TileCacheManager: ObservableObject {
     }
 
     @Published var preferredDetail: DetailLevel {
-        didSet { UserDefaults.standard.set(preferredDetail.rawValue, forKey: "ge136c.tileDetail") }
+        didSet { UserDefaults.standard.set(preferredDetail.rawValue, forKey: AppStorageKeys.tileDetail) }
     }
     @Published private(set) var cachedTileCount: Int = 0
     @Published private(set) var cachedBytes: Int = 0
@@ -1367,20 +1367,20 @@ final class TileCacheManager: ObservableObject {
     private var downloadTask: Task<Void, Never>?
     private let session: URLSession = {
         let cfg = URLSessionConfiguration.default
-        cfg.httpAdditionalHeaders = ["User-Agent": "Meshy/1.0 iOS (GE136C Sierras trip; mailto:yick@duck.com)"]
+        cfg.httpAdditionalHeaders = ["User-Agent": "Meshy/1.0 iOS (offline trip companion; mailto:yick@duck.com)"]
         cfg.timeoutIntervalForRequest = 30
         cfg.urlCache = nil
         return URLSession(configuration: cfg)
     }()
 
     private init() {
-        if let raw = UserDefaults.standard.string(forKey: "ge136c.tileSource"),
+        if let raw = UserDefaults.standard.string(forKey: AppStorageKeys.tileSource),
            let src = Source(rawValue: raw) {
             preferredSource = src
         } else {
             preferredSource = .openTopoMap
         }
-        if let raw = UserDefaults.standard.string(forKey: "ge136c.tileDetail"),
+        if let raw = UserDefaults.standard.string(forKey: AppStorageKeys.tileDetail),
            let lvl = DetailLevel(rawValue: raw) {
             preferredDetail = lvl
         } else {
@@ -1392,7 +1392,7 @@ final class TileCacheManager: ObservableObject {
     // Nonisolated so MKTileOverlay (which runs on a background queue) can call it safely.
     nonisolated static func cacheRoot() -> URL {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        let dir = base.appendingPathComponent("ge136c-tiles", isDirectory: true)
+        let dir = base.appendingPathComponent(TripNamespace.file("tiles"), isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
@@ -1437,7 +1437,8 @@ final class TileCacheManager: ObservableObject {
     static func tripBBox() -> (minLat: Double, maxLat: Double, minLng: Double, maxLng: Double) {
         let coords = TripScheduleManager.shared.allLocations.compactMap { $0.coordinate }
         guard !coords.isEmpty else {
-            // Fallback to a sensible default covering Sierras/Central Valley
+            // Fallback when the trip has no located stops: Sierras/Central Valley
+            // (the first trip's region).
             return (34.5, 37.4, -120.0, -118.3)
         }
         let lats = coords.map { $0.latitude }
@@ -1611,7 +1612,7 @@ final class RouteCache: ObservableObject {
     private var task: Task<Void, Never>?
     private let session: URLSession = {
         let cfg = URLSessionConfiguration.default
-        cfg.httpAdditionalHeaders = ["User-Agent": "GE136C-iOS/1.0 (offline trip companion)"]
+        cfg.httpAdditionalHeaders = ["User-Agent": "Meshy/1.0 iOS (offline trip companion)"]
         cfg.timeoutIntervalForRequest = 60
         cfg.urlCache = nil
         return URLSession(configuration: cfg)
@@ -1621,7 +1622,7 @@ final class RouteCache: ObservableObject {
 
     private func cacheURL() -> URL {
         let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return base.appendingPathComponent("ge136c-routes.json")
+        return base.appendingPathComponent(TripNamespace.file("routes.json"))
     }
 
     private func loadFromDisk() {
@@ -1741,7 +1742,7 @@ final class CachedTileOverlay: MKTileOverlay {
         // On airplane mode this prevents the multi-second hang that froze the
         // map when zoomed past the cached zoom range. MKMapView will fall back
         // to the upscaled tile from `maximumZ`.
-        result(nil, NSError(domain: "ge136c.tiles", code: 1, userInfo: nil))
+        result(nil, NSError(domain: "meshy.tiles", code: 1, userInfo: nil))
     }
 }
 

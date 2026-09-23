@@ -1,6 +1,8 @@
 {
   "trip": {
     "id": "ge136c-spring-sierras-2026",
+    "namespace": "ge136c",
+    "shortName": "GE136C",
     "name": "GE136C Spring - Sierras",
     "subtitle": "Offline mesh trip companion",
     "location": "Sierras + Central Valley Loop",
@@ -8,22 +10,78 @@
       "start": "2026-05-29",
       "end": "2026-06-01"
     },
-    "timezone": "America/Los_Angeles"
+    "timezone": "America/Los_Angeles",
+    "feedbackEmail": "yick@duck.com"
   },
   "tabs": [
-    { "id": "schedule", "name": "Schedule", "icon": "calendar", "type": "schedule" },
-    { "id": "channels", "name": "Channels", "icon": "number", "type": "channels" },
-    { "id": "map", "name": "Map", "icon": "map", "type": "map" },
-    { "id": "chat", "name": "Chat", "icon": "bubble.left.and.bubble.right", "type": "chat" },
-    { "id": "info", "name": "Info", "icon": "info.circle", "type": "info" }
+    {
+      "id": "schedule",
+      "name": "Schedule",
+      "icon": "calendar",
+      "type": "schedule"
+    },
+    {
+      "id": "channels",
+      "name": "Channels",
+      "icon": "number",
+      "type": "channels"
+    },
+    {
+      "id": "map",
+      "name": "Map",
+      "icon": "map",
+      "type": "map"
+    },
+    {
+      "id": "chat",
+      "name": "Chat",
+      "icon": "bubble.left.and.bubble.right",
+      "type": "chat"
+    },
+    {
+      "id": "info",
+      "name": "Info",
+      "icon": "info.circle",
+      "type": "info"
+    }
   ],
   "channels": [
-    { "id": "announcements", "name": "#announcements", "description": "Instructor-only high-priority notices", "icon": "megaphone.fill" },
-    { "id": "main", "name": "#main", "description": "Main trip coordination and updates — start here. Post here for anything not related to the categories below.", "icon": "person.3.fill" },
-    { "id": "cars", "name": "#cars", "description": "Car group chats — find your car's chat by driver's first name", "icon": "car.fill" },
-    { "id": "driving", "name": "#driving", "description": "Driver changes, ETAs, and regrouping", "icon": "speedometer" },
-    { "id": "meals", "name": "#meals", "description": "Food timing, dinner plans, and dietary callouts", "icon": "fork.knife" },
-    { "id": "gear", "name": "#gear", "description": "Let everyone know if something is broken, missing, or you need to borrow. Also serves as lost &amp; found.", "icon": "backpack.fill" }
+    {
+      "id": "announcements",
+      "name": "#announcements",
+      "description": "Instructor-only high-priority notices",
+      "icon": "megaphone.fill"
+    },
+    {
+      "id": "main",
+      "name": "#main",
+      "description": "Main trip coordination and updates — start here. Post here for anything not related to the categories below.",
+      "icon": "person.3.fill"
+    },
+    {
+      "id": "cars",
+      "name": "#cars",
+      "description": "Car group chats — find your car's chat by driver's first name",
+      "icon": "car.fill"
+    },
+    {
+      "id": "driving",
+      "name": "#driving",
+      "description": "Driver changes, ETAs, and regrouping",
+      "icon": "speedometer"
+    },
+    {
+      "id": "meals",
+      "name": "#meals",
+      "description": "Food timing, dinner plans, and dietary callouts",
+      "icon": "fork.knife"
+    },
+    {
+      "id": "gear",
+      "name": "#gear",
+      "description": "Let everyone know if something is broken, missing, or you need to borrow. Also serves as lost &amp; found.",
+      "icon": "backpack.fill"
+    }
   ],
   "days": [
     {
@@ -68,7 +126,11 @@
           "driveTime": "1:40",
           "bathroom": true,
           "food": true,
-          "presenters": ["Nick Anderson", "Abby Keebler", "Olivia Alcabes"],
+          "presenters": [
+            "Nick Anderson",
+            "Abby Keebler",
+            "Olivia Alcabes"
+          ],
           "notes": "Anderson: Colonel Allen Allensworth — From Slavery to Founding a Town. Keebler: Tejon Oil Country — Geologic & Human History. Alcabes: Boswells, Resnicks & Singletons — California's Billionaire Farmers."
         },
         {
@@ -87,7 +149,9 @@
           "driveTime": "0:10",
           "bathroom": true,
           "food": false,
-          "presenters": ["Amelie Sharples"],
+          "presenters": [
+            "Amelie Sharples"
+          ],
           "notes": "Sharples: What Happens at a Fish Hatchery? Life Cycle of a Salmonid."
         },
         {
@@ -106,7 +170,10 @@
           "driveTime": "0:45",
           "bathroom": false,
           "food": false,
-          "presenters": ["Sarah Davis", "Ruth Moorman"],
+          "presenters": [
+            "Sarah Davis",
+            "Ruth Moorman"
+          ],
           "notes": "Davis: Vernal Pools — A Disappearing Ecosystem. Moorman: Atmospheric Rivers & Flooding in California (handout)."
         },
         {
@@ -125,7 +192,9 @@
           "driveTime": "1:30",
           "bathroom": true,
           "food": false,
-          "presenters": ["Marisa Langley"],
+          "presenters": [
+            "Marisa Langley"
+          ],
           "notes": "Langley: Big Creek Hydroelectric Project."
         },
         {
@@ -144,7 +213,14 @@
           "driveTime": "0:10",
           "bathroom": true,
           "food": true,
-          "presenters": ["Amanda Bednarick", "Sophia Ree", "Zhehao (Garry) Zhang", "Debarun Mukherjee", "Yi Lin", "Richard Horak"],
+          "presenters": [
+            "Amanda Bednarick",
+            "Sophia Ree",
+            "Zhehao (Garry) Zhang",
+            "Debarun Mukherjee",
+            "Yi Lin",
+            "Richard Horak"
+          ],
           "notes": "Dinner + camp setup. Bednarick: Granite Crystallization, Types (S/I/A) & Protoliths. Ree: Magmatic History of the Sierra Nevada Batholith. Zhang: Geochemistry of Mono / Remington / Miracle Hot Springs. Mukherjee: John Muir & the Preservation of the Sierra Nevada. Lin: The John Muir Trail. Horak: Yosemite Toad & Skin Bacteria."
         },
         {
@@ -191,7 +267,9 @@
           "driveTime": "3:10",
           "bathroom": true,
           "food": true,
-          "presenters": ["Jarek Kwiecinski"],
+          "presenters": [
+            "Jarek Kwiecinski"
+          ],
           "notes": "Breakfast and pack up. Kwiecinski: Fire Ecology of the Western Sierra & Effects of Suppression / Climate Change (delivered in the burn scar)."
         },
         {
@@ -210,7 +288,10 @@
           "driveTime": "1:50",
           "bathroom": true,
           "food": true,
-          "presenters": ["Konnor von Emster", "Rachel Nazareth"],
+          "presenters": [
+            "Konnor von Emster",
+            "Rachel Nazareth"
+          ],
           "notes": "Lunch. von Emster: History & Science of Sierra Nevada Snow Surveys. Nazareth: Milankovitch Cycles & Sierra Glaciation."
         },
         {
@@ -229,7 +310,9 @@
           "driveTime": "0:00",
           "bathroom": true,
           "food": false,
-          "presenters": ["Koki Yoshioka"],
+          "presenters": [
+            "Koki Yoshioka"
+          ],
           "notes": "25 adults booked; need 7 more slots. Yoshioka: Boyden Cave & the Kings Canyon Roof Pendant."
         },
         {
@@ -248,7 +331,9 @@
           "driveTime": "0:00",
           "bathroom": true,
           "food": false,
-          "presenters": ["Elin Stenmark"],
+          "presenters": [
+            "Elin Stenmark"
+          ],
           "notes": "Stenmark: Glacial Geomorphology — Arêtes, Cirques, Glacial Lakes & Moraines."
         },
         {
@@ -267,7 +352,10 @@
           "driveTime": "1:15",
           "bathroom": true,
           "food": false,
-          "presenters": ["Waqar Mirza", "Ben Thyer"],
+          "presenters": [
+            "Waqar Mirza",
+            "Ben Thyer"
+          ],
           "notes": "3 mile loop from Roads End trailhead, concurrent with cavern groups. Possible swim if temperature permits. Mirza: Granite Exhumation & Weathering Styles (Exfoliation, Spheroidal, Freeze/Thaw). Thyer: Geochronology & Incremental Assembly of Plutons."
         },
         {
@@ -286,7 +374,10 @@
           "driveTime": "",
           "bathroom": true,
           "food": true,
-          "presenters": ["Madi Tongco", "Ava Barbano"],
+          "presenters": [
+            "Madi Tongco",
+            "Ava Barbano"
+          ],
           "notes": "Evening arrival. 🔑 Gate code: 2267 SEND. Cabin lock: last 4 digits of your cell + round icon on keypad. Check-in 4–10 PM · Check-out 12 PM · No smoking inside · Pets ok. Questions: 1-559-461-9887 or booking@campikigai.com. Tongco: Antibiotic Resistance in Cattle, Salmon & the California Food Supply. Barbano: Friant Dam, Ancient Lake Tulare & Impacts on Pre-Contact Native California."
         }
       ]
@@ -333,7 +424,9 @@
           "driveTime": "0:15",
           "bathroom": true,
           "food": true,
-          "presenters": ["Maia Hannahs"],
+          "presenters": [
+            "Maia Hannahs"
+          ],
           "notes": "Quickly drop stuff and change for river; dry-bag lunch. Hannahs: Field Guide to Plants of the High & Low Sierra."
         },
         {
@@ -371,7 +464,9 @@
           "driveTime": "1:00",
           "bathroom": false,
           "food": false,
-          "presenters": ["Zachary Glaser"],
+          "presenters": [
+            "Zachary Glaser"
+          ],
           "notes": "Glaser: Diminishing Sierra Snowpack & Downstream Effects on Reservoirs / Drinking Water."
         },
         {
@@ -390,7 +485,9 @@
           "driveTime": "0:20",
           "bathroom": true,
           "food": false,
-          "presenters": ["Elizabeth Heiny"],
+          "presenters": [
+            "Elizabeth Heiny"
+          ],
           "notes": "Heiny: Geothermal Energy in California — Casa Diablo IV."
         },
         {
@@ -409,7 +506,10 @@
           "driveTime": "0:32",
           "bathroom": true,
           "food": true,
-          "presenters": ["Pablo Drake Hernandez", "Tuyako Khristoforova"],
+          "presenters": [
+            "Pablo Drake Hernandez",
+            "Tuyako Khristoforova"
+          ],
           "notes": "Dinner + camp logistics. Drake Hernandez: Creation Stories in Yokut & Tübatulabal Cultures. Khristoforova: Hospital Rock — Tübatulabal, Yokuts & Potwisha Native Americans."
         },
         {
@@ -494,7 +594,9 @@
           "driveTime": "0:10",
           "bathroom": true,
           "food": false,
-          "presenters": ["Annie Edwards"],
+          "presenters": [
+            "Annie Edwards"
+          ],
           "notes": "Edwards: Thenardite Mineralogy & Soda Lake."
         },
         {
@@ -513,7 +615,9 @@
           "driveTime": "0:50",
           "bathroom": false,
           "food": true,
-          "presenters": ["Korbi Thalhammer"],
+          "presenters": [
+            "Korbi Thalhammer"
+          ],
           "notes": "Lunch stop. Thalhammer: Carrizo Plain, Global Desertification & Valley Fever (Soil Fungus)."
         },
         {
@@ -656,10 +760,158 @@
     "latitudeDelta": 3.6,
     "longitudeDelta": 2.7,
     "routeLinks": [
-      { "id": "route-day-1", "title": "Day 1 Route", "url": "https://maps.app.goo.gl/wvCerfVojKr4BpJG6" },
-      { "id": "route-day-2", "title": "Day 2 Route", "url": "https://maps.app.goo.gl/AizsiSRoXdM3ru5KA" },
-      { "id": "route-day-3", "title": "Day 3 Route", "url": "https://maps.app.goo.gl/taDEummxUR5coMXcA" },
-      { "id": "route-day-4", "title": "Day 4 Route", "url": "https://maps.app.goo.gl/wqf8cqR5RHxx9z7X7" }
+      {
+        "id": "route-day-1",
+        "title": "Day 1 Route",
+        "url": "https://maps.app.goo.gl/wvCerfVojKr4BpJG6"
+      },
+      {
+        "id": "route-day-2",
+        "title": "Day 2 Route",
+        "url": "https://maps.app.goo.gl/AizsiSRoXdM3ru5KA"
+      },
+      {
+        "id": "route-day-3",
+        "title": "Day 3 Route",
+        "url": "https://maps.app.goo.gl/taDEummxUR5coMXcA"
+      },
+      {
+        "id": "route-day-4",
+        "title": "Day 4 Route",
+        "url": "https://maps.app.goo.gl/wqf8cqR5RHxx9z7X7"
+      }
+    ]
+  },
+  "infoLinks": [
+    {
+      "id": "rafting-waiver",
+      "title": "Rafting Waiver",
+      "subtitle": "Sign before the trip — tap to open form",
+      "icon": "pencil.and.list.clipboard",
+      "url": "https://waiver.smartwaiver.com/w/5a5fdb9184660/web/?auto_tag=fh_id_345932112",
+      "style": "mandatory"
+    },
+    {
+      "id": "campground-waiver",
+      "title": "Campground Liability Form",
+      "subtitle": "Sign before the trip — tap to open form",
+      "icon": "tent.fill",
+      "url": "https://www.adventurecentral.com/user/web/m/wfTravelerRequest.aspx?rt=99mx9L&CLUID=fbd80c4d-b022-437f-a10b-61377bde28f4",
+      "style": "mandatory"
+    },
+    {
+      "id": "gps-contact-form",
+      "title": "GPS Dept. Contact Info Form",
+      "subtitle": "Required for all participants — tap to open form",
+      "icon": "person.text.rectangle.fill",
+      "url": "https://docs.google.com/forms/d/195DZvXvDZN874nnwOBHJsKCCms7bPevjT0Tj4XImj0o/viewform?edit_requested=true",
+      "style": "mandatory"
+    },
+    {
+      "id": "kern-river-flow",
+      "title": "Kern River Flow Conditions",
+      "subtitle": "Live USGS gauge at Kernville — check before rafting",
+      "icon": "water.waves",
+      "url": "https://waterdata.usgs.gov/monitoring-location/11186000/",
+      "style": "blue"
+    },
+    {
+      "id": "red-cross-app",
+      "title": "Red Cross First Aid App",
+      "subtitle": "Step-by-step emergency guides — download before the trip",
+      "icon": "cross.fill",
+      "url": "https://apps.apple.com/us/app/first-aid-american-red-cross/id529160691",
+      "style": "red"
+    },
+    {
+      "id": "photo-upload",
+      "title": "Upload trip photos",
+      "subtitle": "Drop your shots into the shared Caltech Box folder.",
+      "icon": "photo.stack.fill",
+      "url": "https://caltech.box.com/s/zxnmiov9e71oer4znp3k0f912hq7qfdi",
+      "style": "accent"
+    }
+  ],
+  "safety": {
+    "sections": [
+      {
+        "rows": [
+          {
+            "icon": "person.3.fill",
+            "label": "Leaders",
+            "value": "Nick Anderson · Joe Kirschvink · Sophia Westercamp"
+          },
+          {
+            "icon": "phone.fill",
+            "label": "Nick",
+            "value": "(415) 500-5307  T-Mobile"
+          },
+          {
+            "icon": "phone.fill",
+            "label": "Joe",
+            "value": "(213) 248-3422  Verizon"
+          },
+          {
+            "icon": "phone.fill",
+            "label": "Sophia",
+            "value": "(719) 648-5461  Verizon"
+          },
+          {
+            "icon": "antenna.radiowaves.left.and.right",
+            "label": "Sat phone",
+            "value": "881651455634"
+          }
+        ]
+      },
+      {
+        "rows": [
+          {
+            "icon": "cross.fill",
+            "label": "Hospital (Sierra)",
+            "value": "Clovis Community MC · (559) 324-4000"
+          },
+          {
+            "icon": "cross.fill",
+            "label": "Hospital (Kernville)",
+            "value": "Kern Valley HCD · (760) 379-2681"
+          }
+        ]
+      },
+      {
+        "title": "Key hazards",
+        "bullets": [
+          "Rattlesnakes — watch footing, closed-toe shoes required",
+          "Sun / heat — SPF 30+, hat, hydrate at every stop",
+          "River float — PFD + helmet + oar mandatory, optional activity, class 2 max",
+          "Cold nights — Mono Creek ~7,400 ft, 35 °F possible, pack layers",
+          "Valley Fever risk in Carrizo Plain — N95s available on request",
+          "First aid kits — one per vehicle, group kit with Nick"
+        ]
+      },
+      {
+        "title": "Vehicles",
+        "text": "GPS F350 + 5 Enterprise rentals. All drivers must have defensive driving certification. Seatbelts required at all times."
+      }
+    ]
+  },
+  "seedMessages": {
+    "version": 3,
+    "messages": [
+      {
+        "id": "meal-seed-2026-05-29-dinner",
+        "time": "2026-05-29 18:30",
+        "text": "Friday dinner #meals\n🌯 Fajitas\nIngredients: pre-cooked beef strips, bell peppers, onions, beans, Mexican cheese, sour cream, guacamole, salsa, vegan meat option, tortillas, avocado, cilantro, tortilla chips, jalapeño, tomatoes\nAllergens: dairy (cheese, sour cream), gluten (tortillas/chips may be wheat or cross-contaminated)"
+      },
+      {
+        "id": "meal-seed-2026-05-30-dinner",
+        "time": "2026-05-30 18:30",
+        "text": "Saturday dinner #meals\n🍝 Pasta Alfredo\nIngredients: pre-cooked chicken, alfredo sauce, zucchini, summer squash, vegetarian sausage, mushrooms, pasta, spinach\nAllergens: dairy (alfredo sauce — cream/butter/parmesan), gluten (pasta), possibly soy/wheat in vegetarian sausage"
+      },
+      {
+        "id": "meal-seed-2026-05-31-dinner",
+        "time": "2026-05-31 18:30",
+        "text": "Sunday dinner #meals\n🥙 Kebabs + Salad\nIngredients: chicken thighs/breasts, tofu, Greek yogurt, bell peppers, cherry tomatoes, red onion, cilantro, mint, lemon, zucchini, summer squash, eggplant, pita, tzatziki, hummus, cucumber, olives, feta cheese\nSpices: honey, cumin, turmeric, salt, pepper, olive oil, garlic powder, onion powder, chili powder, paprika\nAllergens: dairy (yogurt, tzatziki, feta), gluten (pita), sesame (hummus/tahini), soy (tofu)"
+      }
     ]
   }
 }

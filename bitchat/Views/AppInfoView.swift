@@ -21,7 +21,7 @@ struct AppInfoView: View {
     @State private var showSelfieCamera: Bool = false
     @State private var pickedSelfie: UIImage?
     #endif
-    @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
+    @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
     @ObservedObject private var carStore = CarAssignmentStore.shared
     @State private var nicknameEdit: String = ""
     @State private var isEditingNickname: Bool = false
@@ -169,7 +169,7 @@ struct AppInfoView: View {
     @ViewBuilder
     private var infoContent: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Header — Meshy/GE136C rebrand. Tagline calls out that this page
+            // Header — Meshy brand + current trip (from TripSchedule.json). Tagline calls out that this page
             // doubles as the how-to guide AND the settings hub.
             VStack(alignment: .center, spacing: 10) {
                 Image("MeshyLogo")
@@ -182,7 +182,7 @@ struct AppInfoView: View {
                     .font(.bitchatSystem(size: 32, weight: .bold, design: .monospaced))
                     .foregroundColor(textColor)
 
-                Text("GE136C Spring — Sierras 2026")
+                Text(TripData.bundled.map { "\($0.trip.name) · \($0.trip.dateRangeText)" } ?? "Offline trip companion")
                     .font(.bitchatSystem(size: 13, design: .monospaced))
                     .foregroundColor(secondaryTextColor)
 

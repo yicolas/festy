@@ -107,9 +107,33 @@ struct TripData: Codable {
     let days: [TripDay]
     let infoSections: [TripInfoSection]?
     let mapConfig: TripMapConfig?
+    /// Link cards on the Info tab (waivers, forms, gauges, photo upload).
+    let infoLinks: [TripInfoLink]?
+    /// Safety & logistics card (contacts, hospitals, hazards). Omit to hide.
+    let safety: TripSafety?
+    /// Messages pre-seeded into the public mesh timeline (e.g. #meals menus).
+    let seedMessages: TripSeedMessages?
 
     var configuredTabs: [TripTab] {
         tabs ?? TripTab.defaultTabs
+    }
+
+    /// Resource names searched in the app bundle, in order.
+    static let bundledResourceNames = ["FestivalSchedule", "TripSchedule"]
+
+    /// The trip shipped in the app bundle, decoded once. Nonisolated so
+    /// `TripNamespace` and background services can read it off the main actor.
+    static let bundled: TripData? = loadBundled()
+
+    static func loadBundled() -> TripData? {
+        for name in bundledResourceNames {
+            if let url = Bundle.main.url(forResource: name, withExtension: "json"),
+               let data = try? Data(contentsOf: url),
+               let decoded = try? JSONDecoder().decode(TripData.self, from: data) {
+                return decoded
+            }
+        }
+        return nil
     }
 
     /// Compatibility for legacy festival naming in a few untouched call sites.
@@ -123,15 +147,143 @@ struct TripInfo: Codable {
     let location: String
     let dates: TripDates
     let timezone: String?
+    /// Short slug scoping storage keys and Nostr tags (see `TripNamespace`).
+    /// Defaults to `id`. Keep it short, lowercase, and unique per trip.
+    let namespace: String?
+    /// Compact name for the chat header, share text, etc. (e.g. "GE136C").
+    /// Defaults to `name`.
+    let shortName: String?
+    /// Where the in-app feedback card sends mail.
+    let feedbackEmail: String?
+
+    static let defaultFeedbackEmail = "yick@duck.com"
 
     var timezoneIdentifier: String {
         timezone ?? "America/Los_Angeles"
+    }
+
+    /// `namespace`, or `id` when the JSON omits it.
+    var storageNamespace: String {
+        namespace ?? id
+    }
+
+    var displayShortName: String {
+        shortName ?? name
+    }
+
+    /// e.g. "May 29 – Jun 1, 2026", in the trip's timezone.
+    var dateRangeText: String {
+        dates.rangeText(timezoneIdentifier: timezoneIdentifier)
     }
 }
 
 struct TripDates: Codable {
     let start: String
     let end: String
+
+    func rangeText(timezoneIdentifier: String) -> String {
+        let timeZone = TimeZone(identifier: timezoneIdentifier) ?? .current
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.timeZone = timeZone
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let startDate = parser.date(from: start),
+              let endDate = parser.date(from: end) else {
+            return "\(start) – \(end)"
+        }
+        let formatter = DateIntervalFormatter()
+        formatter.timeZone = timeZone
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: startDate, to: endDate)
+    }
+}
+
+/// A tappable link card on the Info tab.
+struct TripInfoLink: Codable, Identifiable, Hashable {
+    let id: String
+    let title: String
+    let subtitle: String?
+    /// SF Symbol name.
+    let icon: String?
+    let url: URL
+    /// "mandatory" (red, badged, listed first), or a color: "red", "blue",
+    /// "green", "accent" (default).
+    let style: String?
+
+    var isMandatory: Bool { style == "mandatory" }
+
+    var color: Color {
+        switch style {
+        case "mandatory", "red": return .red
+        case "blue": return .blue
+        case "green": return .green
+        default: return TripTheme.accent
+        }
+    }
+}
+
+/// Safety & logistics card, rendered top to bottom as divided sections.
+struct TripSafety: Codable, Hashable {
+    let sections: [TripSafetySection]
+}
+
+struct TripSafetySection: Codable, Hashable {
+    /// Small all-caps heading, e.g. "KEY HAZARDS". Optional.
+    let title: String?
+    /// Label/value rows (leaders, phone numbers, hospitals).
+    let rows: [TripContactRow]?
+    /// Bulleted lines (hazards).
+    let bullets: [String]?
+    /// Free-text paragraph (vehicles policy).
+    let text: String?
+}
+
+struct TripContactRow: Codable, Hashable {
+    /// SF Symbol name; defaults to "info.circle".
+    let icon: String?
+    let label: String
+    let value: String
+}
+
+/// System messages seeded once into the public mesh timeline.
+struct TripSeedMessages: Codable, Hashable {
+    /// Bump when contents change: previously seeded messages are removed and
+    /// the current list is re-seeded.
+    let version: Int
+    let messages: [TripSeedMessage]
+}
+
+extension TripSeedMessages {
+    /// System messages for the mesh timeline, timestamped in the trip's
+    /// timezone. Seeds whose `time` doesn't parse are skipped (a test checks
+    /// the bundled JSON has none).
+    func bitchatMessages(timezoneIdentifier: String) -> [BitchatMessage] {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: timezoneIdentifier) ?? .current
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return messages.compactMap { seed in
+            guard let stamp = formatter.date(from: seed.time) else { return nil }
+            return BitchatMessage(
+                id: seed.id,
+                sender: "system",
+                content: seed.text,
+                timestamp: stamp,
+                isRelay: false
+            )
+        }
+    }
+}
+
+struct TripSeedMessage: Codable, Hashable {
+    /// Stable message ID (used for dedup and removal on re-seed).
+    let id: String
+    /// Local time in the trip timezone, "yyyy-MM-dd HH:mm".
+    let time: String
+    /// Full message text. Include the channel hashtag (e.g. "#meals") on the
+    /// first line so the channel filter matches it.
+    let text: String
 }
 
 struct TripTab: Codable, Identifiable, Hashable {
@@ -285,20 +437,13 @@ class TripScheduleManager: ObservableObject {
     }
 
     func loadSchedule() {
-        let resourceNames = ["FestivalSchedule", "TripSchedule"]
-
-        for name in resourceNames {
-            if let url = Bundle.main.url(forResource: name, withExtension: "json"),
-               let data = try? Data(contentsOf: url),
-               let decoded = try? JSONDecoder().decode(TripData.self, from: data) {
-                tripData = decoded
-                selectedDay = decoded.days.first?.date
-                isLoaded = true
-                return
-            }
+        guard let decoded = TripData.bundled else {
+            print("Failed to load trip schedule")
+            return
         }
-
-        print("Failed to load trip schedule")
+        tripData = decoded
+        selectedDay = decoded.days.first?.date
+        isLoaded = true
     }
 
     var timezone: String {

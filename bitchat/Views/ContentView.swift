@@ -1297,7 +1297,7 @@ struct ContentView: View {
     
     private var mainHeaderView: some View {
         HStack(spacing: 0) {
-            Text(verbatim: "GE136C/")
+            Text(verbatim: "\(TripData.bundled?.trip.displayShortName ?? "Meshy")/")
                 .font(.bitchatSystem(size: 18, weight: .medium, design: .monospaced))
                 .foregroundColor(textColor)
                 .onTapGesture {
