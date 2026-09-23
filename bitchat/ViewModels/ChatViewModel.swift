@@ -501,6 +501,18 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
             let id = UUID().uuidString
             self.meshService.sendMessage(content, mentions: [], messageID: id, timestamp: Date())
         }
+        // `.mutualFavorites` selfie sharing: Noise-encrypted private message
+        // straight to the transport (not ChatViewModel.sendPrivateMessage), so
+        // it never appears in the DM UI. The receiver's didReceiveMessage
+        // intercepts the marker before chat handling.
+        SelfieSyncService.shared.privateSender = { [weak self] content, noiseKey in
+            guard let self,
+                  let peer = self.unifiedPeerService.peers.first(where: { $0.noisePublicKey == noiseKey }) else { return }
+            self.meshService.sendPrivateMessage(content, to: peer.peerID, recipientNickname: peer.nickname, messageID: UUID().uuidString)
+        }
+        SelfieSyncService.shared.connectedPeerNoiseKeys = { [weak self] in
+            self?.unifiedPeerService.peers.filter(\.isConnected).map(\.noisePublicKey) ?? []
+        }
 
         // On launch, if we already have a selfie, publish it once to Nostr so
         // peers can pull it without waiting for the next manual retake. Also
