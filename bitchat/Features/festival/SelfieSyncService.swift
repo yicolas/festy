@@ -46,6 +46,7 @@ enum SelfieShareScope: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    #if os(iOS)
     var title: String {
         switch self {
         case .everyone: return "Everyone nearby"
@@ -64,6 +65,7 @@ enum SelfieShareScope: String, CaseIterable, Identifiable {
             return "Your selfie is not sent to anyone."
         }
     }
+    #endif
 
     static var current: SelfieShareScope {
         UserDefaults.standard.string(forKey: storageKey).flatMap(SelfieShareScope.init(rawValue:)) ?? defaultScope
@@ -112,9 +114,11 @@ final class SelfieSyncService: ObservableObject {
     /// by `.mutualFavorites`.
     var privateSender: ((String, Data) -> Void)?
 
-    /// Noise keys of peers currently connected over BLE. Wired by
-    /// ChatViewModel.
+    #if os(iOS)
+    /// Noise keys of peers currently connected over BLE (recipients when
+    /// publishing our own selfie). Wired by ChatViewModel.
     var connectedPeerNoiseKeys: (() -> [Data])?
+    #endif
 
     // MARK: - State
 
@@ -128,8 +132,10 @@ final class SelfieSyncService: ObservableObject {
     private var currentNostrSubscriptionID: String?
     private var currentNostrAuthors: Set<String> = []
 
+    #if os(iOS)
     /// Loaded lazily because constructing it touches the keychain.
     private lazy var identityBridge = NostrIdentityBridge()
+    #endif
 
     private init() {}
 
@@ -161,9 +167,11 @@ final class SelfieSyncService: ObservableObject {
         return false
     }
 
+    #if os(iOS)
     /// Called when the user takes/replaces their selfie, or on app launch with
     /// an existing selfie. Publishes via Nostr if a relay is reachable and
     /// broadcasts once over BLE so anyone in range refreshes immediately.
+    /// iOS-only: the own selfie (`UserSelfieStore`) only exists there.
     func publishOwnSelfie() {
         guard let data = ownSelfieData() else {
             SecureLogger.info("🤳 publishOwnSelfie skipped: no local selfie", category: .session)
@@ -185,6 +193,7 @@ final class SelfieSyncService: ObservableObject {
             SecureLogger.info("🤳 publishOwnSelfie skipped: sharing off", category: .session)
         }
     }
+    #endif
 
     /// Ask known peers for their selfies (BLE-only — Nostr fetches are pull, no
     /// request needed). Intended to fire when a new peer comes into mesh range.
@@ -309,6 +318,7 @@ final class SelfieSyncService: ObservableObject {
         "\(responseMarker)\(data.base64EncodedString())"
     }
 
+    #if os(iOS)
     private func publishOwnSelfieToNostr(data: Data) {
         guard let identity = try? identityBridge.getCurrentNostrIdentity() else {
             SecureLogger.warning("🤳 Nostr publish skipped: no Nostr identity", category: .session)
@@ -337,6 +347,7 @@ final class SelfieSyncService: ObservableObject {
     /// v1 public-message frame (upstream #1719 drops anything larger). 40,000 B
     /// → 53,352 chars, leaving ~11% headroom under 60,000.
     static let maxSelfieJPEGBytes = 40_000
+    #endif
 
     private func ownSelfieData() -> Data? {
         #if os(iOS)
@@ -387,10 +398,12 @@ private struct SelfiePayload: Codable {
     let nick: String?
     let img: String
 
+    #if os(iOS)
     func encode() -> String? {
         guard let data = try? JSONEncoder().encode(self) else { return nil }
         return String(data: data, encoding: .utf8)
     }
+    #endif
 
     static func decode(_ content: String) -> SelfiePayload? {
         guard let data = content.data(using: .utf8) else { return nil }

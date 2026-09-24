@@ -1,9 +1,7 @@
-import BitFoundation
 import SwiftUI
 import CoreLocation
 #if os(iOS)
 import UIKit
-#endif
 
 /// Toggle control for location sharing in trip mode
 struct FriendLocationToggle: View {
@@ -83,11 +81,9 @@ struct FriendLocationToggle: View {
         }
         .alert("Location Permission Required", isPresented: $showingPermissionAlert) {
             Button("Open Settings") {
-                #if os(iOS)
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }
-                #endif
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -96,7 +92,7 @@ struct FriendLocationToggle: View {
     }
 
     private func toggleLocationSharing() {
-        let status = CLLocationManager.authorizationStatus()
+        let status = CLLocationManager().authorizationStatus
 
         switch status {
         case .notDetermined:
@@ -122,93 +118,6 @@ struct FriendLocationToggle: View {
     }
 }
 
-struct LocationSharingIndicator: View {
-    @ObservedObject var locationService = FriendLocationService.shared
-
-    var body: some View {
-        if locationService.isSharing {
-            HStack(spacing: 4) {
-                Image(systemName: "location.fill")
-                    .font(.system(size: 10))
-
-                let count = locationService.activeFriendLocations.count
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(.caption2, design: .monospaced))
-                }
-            }
-            .foregroundColor(TripTheme.accent)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(TripTheme.accentSoft)
-            .cornerRadius(4)
-        }
-    }
-}
-
-struct FriendLocationList: View {
-    @ObservedObject var locationService = FriendLocationService.shared
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Friends' Locations")
-                .font(.system(.headline, design: .monospaced))
-                .foregroundColor(TripTheme.primaryText)
-
-            if locationService.locatedFriends.isEmpty {
-                Text("No friends sharing location yet")
-                    .font(.system(.subheadline, design: .monospaced))
-                    .foregroundColor(TripTheme.secondaryText)
-                    .padding(.vertical, 8)
-            } else {
-                ForEach(locationService.locatedFriends) { friend in
-                    FriendLocationRow(friend: friend)
-                }
-            }
-        }
-    }
-}
-
-struct FriendLocationRow: View {
-    let friend: FriendLocation
-
-    var body: some View {
-        HStack {
-            Circle()
-                .fill(friend.isStale ? Color.gray : TripTheme.accent)
-                .frame(width: 10, height: 10)
-
-            Text(friend.nickname)
-                .font(.system(.body, design: .monospaced))
-                .foregroundColor(friend.isStale ? .secondary : TripTheme.primaryText)
-
-            Spacer()
-
-            Text(timeAgo(friend.timestamp))
-                .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.secondary)
-
-            if friend.isStale {
-                Image(systemName: "clock")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 12))
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func timeAgo(_ date: Date) -> String {
-        let seconds = Int(-date.timeIntervalSinceNow)
-        if seconds < 60 {
-            return "now"
-        } else if seconds < 3600 {
-            return "\(seconds / 60)m"
-        } else {
-            return "\(seconds / 3600)h"
-        }
-    }
-}
-
 #if DEBUG
 struct FriendLocationToggle_Previews: PreviewProvider {
     static var previews: some View {
@@ -216,4 +125,5 @@ struct FriendLocationToggle_Previews: PreviewProvider {
             .padding()
     }
 }
+#endif
 #endif
