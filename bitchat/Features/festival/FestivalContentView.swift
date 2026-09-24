@@ -9,8 +9,8 @@ import UIKit
 @MainActor
 final class UserSelfieStore: ObservableObject {
     static let shared = UserSelfieStore()
-    private let promptedKey = "ge136c.hasPromptedSelfie"
-    private let filename = "ge136c-selfie.jpg"
+    private let promptedKey = AppStorageKeys.hasPromptedSelfie
+    private let filename = AppStorageKeys.selfieFile
 
     @Published var image: UIImage?
     @Published var hasPrompted: Bool {
@@ -65,11 +65,11 @@ final class UserSelfieStore: ObservableObject {
 }
 
 /// Per-user customization for the color the user's own messages render in.
-/// Persists a hex string in UserDefaults; defaults to GE136C orange.
+/// Persists a hex string in UserDefaults; defaults to the Meshy orange accent.
 @MainActor
 final class UserChatColorStore: ObservableObject {
     static let shared = UserChatColorStore()
-    private let key = "ge136c.userTextColor"
+    private let key = AppStorageKeys.userTextColor
     static let defaultHex = "#FF7E15"
 
     @Published var hex: String {
@@ -187,7 +187,10 @@ enum InviteLink {
     static let url = URL(string: "https://yicolas.github.io/festy/")!
 
     static var shareText: String {
-        "join me on GE136C — offline trip chat for the Sierras. install instructions: \(url.absoluteString)"
+        guard let trip = TripData.bundled?.trip else {
+            return "join me on Meshy — offline trip chat. install instructions: \(url.absoluteString)"
+        }
+        return "join me on \(trip.displayShortName) — offline trip chat for \(trip.location). install instructions: \(url.absoluteString)"
     }
 }
 
@@ -207,7 +210,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 struct TripContentView: View {
     @EnvironmentObject var viewModel: ChatViewModel
     @ObservedObject private var selfieStore = UserSelfieStore.shared
-    @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
+    @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
 
     private var preferredColorScheme: ColorScheme? {
         switch colorSchemePreference {
@@ -464,7 +467,7 @@ struct TripMainView: View {
     @State private var isEditingUsername = false
     @State private var nicknameEditText = ""
     #endif
-    @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
+    @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
 
     private var peerCount: Int {
         viewModel.allPeers.reduce(0) { count, peer in
@@ -1044,14 +1047,16 @@ struct TripInfoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                raftingWaiverCard
-                campgroundWaiverCard
-                gpsContactFormCard
-                safetyCard
-                kernRiverCard
-                redCrossCard
+                ForEach(infoLinks.filter(\.isMandatory)) { link in
+                    mandatoryFormCard(link)
+                }
+                if let safety = scheduleManager.tripData?.safety {
+                    safetyCard(safety)
+                }
+                ForEach(infoLinks.filter { !$0.isMandatory }) { link in
+                    linkCard(link)
+                }
                 howToCard
-                photoUploadCard
                 feedbackCard
             }
             .padding()
@@ -1063,19 +1068,14 @@ struct TripInfoView: View {
         }
     }
 
-    private var raftingWaiverCard: some View {
-        mandatoryFormCard(
-            title: "Rafting Waiver",
-            subtitle: "Sign before the trip — tap to open form",
-            icon: "pencil.and.list.clipboard",
-            url: URL(string: "https://waiver.smartwaiver.com/w/5a5fdb9184660/web/?auto_tag=fh_id_345932112")!
-        )
+    private var infoLinks: [TripInfoLink] {
+        scheduleManager.tripData?.infoLinks ?? []
     }
 
-    private func mandatoryFormCard(title: String, subtitle: String, icon: String, url: URL) -> some View {
-        Link(destination: url) {
+    private func mandatoryFormCard(_ link: TripInfoLink) -> some View {
+        Link(destination: link.url) {
             HStack(spacing: 12) {
-                Image(systemName: icon)
+                Image(systemName: link.icon ?? "doc.text.fill")
                     .font(.system(size: 28))
                     .foregroundColor(.white)
                     .frame(width: 52, height: 52)
@@ -1090,10 +1090,10 @@ struct TripInfoView: View {
                         .padding(.vertical, 2)
                         .background(Color.red)
                         .cornerRadius(4)
-                    Text(title)
+                    Text(link.title)
                         .font(.system(.headline, design: .monospaced))
                         .foregroundColor(TripTheme.onSurfaceText)
-                    Text(subtitle)
+                    Text(link.subtitle ?? "")
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(TripTheme.secondaryText)
                 }
@@ -1109,25 +1109,7 @@ struct TripInfoView: View {
         }
     }
 
-    private var campgroundWaiverCard: some View {
-        mandatoryFormCard(
-            title: "Campground Liability Form",
-            subtitle: "Sign before the trip — tap to open form",
-            icon: "tent.fill",
-            url: URL(string: "https://www.adventurecentral.com/user/web/m/wfTravelerRequest.aspx?rt=99mx9L&CLUID=fbd80c4d-b022-437f-a10b-61377bde28f4")!
-        )
-    }
-
-    private var gpsContactFormCard: some View {
-        mandatoryFormCard(
-            title: "GPS Dept. Contact Info Form",
-            subtitle: "Required for all participants — tap to open form",
-            icon: "person.text.rectangle.fill",
-            url: URL(string: "https://docs.google.com/forms/d/195DZvXvDZN874nnwOBHJsKCCms7bPevjT0Tj4XImj0o/viewform?edit_requested=true")!
-        )
-    }
-
-    private var safetyCard: some View {
+    private func safetyCard(_ safety: TripSafety) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 Image(systemName: "cross.case.fill")
@@ -1140,53 +1122,45 @@ struct TripInfoView: View {
                     Text("Safety & Logistics")
                         .font(.system(.headline, design: .monospaced))
                         .foregroundColor(TripTheme.onSurfaceText)
-                    Text("GE136C Spring 2026 · May 29 – Jun 1")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(TripTheme.secondaryText)
+                    if let trip = scheduleManager.tripData?.trip {
+                        Text("\(trip.displayShortName) · \(trip.dateRangeText)")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(TripTheme.secondaryText)
+                    }
                 }
             }
 
-            Divider().background(TripTheme.stroke)
-
-            safetyRow(icon: "person.3.fill",                 label: "Leaders",    value: "Nick Anderson · Joe Kirschvink · Sophia Westercamp")
-            safetyRow(icon: "phone.fill",                    label: "Nick",        value: "(415) 500-5307  T-Mobile")
-            safetyRow(icon: "phone.fill",                    label: "Joe",         value: "(213) 248-3422  Verizon")
-            safetyRow(icon: "phone.fill",                    label: "Sophia",      value: "(719) 648-5461  Verizon")
-            safetyRow(icon: "antenna.radiowaves.left.and.right", label: "Sat phone", value: "881651455634")
-
-            Divider().background(TripTheme.stroke)
-
-            safetyRow(icon: "cross.fill", label: "Hospital (Sierra)",   value: "Clovis Community MC · (559) 324-4000")
-            safetyRow(icon: "cross.fill", label: "Hospital (Kernville)", value: "Kern Valley HCD · (760) 379-2681")
-
-            Divider().background(TripTheme.stroke)
-
-            Text("KEY HAZARDS")
-                .font(.system(.caption2, design: .monospaced))
-                .fontWeight(.bold)
-                .foregroundColor(TripTheme.accent)
-            safetyBullet("Rattlesnakes — watch footing, closed-toe shoes required")
-            safetyBullet("Sun / heat — SPF 30+, hat, hydrate at every stop")
-            safetyBullet("River float — PFD + helmet + oar mandatory, optional activity, class 2 max")
-            safetyBullet("Cold nights — Mono Creek ~7,400 ft, 35 °F possible, pack layers")
-            safetyBullet("Valley Fever risk in Carrizo Plain — N95s available on request")
-            safetyBullet("First aid kits — one per vehicle, group kit with Nick")
-
-            Divider().background(TripTheme.stroke)
-
-            Text("VEHICLES")
-                .font(.system(.caption2, design: .monospaced))
-                .fontWeight(.bold)
-                .foregroundColor(TripTheme.accent)
-            Text("GPS F350 + 5 Enterprise rentals. All drivers must have defensive driving certification. Seatbelts required at all times.")
-                .font(.system(.caption, design: .monospaced))
-                .foregroundColor(TripTheme.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            ForEach(Array(safety.sections.enumerated()), id: \.offset) { _, section in
+                Divider().background(TripTheme.stroke)
+                safetySection(section)
+            }
         }
         .padding(14)
         .background(TripTheme.surface)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.orange.opacity(0.4), lineWidth: 1.5))
         .cornerRadius(12)
+    }
+
+    @ViewBuilder
+    private func safetySection(_ section: TripSafetySection) -> some View {
+        if let title = section.title {
+            Text(title.uppercased())
+                .font(.system(.caption2, design: .monospaced))
+                .fontWeight(.bold)
+                .foregroundColor(TripTheme.accent)
+        }
+        ForEach(Array((section.rows ?? []).enumerated()), id: \.offset) { _, row in
+            safetyRow(icon: row.icon ?? "info.circle", label: row.label, value: row.value)
+        }
+        ForEach(Array((section.bullets ?? []).enumerated()), id: \.offset) { _, bullet in
+            safetyBullet(bullet)
+        }
+        if let text = section.text {
+            Text(text)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(TripTheme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     @ViewBuilder
@@ -1221,62 +1195,35 @@ struct TripInfoView: View {
         }
     }
 
-    private var kernRiverCard: some View {
-        Link(destination: URL(string: "https://waterdata.usgs.gov/monitoring-location/11186000/")!) {
+    private func linkCard(_ link: TripInfoLink) -> some View {
+        let color = link.color
+        return Link(destination: link.url) {
             HStack(spacing: 12) {
-                Image(systemName: "water.waves")
+                Image(systemName: link.icon ?? "link")
                     .font(.system(size: 28))
                     .foregroundColor(.white)
                     .frame(width: 52, height: 52)
-                    .background(Color.blue)
+                    .background(color)
                     .cornerRadius(12)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Kern River Flow Conditions")
+                    Text(link.title)
                         .font(.system(.headline, design: .monospaced))
                         .foregroundColor(TripTheme.onSurfaceText)
-                    Text("Live USGS gauge at Kernville — check before rafting")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(TripTheme.secondaryText)
-                        .lineLimit(2)
+                    if let subtitle = link.subtitle {
+                        Text(subtitle)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(TripTheme.secondaryText)
+                            .lineLimit(2)
+                    }
                 }
                 Spacer()
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundColor(color)
             }
             .padding(14)
             .background(TripTheme.surface)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.blue.opacity(0.4), lineWidth: 1.5))
-            .cornerRadius(12)
-        }
-    }
-
-    private var redCrossCard: some View {
-        Link(destination: URL(string: "https://apps.apple.com/us/app/first-aid-american-red-cross/id529160691")!) {
-            HStack(spacing: 12) {
-                Image(systemName: "cross.fill")
-                    .font(.system(size: 28))
-                    .foregroundColor(.white)
-                    .frame(width: 52, height: 52)
-                    .background(Color.red)
-                    .cornerRadius(12)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Red Cross First Aid App")
-                        .font(.system(.headline, design: .monospaced))
-                        .foregroundColor(TripTheme.onSurfaceText)
-                    Text("Step-by-step emergency guides — download before the trip")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(TripTheme.secondaryText)
-                        .lineLimit(2)
-                }
-                Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.red)
-            }
-            .padding(14)
-            .background(TripTheme.surface)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red.opacity(0.4), lineWidth: 1.5))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.4), lineWidth: 1.5))
             .cornerRadius(12)
         }
     }
@@ -1313,11 +1260,13 @@ struct TripInfoView: View {
     }
 
     private var feedbackCard: some View {
-        let subject = "GE136C App Feedback"
-        let body = "What worked, what didn't, what would you change?\n\n— Sent from GE136C on iOS"
+        let tripName = scheduleManager.tripData?.trip.displayShortName ?? "Meshy"
+        let email = scheduleManager.tripData?.trip.feedbackEmail ?? TripInfo.defaultFeedbackEmail
+        let subject = "\(tripName) App Feedback"
+        let body = "What worked, what didn't, what would you change?\n\n— Sent from Meshy on iOS (\(tripName))"
         let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? subject
         let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? body
-        let mailto = URL(string: "mailto:yick@duck.com?subject=\(encodedSubject)&body=\(encodedBody)")!
+        let mailto = URL(string: "mailto:\(email)?subject=\(encodedSubject)&body=\(encodedBody)")!
         return Link(destination: mailto) {
             HStack(spacing: 12) {
                 Image(systemName: "envelope.badge.fill")
@@ -1331,44 +1280,7 @@ struct TripInfoView: View {
                     Text("Send feedback or suggestions")
                         .font(.system(.headline, design: .monospaced))
                         .foregroundColor(TripTheme.onSurfaceText)
-                    Text("Bugs, ideas, requests → yick@duck.com")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(TripTheme.secondaryText)
-                        .lineLimit(2)
-                }
-
-                Spacer()
-
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(TripTheme.accent)
-            }
-            .padding(14)
-            .background(TripTheme.surface)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(TripTheme.accent.opacity(0.4), lineWidth: 1.5)
-            )
-            .cornerRadius(12)
-        }
-    }
-
-    private var photoUploadCard: some View {
-        let url = URL(string: "https://caltech.box.com/s/zxnmiov9e71oer4znp3k0f912hq7qfdi")!
-        return Link(destination: url) {
-            HStack(spacing: 12) {
-                Image(systemName: "photo.stack.fill")
-                    .font(.system(size: 28))
-                    .foregroundColor(.white)
-                    .frame(width: 52, height: 52)
-                    .background(TripTheme.accent)
-                    .cornerRadius(12)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Upload trip photos")
-                        .font(.system(.headline, design: .monospaced))
-                        .foregroundColor(TripTheme.onSurfaceText)
-                    Text("Drop your shots into the shared Caltech Box folder.")
+                    Text("Bugs, ideas, requests → \(email)")
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(TripTheme.secondaryText)
                         .lineLimit(2)
@@ -1542,7 +1454,7 @@ struct OfflineMapsCard: View {
                 .font(.system(.headline, design: .monospaced))
                 .foregroundColor(TripTheme.primaryText)
 
-            Text("Cell service drops in the Sierras. Download map tiles for the trip area now so the in-app map keeps working off-grid. Tiles are stored on this device and used the next time you open the trip map.")
+            Text("Cell service drops on the trip (\(TripData.bundled?.trip.location ?? "off-grid")). Download map tiles for the trip area now so the in-app map keeps working off-grid. Tiles are stored on this device and used the next time you open the trip map.")
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundColor(TripTheme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)

@@ -23,7 +23,7 @@ final class MeshTimelinePersistence {
 
     private var fileURL: URL {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return dir.appendingPathComponent("ge136c-mesh-timeline.json")
+        return dir.appendingPathComponent(TripNamespace.file("mesh-timeline.json"))
     }
 
     /// Returns persisted mesh messages with anything older than 30 days dropped.
@@ -88,7 +88,7 @@ final class PrivateChatsPersistence {
 
     private var fileURL: URL {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return dir.appendingPathComponent("ge136c-private-chats.json")
+        return dir.appendingPathComponent(AppStorageKeys.privateChatsFile)
     }
 
     /// Returns loaded private chats, pruned to the retention window.

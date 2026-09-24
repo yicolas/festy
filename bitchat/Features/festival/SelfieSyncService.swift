@@ -8,7 +8,7 @@
 //     Nostr pubkeys.
 //   • BLE mesh (offline fallback) — request/response messages routed through
 //     the existing public-chat broadcast path, with marker prefixes so they
-//     never render as chat. Useful in the Sierras where cellular dies.
+//     never render as chat. Useful off-grid where cellular dies.
 //
 // The service does not own selfie storage; the per-peer cache lives in
 // `PeerSelfieStore` and the user's own selfie in `UserSelfieStore`.
@@ -225,7 +225,7 @@ final class SelfieSyncService: ObservableObject {
         }
 
         let filter = NostrFilter.tripSelfies(authors: Array(cleaned))
-        let subID = "ge136c-selfies"
+        let subID = TripNamespace.file("selfies")
         currentNostrSubscriptionID = subID
         SecureLogger.info("🤳 Subscribing to selfies for \(cleaned.count) peer pubkey(s)", category: .session)
         NostrRelayManager.shared.subscribe(filter: filter, id: subID) { [weak self] event in
