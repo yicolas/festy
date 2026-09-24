@@ -99,8 +99,8 @@ Other files festy changed that auto-merged cleanly: `LaunchScreen.storyboard`, `
 | `MediaRetention.pruneNow()` no-op (indefinite media) | `ChatViewModel.init` + `PublicTimelineStore.swift` | Upstream now expires media older than 7 days at launch, so a `// festy:` guard in `AppRuntime.performMediaMaintenance` skips `expireAgedMedia()` while `MediaRetention.keepMediaIndefinitely` is set. |
 | `confirmNickname`, `hasChosenNickname`, `hashtagFilter` | stored `@Published` on ChatViewModel | Forwarding members in `ChatViewModel+Trip.swift`, backed by the `TripChatState.shared` singleton. They send `objectWillChange` so views observing ChatViewModel still refresh. |
 | `togglePeerBlock` + DM-header block button | `ChatViewModel` + `ContentView` header | Button re-homed to `ContentSheetViews.ContentPrivateChatSheetView` (`// festy:`). It is confirm-gated and uses upstream's `ConversationUIModel.block`. **Unblock** now lives in upstream's people list, not in the header. |
-| `selfColor` (`MessageFormattingContext`) | `ChatViewModel` + engine | Dropped: it was dead code (see the conflict table). |
-| `isLocationChannelsSheetPresented` (screenshot warning) | ChatViewModel | **Not re-homed.** Upstream moved it to `AppChromeModel`, which also drives the header's own sheet. See the `festy-merge TODO` in `FestivalContentView.swift` (TripChatHost). |
+| `selfColor` (`MessageFormattingContext`) / user text color | `ChatViewModel` + engine | The engine hook was dead code (see the conflict table). The live render path is `ChatMessageFormatter`: own-message `baseColor` reads `UserChatColorStore.shared` and its hex is part of the format-cache variant (`// festy:`). `TextMessageView` / `MediaMessageView` observe the store so rows refresh. |
+| `isLocationChannelsSheetPresented` (screenshot warning) | ChatViewModel | Re-homed as `AppChromeModel.isTripChannelSheetPresented` (`// festy:`), set by TripChatHost and OR-ed into `AppRuntime.handleScreenshotCaptured`. TripChatHost presents the alert itself because ContentHeaderView (upstream's alert host) is hidden in trip mode. |
 | Marker filter + hashtag/#main/#car filter on the timeline | `ContentView.messagesView` ~372 | `MessageListView.conversationMessages(for:)` → `TripTimelineFilter.visibleMessages` (`// festy:`). It observes `TripChatState`. |
 | No triple-tap `/clear` on the message list | `ContentView` | `MessageListView` (`// festy:`). Upstream had added a confirm dialog there; the trigger is removed. |
 | `ge136c` URL scheme (`user`, `geohash`) | `ContentView.handleOpenURL` ~733 | `MessageListView.handleOpenURL` accepts `bitchat` and `ge136c`. `OpenURLAction` now handles in-app `bitchat://` links itself; pre-merge these went to the OS, where nothing is registered for them in Meshy. `ge136c://join` is handled in `MeshyApp.onOpenURL`, and `ge136c://share` in `AppRuntime.handleOpenURL`. |
@@ -249,12 +249,11 @@ Compile risks, most likely first:
    this is Sendable-safe. Expect an "will never be executed" warning.
 
 Runtime risks:
-* **TripChatHost sheet + DM start:** `OnlinePeersSheet` calls
-  `viewModel.startPrivateChat` and then `dismiss()`. Upstream's `ContentView` then presents
-  its people/DM sheet. If both presentations race, iOS may log "already presenting" and not
-  open the DM. Test it.
-* **Screenshot privacy warning:** it does not fire while TripChatHost's channel sheet is
-  open (the TODO above). It still fires in a geohash channel via upstream.
+* **TripChatHost sheet + DM start:** fixed. `OnlinePeersSheet` now only reports the chosen
+  peer and dismisses; its presenter (TripMainView / TripChatHost) calls
+  `viewModel.startPrivateChat` from the sheet's `onDismiss`, so upstream's people/DM sheet is
+  presented after the peer sheet is gone.
+* **Screenshot privacy warning:** fixed; see the table above.
 * **Location-packet churn in gossip sync:** with N sharers × 1 packet / 30 s, a 10-person
   trip fills the 1000-slot sync store in about 50 minutes. That evicts older real chat from
   what the device re-serves to peers who were out of range. This is not data loss locally,

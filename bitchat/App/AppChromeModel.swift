@@ -10,6 +10,10 @@ final class AppChromeModel: ObservableObject {
     @Published var showingFingerprintFor: PeerID?
     @Published var isAppInfoPresented = false
     @Published var isLocationChannelsSheetPresented = false
+    // festy: the trip shell (TripChatHost) presents its own channel sheet;
+    // it sets this so screenshots warn like upstream's sheet does, without
+    // driving ContentHeaderView's sheet.
+    @Published var isTripChannelSheetPresented = false
     @Published var isNoticesSheetPresented = false
     /// When the sheet is opened for "notes left here" (empty mesh timeline),
     /// it should land on the geo tab instead of the channel-derived default.
@@ -51,7 +55,7 @@ final class AppChromeModel: ObservableObject {
     }
 
     var shouldSuppressScreenshotNotification: Bool {
-        isLocationChannelsSheetPresented || isAppInfoPresented
+        isLocationChannelsSheetPresented || isTripChannelSheetPresented || isAppInfoPresented // festy
     }
 
     func setNickname(_ nickname: String) {

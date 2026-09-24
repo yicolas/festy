@@ -42,13 +42,15 @@ final class ChatMessageFormatter {
 
         let isDark = colorScheme == .dark
         let isVerifiedSender = !isSelf && isVerifiedSender(of: message)
+        // festy: own-message color is user-chosen, so key the cache on it.
         let cacheVariant = theme.formatCacheVariant + (isVerifiedSender ? "-vf" : "")
+            + (isSelf ? "-c" + UserChatColorStore.shared.hex : "")
         if let cachedText = message.getCachedFormattedText(isDark: isDark, isSelf: isSelf, variant: cacheVariant) {
             return cachedText
         }
 
         var result = AttributedString()
-        let baseColor: Color = isSelf ? .orange : peerColor(for: message, isDark: isDark)
+        let baseColor: Color = isSelf ? UserChatColorStore.shared.color : peerColor(for: message, isDark: isDark) // festy: user text color
 
         if message.sender != "system" {
             let (baseName, suffix) = message.sender.splitSuffix()
@@ -364,7 +366,7 @@ final class ChatMessageFormatter {
         }()
 
         let isDark = colorScheme == .dark
-        let baseColor: Color = isSelf ? .orange : peerColor(for: message, isDark: isDark)
+        let baseColor: Color = isSelf ? UserChatColorStore.shared.color : peerColor(for: message, isDark: isDark) // festy: user text color
         let isVerifiedSender = !isSelf && isVerifiedSender(of: message)
 
         if message.sender == "system" {
