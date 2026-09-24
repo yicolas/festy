@@ -249,10 +249,10 @@ Compile risks, most likely first:
    this is Sendable-safe. Expect an "will never be executed" warning.
 
 Runtime risks:
-* **TripChatHost sheet + DM start:** `OnlinePeersSheet` calls
-  `viewModel.startPrivateChat` and then `dismiss()`. Upstream's `ContentView` then presents
-  its people/DM sheet. If both presentations race, iOS may log "already presenting" and not
-  open the DM. Test it.
+* **TripChatHost sheet + DM start:** fixed. `OnlinePeersSheet` now only reports the chosen
+  peer and dismisses; its presenter (TripMainView / TripChatHost) calls
+  `viewModel.startPrivateChat` from the sheet's `onDismiss`, so upstream's people/DM sheet is
+  presented after the peer sheet is gone.
 * **Screenshot privacy warning:** fixed; see the table above.
 * **Location-packet churn in gossip sync:** with N sharers × 1 packet / 30 s, a 10-person
   trip fills the 1000-slot sync store in about 50 minutes. That evicts older real chat from
