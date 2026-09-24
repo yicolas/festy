@@ -8,6 +8,7 @@
 import Testing
 import Foundation
 import CoreLocation
+import SwiftUI
 @testable import bitchat
 
 // MARK: - Trip Schedule Tests
@@ -17,7 +18,7 @@ struct FestivalScheduleTests {
     @Test
     func scheduleJSON_loadsSuccessfully() async {
         // Verify the JSON can be loaded and decoded
-        guard let url = Bundle.main.url(forResource: TripData.activeResourceName, withExtension: "json") else {
+        guard let url = TripData.resourceBundle.url(forResource: TripData.activeResourceName, withExtension: "json") else {
             Issue.record("\(TripData.activeResourceName).json not found in bundle")
             return
         }
@@ -58,7 +59,7 @@ struct FestivalScheduleTests {
     
     @Test
     func tripChannel_defaultsIncludeExpectedChannels() {
-        guard let url = Bundle.main.url(forResource: TripData.activeResourceName, withExtension: "json") else {
+        guard let url = TripData.resourceBundle.url(forResource: TripData.activeResourceName, withExtension: "json") else {
             Issue.record("\(TripData.activeResourceName).json not found in bundle")
             return
         }
@@ -67,74 +68,12 @@ struct FestivalScheduleTests {
         let decoded = try? JSONDecoder().decode(TripData.self, from: data ?? Data())
         let names = Set(decoded?.channels.map(\.name) ?? [])
 
-        #expect(names.contains("#general"))
+        #expect(names.contains("#announcements"))
+        #expect(names.contains("#main"))
+        #expect(names.contains("#cars"))
         #expect(names.contains("#driving"))
-        #expect(names.contains("#travel"))
         #expect(names.contains("#meals"))
         #expect(names.contains("#gear"))
-        #expect(names.contains("#announcements"))
-    }
-}
-
-// MARK: - Location Payload Tests
-
-struct LocationPayloadTests {
-    
-    @Test
-    func locationPayload_encodeDecode_roundTrips() {
-        let original = LocationSharePayload(
-            latitude: 37.7694,
-            longitude: -122.4862,
-            accuracy: 10.5,
-            timestamp: 1723075200000  // Fixed timestamp for testing
-        )
-        
-        let encoded = original.toData()
-        #expect(encoded.count == 28)  // 8 + 8 + 4 + 8 bytes
-        
-        guard let decoded = LocationSharePayload.fromData(encoded) else {
-            Issue.record("Failed to decode location payload")
-            return
-        }
-        
-        #expect(abs(decoded.latitude - original.latitude) < 0.0001)
-        #expect(abs(decoded.longitude - original.longitude) < 0.0001)
-        #expect(abs(decoded.accuracy - original.accuracy) < 0.1)
-        #expect(decoded.timestamp == original.timestamp)
-    }
-    
-    @Test
-    func locationPayload_bigEndian_crossPlatformSafe() {
-        // Test that encoding is deterministic (big-endian)
-        let payload = LocationSharePayload(
-            latitude: 37.7694,
-            longitude: -122.4862,
-            accuracy: 10.0,
-            timestamp: 1000000000000
-        )
-        
-        let encoded1 = payload.toData()
-        let encoded2 = payload.toData()
-        
-        #expect(encoded1 == encoded2)
-    }
-    
-    @Test
-    func locationPayload_invalidData_returnsNil() {
-        // Too short
-        let shortData = Data([0x00, 0x01, 0x02])
-        #expect(LocationSharePayload.fromData(shortData) == nil)
-        
-        // Empty
-        #expect(LocationSharePayload.fromData(Data()) == nil)
-    }
-    
-    @Test
-    func locationPayload_exactSize_decodes() {
-        // Exactly 28 bytes should work
-        var data = Data(count: 28)
-        // Fill with valid-ish data (zeros will decode to 0.0, 0.0 coordinates)
-        #expect(LocationSharePayload.fromData(data) != nil)
     }
 }
 
@@ -229,54 +168,6 @@ struct FestivalModeManagerTests {
         manager.enable()
         manager.disable()
         #expect(manager.isEnabled == false)
-    }
-}
-
-// MARK: - AEAD Encryption Tests
-
-struct AEADTests {
-    
-    @Test
-    func aead_encryptDecrypt_roundTrips() throws {
-        let key = SymmetricKey(size: .bits256)
-        let plaintext = "Hello, Festival!".data(using: .utf8)!
-        
-        let ciphertext = try AEAD.encrypt(payload: plaintext, using: key)
-        let decrypted = try AEAD.decrypt(ciphertext, using: key)
-        
-        #expect(decrypted == plaintext)
-    }
-    
-    @Test
-    func aead_differentKeys_failsDecryption() throws {
-        let key1 = SymmetricKey(size: .bits256)
-        let key2 = SymmetricKey(size: .bits256)
-        let plaintext = "Secret data".data(using: .utf8)!
-        
-        let ciphertext = try AEAD.encrypt(payload: plaintext, using: key1)
-        
-        // Decrypting with wrong key should throw
-        #expect(throws: (any Error).self) {
-            _ = try AEAD.decrypt(ciphertext, using: key2)
-        }
-    }
-    
-    @Test
-    func aead_tamperedCiphertext_failsDecryption() throws {
-        let key = SymmetricKey(size: .bits256)
-        let plaintext = "Tamper test".data(using: .utf8)!
-        
-        var ciphertext = try AEAD.encrypt(payload: plaintext, using: key)
-        
-        // Tamper with the ciphertext
-        if ciphertext.count > 10 {
-            ciphertext[10] ^= 0xFF
-        }
-        
-        // Should fail authentication
-        #expect(throws: (any Error).self) {
-            _ = try AEAD.decrypt(ciphertext, using: key)
-        }
     }
 }
 

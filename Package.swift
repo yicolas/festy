@@ -1,4 +1,3 @@
-
 // swift-tools-version: 5.9
 
 import PackageDescription
@@ -13,7 +12,7 @@ let package = Package(
     products: [
         .executable(
             name: "FestMest",
-            targets: ["FestMest"]
+            targets: ["bitchat"]
         )
     ],
     dependencies: [
@@ -24,7 +23,9 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "FestMest",
+            // Module stays `bitchat` so the shared test sources'
+            // `@testable import bitchat` resolve under SwiftPM too.
+            name: "bitchat",
             dependencies: [
                 .product(name: "P256K", package: "swift-secp256k1"),
                 .product(name: "BitFoundation", package: "BitFoundation"),
@@ -39,8 +40,7 @@ let package = Package(
                 "bitchat.entitlements",
                 "bitchat-macOS.entitlements",
                 "LaunchScreen.storyboard",
-                "ViewModels/Extensions/README.md",
-                "BitchatApp.swift"  // Excluded - using FestMestApp.swift instead
+                "ViewModels/Extensions/README.md"
             ],
             resources: [
                 .process("Localizable.xcstrings"),
@@ -48,10 +48,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            // festy: target/module names are FestMest (Xcode product stays `bitchat`).
-            name: "FestMestTests",
+            name: "bitchatTests",
             dependencies: [
-                "FestMest",
+                "bitchat",
                 .product(name: "BitFoundation", package: "BitFoundation")
             ],
             path: "bitchatTests",

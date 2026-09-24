@@ -99,7 +99,7 @@ struct TripConfigTests {
     // MARK: Trip switching
 
     private static func bundledTripFiles() -> [URL] {
-        (Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? [])
+        (TripData.resourceBundle.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? [])
             .filter { $0.lastPathComponent.hasPrefix("trip-") }
     }
 
@@ -118,7 +118,7 @@ struct TripConfigTests {
 
     @Test
     func activeTrip_hasNoPlaceholders() throws {
-        let url = try #require(Bundle.main.url(forResource: TripData.activeResourceName, withExtension: "json"))
+        let url = try #require(TripData.resourceBundle.url(forResource: TripData.activeResourceName, withExtension: "json"))
         let raw = try String(contentsOf: url, encoding: .utf8)
         #expect(!raw.contains("FILL_IN"), "active trip \(TripData.activeResourceName) still has FILL_IN values")
     }
