@@ -6,6 +6,7 @@
 // This file updates the FestivalTab enum and FestivalMainView to include the map
 //
 
+import BitFoundation
 import SwiftUI
 
 // MARK: - Updated Festival Tab Enum

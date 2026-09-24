@@ -5,6 +5,7 @@
 // Location sharing service for mutual favorites on trips
 //
 
+import BitFoundation
 import Foundation
 import CoreLocation
 import Combine
@@ -266,13 +267,20 @@ class FriendLocationService: NSObject, ObservableObject {
         // Use a deterministic id even when we don't yet have a noise key
         // (e.g., peer is observed once but not paired into favorites yet).
         let id = senderNoiseKey ?? Data(senderNickname.utf8)
+        let fixTime = Date(timeIntervalSince1970: ts)
+        // Upstream gossip sync (2026-09 merge) replays up to 6h of public mesh
+        // messages to peers that reconnect, so old location packets can arrive
+        // after newer ones. Never let an older fix overwrite a newer one.
+        if let existing = friendLocations[id], existing.timestamp >= fixTime {
+            return
+        }
         let friend = FriendLocation(
             id: id,
             nickname: senderNickname,
             coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lng),
             accuracy: acc,
-            timestamp: Date(timeIntervalSince1970: ts),
-            isStale: false
+            timestamp: fixTime,
+            isStale: Date().timeIntervalSince(fixTime) > stalenessThreshold
         )
         friendLocations[id] = friend
     }

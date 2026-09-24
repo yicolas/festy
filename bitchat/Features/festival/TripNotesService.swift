@@ -13,6 +13,7 @@
 // and replicate when devices come back online.
 //
 
+import BitFoundation
 import Foundation
 import CoreLocation
 import BitLogger

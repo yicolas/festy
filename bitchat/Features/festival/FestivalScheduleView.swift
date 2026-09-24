@@ -1,3 +1,4 @@
+import BitFoundation
 import SwiftUI
 
 struct TripScheduleView: View {

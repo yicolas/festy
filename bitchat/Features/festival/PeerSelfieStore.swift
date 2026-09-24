@@ -7,6 +7,7 @@
 // Application Support and an in-memory dictionary mirrors them for fast lookup.
 //
 
+import BitFoundation
 import Foundation
 #if os(iOS)
 import UIKit

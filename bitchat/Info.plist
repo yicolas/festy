@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>AppGroupID</key>
+	<string>$(APP_GROUP_ID)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -29,6 +31,8 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>om</string>
@@ -45,11 +49,11 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Meshy uses the camera to scan QR codes to verify peers.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Meshy uses your approximate location to compute local geohash channels for optional public chats. Exact GPS is never shared.</string>
+	<string>Meshy uses your location to show you on the trip map, to share your position with trip friends over the nearby mesh when you turn on location sharing, and to compute optional geohash channels.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Meshy uses the microphone to record voice notes that relay across the mesh.</string>
+	<string>Meshy uses the microphone while you record voice notes or hold live push-to-talk, then sends that audio to your selected mesh conversation.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>FM lets you pick images from your photo library to share with nearby peers.</string>
+	<string>Meshy lets you pick images from your photo library to share with nearby peers.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>

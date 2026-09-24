@@ -6,6 +6,7 @@
 // Uses Schnorr signatures (BIP-340) for cryptographic verification
 //
 
+import BitFoundation
 import Foundation
 import CryptoKit
 import P256K

@@ -1,3 +1,4 @@
+import BitFoundation
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -618,7 +619,7 @@ struct TripMainView: View {
         .padding(.vertical, 10)
         .background(TripTheme.accentSoft)
         .sheet(isPresented: $isShowingSettings) {
-            AppInfoView()
+            TripAppInfoView() // festy: trip settings page (upstream AppInfoView reachable from it)
                 .environmentObject(viewModel)
         }
         .sheet(isPresented: $showPeerList) {
@@ -730,6 +731,9 @@ struct TripMainView: View {
 /// frictionless. Now just renders the channel subheader + chat content.
 struct TripChatHost: View {
     @EnvironmentObject private var viewModel: ChatViewModel
+    // festy-merge: upstream's LocationChannelsSheet reads these models.
+    @EnvironmentObject private var locationChannelsModel: LocationChannelsModel
+    @EnvironmentObject private var peerListModel: PeerListModel
     @ObservedObject private var locationManager = LocationChannelManager.shared
     @State private var showChannelPicker = false
     @State private var showClearConfirm = false
@@ -757,8 +761,16 @@ struct TripChatHost: View {
         .sheet(isPresented: $showChannelPicker) {
             LocationChannelsSheet(isPresented: $showChannelPicker)
                 .environmentObject(viewModel)
-                .onAppear { viewModel.isLocationChannelsSheetPresented = true }
-                .onDisappear { viewModel.isLocationChannelsSheetPresented = false }
+                // Sheets can drop inherited environment objects (#1558).
+                .environmentObject(locationChannelsModel)
+                .environmentObject(peerListModel)
+                // festy-merge TODO: pre-merge this set
+                // `viewModel.isLocationChannelsSheetPresented` so a screenshot
+                // taken with the channel list open showed the location-privacy
+                // warning. Upstream moved that flag to
+                // `AppChromeModel.isLocationChannelsSheetPresented`, which also
+                // drives ContentHeaderView's own sheet, so it is not set from
+                // here; the warning does not fire for this sheet.
         }
         .sheet(isPresented: $showPeerList) {
             OnlinePeersSheet()
@@ -1058,7 +1070,7 @@ struct TripInfoView: View {
         }
         .background(TripTheme.background)
         .sheet(isPresented: $showAppInfo) {
-            AppInfoView()
+            TripAppInfoView() // festy: trip settings page (upstream AppInfoView reachable from it)
                 .environmentObject(viewModel)
         }
     }

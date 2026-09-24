@@ -1,0 +1,32 @@
+name: Dead Code
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  periphery:
+    name: Periphery scan
+    runs-on: macos-latest
+    timeout-minutes: 30
+    # Blocking, like SwiftLint since #1646. The baseline (committed July 8)
+    # has been stable across a month of merges — the "drop continue-on-error
+    # once the baseline proves stable" condition this job shipped with is met.
+    # Known macOS-scan false positives stay suppressed by the baseline; only
+    # NEW dead code fails the job (--strict below).
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Periphery
+        # homebrew-core formula; the peripheryapp tap lags years behind.
+        run: brew install periphery
+
+      - name: Scan for dead code
+        # Config comes from .periphery.yml; known findings (mostly iOS-only
+        # code invisible to a macOS scan) are suppressed by the committed
+        # baseline. --strict fails the step when NEW dead code appears.
+        run: periphery scan --strict --disable-update-check

@@ -8,6 +8,7 @@
 
 import Testing
 import struct Foundation.UUID
+@testable import BitFoundation // to avoid unnecessary public's
 @testable import bitchat
 
 struct PublicChatE2ETests {
@@ -17,9 +18,7 @@ struct PublicChatE2ETests {
     private let charlie: MockBLEService
     private let david: MockBLEService
     private let bus = MockBLEBus()
-    
-    private var receivedMessages: [String: [BitchatMessage]] = [:]
-    
+
     init() {
         // Create mock services with unique peer IDs to avoid any collision
         alice = MockBLEService(peerID: PeerID(str: UUID().uuidString), nickname: TestConstants.testNickname1, bus: bus)
@@ -51,7 +50,7 @@ struct PublicChatE2ETests {
         var bobReceivedMessage = false
         var charlieReceivedMessage = false
         
-        await confirmation("Both recieve message", expectedCount: 2) { receiveMessage in
+        await confirmation("Both receive message", expectedCount: 2) { receiveMessage in
             bob.messageDeliveryHandler = { message in
                 if message.content == TestConstants.testMessage1 {
                     if !bobReceivedMessage {

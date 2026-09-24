@@ -14,6 +14,7 @@
 // `PeerSelfieStore` and the user's own selfie in `UserSelfieStore`.
 //
 
+import BitFoundation
 import Foundation
 import BitLogger
 #if os(iOS)

@@ -5,6 +5,7 @@
 // SwiftUI views for creating and managing trip groups
 //
 
+import BitFoundation
 import SwiftUI
 
 // MARK: - Group List View
