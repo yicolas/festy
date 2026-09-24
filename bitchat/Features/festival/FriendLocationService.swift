@@ -5,7 +5,9 @@
 // Location sharing service for mutual favorites on trips
 //
 
-import BitFoundation
+#if os(iOS)
+import BitFoundation // PeerID (sending side)
+#endif
 import Foundation
 import CoreLocation
 import Combine
@@ -33,11 +35,6 @@ class FriendLocationService: NSObject, ObservableObject {
     /// messages. The leading control char ensures no collision with real text.
     static let locationMarker = "\u{1}GE136C-LOC\u{1}"
 
-    /// Closure invoked when this device wants to broadcast its location.
-    /// `ChatViewModel` sets this in init so we can fan the encoded string out
-    /// over the existing BLE-mesh chat transport.
-    var broadcaster: ((String) -> Void)?
-
     /// How this device sends its location (user setting, Settings → Location).
     /// Cross-platform with fest-mesh-android #89 (`ShareMode`).
     ///
@@ -56,6 +53,11 @@ class FriendLocationService: NSObject, ObservableObject {
 
         var id: String { rawValue }
 
+        static var current: ShareMode {
+            UserDefaults.standard.string(forKey: storageKey).flatMap(ShareMode.init(rawValue:)) ?? .broadcast
+        }
+
+        #if os(iOS)
         var title: String {
             switch self {
             case .broadcast: return "Anyone nearby"
@@ -71,11 +73,21 @@ class FriendLocationService: NSObject, ObservableObject {
                 return "Only mutual favorites in Bluetooth range can read your location. Others can still tell that you're sending."
             }
         }
-
-        static var current: ShareMode {
-            UserDefaults.standard.string(forKey: storageKey).flatMap(ShareMode.init(rawValue:)) ?? .broadcast
-        }
+        #endif
     }
+
+    /// How old a location can be before considered stale (seconds)
+    private let stalenessThreshold: TimeInterval = 120
+
+    @Published private(set) var friendLocations: [Data: FriendLocation] = [:]
+    private var stalenessTimer: DispatchSourceTimer?
+
+    // MARK: - Sending (iOS only: the macOS build has no trip map to start it)
+    #if os(iOS)
+    /// Closure invoked when this device wants to broadcast its location.
+    /// `ChatViewModel` sets this in init so we can fan the encoded string out
+    /// over the existing BLE-mesh chat transport.
+    var broadcaster: ((String) -> Void)?
 
     /// Sends the marker+CSV string encrypted to each recipient (`.encrypted`
     /// mode). Wired by ChatViewModel to `Transport.sendEncryptedLocationShare`.
@@ -85,23 +97,15 @@ class FriendLocationService: NSObject, ObservableObject {
     /// ChatViewModel.
     var encryptedRecipients: (() -> [PeerID])?
 
-    // MARK: - Configuration
     /// How often to broadcast location (seconds)
     private let broadcastInterval: TimeInterval = 30
 
-    /// How old a location can be before considered stale (seconds)
-    private let stalenessThreshold: TimeInterval = 120
-
-    // MARK: - Published State
     @Published private(set) var isSharing = false
-    @Published private(set) var friendLocations: [Data: FriendLocation] = [:]
     @Published private(set) var lastBroadcastTime: Date?
     @Published private(set) var myLocation: CLLocation?
 
-    // MARK: - Private Properties
     private var locationManager: CLLocationManager?
     private var broadcastTimer: DispatchSourceTimer?
-    private var stalenessTimer: DispatchSourceTimer?
 
     // MARK: - Computed Properties
     var activeFriendLocations: [FriendLocation] {
@@ -112,18 +116,6 @@ class FriendLocationService: NSObject, ObservableObject {
         friendLocations.values.sorted { $0.timestamp > $1.timestamp }
     }
 
-    // MARK: - Lifecycle
-    private override init() {
-        super.init()
-        setupStalenessTimer()
-    }
-
-    deinit {
-        broadcastTimer?.cancel()
-        stalenessTimer?.cancel()
-    }
-
-    // MARK: - Public API
     func startSharing() {
         guard !isSharing else { return }
         setupLocationManager()
@@ -193,6 +185,22 @@ class FriendLocationService: NSObject, ObservableObject {
         }
         lastBroadcastTime = Date()
     }
+    #endif
+
+    // MARK: - Lifecycle
+    private override init() {
+        super.init()
+        setupStalenessTimer()
+    }
+
+    deinit {
+        #if os(iOS)
+        broadcastTimer?.cancel()
+        #endif
+        stalenessTimer?.cancel()
+    }
+
+    // MARK: - Receiving
 
     /// Called by `ChatViewModel.didReceiveMessage` when an incoming BLE-mesh
     /// chat-channel message starts with our location marker. We parse the
@@ -258,6 +266,7 @@ class FriendLocationService: NSObject, ObservableObject {
 }
 
 // MARK: - CLLocationManagerDelegate
+#if os(iOS)
 extension FriendLocationService: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
@@ -278,3 +287,4 @@ extension FriendLocationService: CLLocationManagerDelegate {
         }
     }
 }
+#endif

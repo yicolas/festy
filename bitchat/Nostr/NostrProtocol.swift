@@ -49,8 +49,10 @@ struct NostrProtocol {
     /// (`<ns>.note.<uuid>`) so updates are parameterized-replaceable per note.
     static var tripNoteKTag: String { TripNamespace.tripNoteKTag }
 
+    #if os(iOS)
     /// Create a NIP-78 parameterized-replaceable event that publishes the
     /// caller's selfie. The relay keeps exactly one copy per (pubkey, kind, d).
+    /// iOS-only: only iOS has an own selfie to publish.
     static func createSelfieEvent(
         content: String,
         senderIdentity: NostrIdentity
@@ -66,6 +68,7 @@ struct NostrProtocol {
         let schnorrKey = try senderIdentity.schnorrSigningKey()
         return try event.sign(with: schnorrKey)
     }
+    #endif
 
     /// Create a NIP-78 event for a single trip note. Each note has its own
     /// `d` tag so an author can edit/replace it later. The shared `k` tag

@@ -1925,14 +1925,6 @@ struct NostrFilter: Encodable {
     }
 
     // festy: trip selfie / trip note filters (NIP-78, kind 30078).
-    /// Set a tag filter (e.g., #p, #group, #d) - public API for external use
-    mutating func setTagFilter(_ tag: String, values: [String]) {
-        if tagFilters == nil {
-            tagFilters = [:]
-        }
-        tagFilters?[tag] = values
-    }
-
     /// NIP-78 trip selfies (kind 30078) filtered to the trip's selfie d-tag and
     /// the supplied set of peer Nostr pubkeys. One latest event per author.
     static func tripSelfies(authors: [String], since: Date? = nil) -> NostrFilter {

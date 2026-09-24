@@ -1,4 +1,3 @@
-import BitFoundation
 import SwiftUI
 import MapKit
 import CoreLocation
@@ -617,7 +616,6 @@ struct TripMapTab: View {
         }
     }
 }
-
 
 // MARK: - Trail routes (GPS tracks from the field)
 
