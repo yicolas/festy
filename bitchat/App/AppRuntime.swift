@@ -434,7 +434,9 @@ private extension AppRuntime {
         }()
 
         switch Self.resolveScreenshotResponse(
-            isLocationChannelsSheetPresented: appChromeModel.isLocationChannelsSheetPresented,
+            // festy: the trip channel sheet counts as the channel sheet.
+            isLocationChannelsSheetPresented: appChromeModel.isLocationChannelsSheetPresented
+                || appChromeModel.isTripChannelSheetPresented,
             isAppInfoPresented: appChromeModel.isAppInfoPresented,
             hasPrivateChatOpen: chatViewModel.selectedPrivateChatPeer != nil,
             isLocationChannelActive: isLocationChannelActive

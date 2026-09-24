@@ -737,6 +737,7 @@ struct TripChatHost: View {
     // festy-merge: upstream's LocationChannelsSheet reads these models.
     @EnvironmentObject private var locationChannelsModel: LocationChannelsModel
     @EnvironmentObject private var peerListModel: PeerListModel
+    @EnvironmentObject private var appChromeModel: AppChromeModel
     @ObservedObject private var locationManager = LocationChannelManager.shared
     @State private var showChannelPicker = false
     @State private var showClearConfirm = false
@@ -767,13 +768,33 @@ struct TripChatHost: View {
                 // Sheets can drop inherited environment objects (#1558).
                 .environmentObject(locationChannelsModel)
                 .environmentObject(peerListModel)
-                // festy-merge TODO: pre-merge this set
-                // `viewModel.isLocationChannelsSheetPresented` so a screenshot
-                // taken with the channel list open showed the location-privacy
-                // warning. Upstream moved that flag to
-                // `AppChromeModel.isLocationChannelsSheetPresented`, which also
-                // drives ContentHeaderView's own sheet, so it is not set from
-                // here; the warning does not fire for this sheet.
+                // Screenshots taken with the channel list open warn about
+                // location exposure (AppRuntime routes them via
+                // `isTripChannelSheetPresented`). ContentHeaderView, which
+                // hosts upstream's alert, is hidden in trip mode, so the
+                // alert is presented from here.
+                .alert("content.alert.screenshot.title", isPresented: $appChromeModel.showScreenshotPrivacyWarning) {
+                    Button("common.ok", role: .cancel) {}
+                } message: {
+                    Text("content.alert.screenshot.message")
+                }
+        }
+        .onChange(of: showChannelPicker) { isPresented in
+            appChromeModel.isTripChannelSheetPresented = isPresented
+        }
+        // Location-channel timeline screenshots (header hidden in trip mode,
+        // so upstream's alert isn't mounted). Defers to the sheet's alert
+        // while the channel sheet is up.
+        .alert(
+            "content.alert.screenshot.title",
+            isPresented: Binding(
+                get: { appChromeModel.showScreenshotPrivacyWarning && !showChannelPicker },
+                set: { appChromeModel.showScreenshotPrivacyWarning = $0 }
+            )
+        ) {
+            Button("common.ok", role: .cancel) {}
+        } message: {
+            Text("content.alert.screenshot.message")
         }
         .sheet(isPresented: $showPeerList) {
             OnlinePeersSheet()
