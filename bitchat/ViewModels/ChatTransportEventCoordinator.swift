@@ -85,10 +85,11 @@ protocol ChatTransportEventContext: AnyObject {
     func handleGroupKeyUpdatePayload(from peerID: PeerID, payload: Data)
     func handleVouchPayload(from peerID: PeerID, payload: Data)
 
-    // festy: trip control packets (location / selfie markers) ride public
-    // mesh messages; `true` means consumed (never shown as chat). Default
-    // implementation returns false (see ChatViewModel+Trip.swift).
-    func festyInterceptTripControlMessage(content: String, senderPeerID: PeerID?, senderNickname: String) -> Bool
+    // festy: trip control packets (location / selfie markers) ride mesh
+    // messages (public, or private for mutual-favorite selfies); `true` means
+    // consumed (never shown as chat). Default implementation returns false
+    // (see ChatViewModel+Trip.swift).
+    func festyInterceptTripControlMessage(content: String, senderPeerID: PeerID?, senderNickname: String, isPrivate: Bool) -> Bool
 }
 
 extension ChatViewModel: ChatTransportEventContext {
@@ -338,7 +339,7 @@ private extension ChatTransportEventCoordinator {
         in context: any ChatTransportEventContext
     ) {
         // festy: route trip control packets before they become chat.
-        if context.festyInterceptTripControlMessage(content: content, senderPeerID: peerID, senderNickname: nickname) { return }
+        if context.festyInterceptTripControlMessage(content: content, senderPeerID: peerID, senderNickname: nickname, isPrivate: false) { return }
         let normalized = content.trimmed
         let mentions = context.parseMentions(from: normalized)
         let message = BitchatMessage(
@@ -368,8 +369,7 @@ private extension ChatTransportEventCoordinator {
         guard !context.isMessageBlocked(message) else { return false }
         guard !message.content.trimmed.isEmpty || message.isPrivate else { return false }
         // festy: route trip control packets before they become chat.
-        if !message.isPrivate,
-           context.festyInterceptTripControlMessage(content: message.content, senderPeerID: message.senderPeerID, senderNickname: message.sender) {
+        if context.festyInterceptTripControlMessage(content: message.content, senderPeerID: message.senderPeerID, senderNickname: message.sender, isPrivate: message.isPrivate) {
             return true
         }
 
@@ -451,6 +451,11 @@ private extension ChatTransportEventCoordinator {
             }
 
             let senderName = context.unifiedPeer(for: peerID)?.nickname ?? "Unknown"
+            // festy: mutual-favorite selfie DMs are control packets, not chat.
+            if context.festyInterceptTripControlMessage(content: packet.content, senderPeerID: peerID, senderNickname: senderName, isPrivate: true) {
+                context.sendMeshDeliveryAck(for: packet.messageID, to: peerID)
+                return
+            }
             let mentions = context.parseMentions(from: packet.content)
             let message = BitchatMessage(
                 id: packet.messageID,

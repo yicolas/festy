@@ -17,7 +17,7 @@ import UIKit
 final class PeerSelfieStore: ObservableObject {
     static let shared = PeerSelfieStore()
 
-    private let directoryName = "ge136c-peer-selfies"
+    private let directoryName = AppStorageKeys.peerSelfiesDirectory
     private let manifestName = "manifest.json"
 
     private struct Entry: Codable {

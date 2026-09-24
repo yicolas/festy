@@ -22,7 +22,8 @@ struct TripAppInfoView: View {
     @State private var showSelfieCamera: Bool = false
     @State private var pickedSelfie: UIImage?
     #endif
-    @AppStorage("ge136c.colorScheme") private var colorSchemePreference: String = "system"
+    @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
+    @AppStorage(SelfieShareScope.storageKey) private var selfieShareScopeRaw: String = SelfieShareScope.defaultScope.rawValue
     @ObservedObject private var carStore = CarAssignmentStore.shared
     @State private var nicknameEdit: String = ""
     @State private var isEditingNickname: Bool = false
@@ -168,10 +169,42 @@ struct TripAppInfoView: View {
         #endif
     }
 
+    /// Who receives the user's selfie (see `SelfieShareScope` for why the
+    /// options switch transports rather than filtering one broadcast).
+    private var selfieSharingSetting: some View {
+        let scope = SelfieShareScope(rawValue: selfieShareScopeRaw) ?? SelfieShareScope.defaultScope
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.2.circle")
+                    .font(.system(size: 18))
+                    .foregroundColor(textColor)
+                    .frame(width: 30)
+                Text("Share selfie with")
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(textColor)
+                Spacer()
+                Picker("Share selfie with", selection: $selfieShareScopeRaw) {
+                    ForEach(SelfieShareScope.allCases) { option in
+                        Text(option.title).tag(option.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            Text(scope.explanation + " Selfies already shared stay on the devices that received them.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(secondaryTextColor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onChange(of: selfieShareScopeRaw) { _ in
+            // Push the selfie out under the new scope (no-op for `.off`).
+            SelfieSyncService.shared.publishOwnSelfie()
+        }
+    }
+
     @ViewBuilder
     private var infoContent: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Header — Meshy/GE136C rebrand. Tagline calls out that this page
+            // Header — Meshy brand + current trip (from the active trip JSON). Tagline calls out that this page
             // doubles as the how-to guide AND the settings hub.
             VStack(alignment: .center, spacing: 10) {
                 Image("MeshyLogo")
@@ -184,7 +217,7 @@ struct TripAppInfoView: View {
                     .font(.bitchatSystem(size: 32, weight: .bold, design: .monospaced))
                     .foregroundColor(textColor)
 
-                Text("GE136C Spring — Sierras 2026")
+                Text(TripData.bundled.map { "\($0.trip.name) · \($0.trip.dateRangeText)" } ?? "Offline trip companion")
                     .font(.bitchatSystem(size: 13, design: .monospaced))
                     .foregroundColor(secondaryTextColor)
 
@@ -433,6 +466,8 @@ struct TripAppInfoView: View {
                         }
                     }
                     .padding(.vertical, 4)
+
+                    selfieSharingSetting
 
                     HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "at")

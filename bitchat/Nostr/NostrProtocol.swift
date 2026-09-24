@@ -35,18 +35,19 @@ struct NostrProtocol {
         /// its NIP-40 expiration — the whole point is store-and-forward.
         case courierDrop = 1401
         // festy:
-        /// NIP-78 parameterized replaceable application data — used for GE136C
-        /// trip-scoped peer selfies. Filtered by `#d` tag = "ge136c.selfie".
+        /// NIP-78 parameterized replaceable application data — used for
+        /// trip-scoped peer selfies and trip notes (tags from `TripNamespace`).
         case appData = 30078
     }
 
-    /// d-tag used by GE136C to scope NIP-78 events to peer selfies.
-    static let selfieDTag = "ge136c.selfie"
+    /// d-tag scoping NIP-78 events to peer selfies for the current trip
+    /// (`<ns>.selfie`).
+    static var selfieDTag: String { TripNamespace.selfieDTag }
 
-    /// Shared "k" tag value used by GE136C trip notes so they can be filtered
-    /// across all authors. Each note gets its own d-tag (`ge136c.note.<uuid>`)
-    /// so updates are parameterized-replaceable per note.
-    static let tripNoteKTag = "ge136c.notes"
+    /// Shared "k" tag used by the current trip's notes so they can be filtered
+    /// across all authors (`<ns>.notes`). Each note gets its own d-tag
+    /// (`<ns>.note.<uuid>`) so updates are parameterized-replaceable per note.
+    static var tripNoteKTag: String { TripNamespace.tripNoteKTag }
 
     /// Create a NIP-78 parameterized-replaceable event that publishes the
     /// caller's selfie. The relay keeps exactly one copy per (pubkey, kind, d).
@@ -68,14 +69,14 @@ struct NostrProtocol {
 
     /// Create a NIP-78 event for a single trip note. Each note has its own
     /// `d` tag so an author can edit/replace it later. The shared `k` tag
-    /// (`ge136c.notes`) lets subscribers fetch every author's notes at once.
+    /// (`<ns>.notes`) lets subscribers fetch every author's notes at once.
     static func createTripNoteEvent(
         noteID: String,
         content: String,
         senderIdentity: NostrIdentity
     ) throws -> NostrEvent {
         let tags = [
-            ["d", "ge136c.note.\(noteID)"],
+            ["d", "\(TripNamespace.tripNoteDTagPrefix)\(noteID)"],
             ["k", tripNoteKTag]
         ]
         let event = NostrEvent(

@@ -10,6 +10,10 @@ Branch: `mcb-upstream-merge` (real merge commit, not a rebase/squash).
 | upstream commits pulled in | 255 (`git log e47c5ae..774c88e`) |
 | conflicted paths | 40 (38 content, 2 modify/delete) |
 
+A second merge commit then brought in festy `origin/main` @ `2e18ac1`, which added
+yicolas/festy#14 (trip config) and #15 (selfie share scope) after this work had started.
+See [Follow-up merge of festy main](#follow-up-merge-of-festy-main-14-15).
+
 **Built without a compiler.** This container has no Swift toolchain or Xcode. Every
 resolution was checked by reading the code and grepping for each symbol it uses. Nothing
 has been compiled or run. See [Risks](#risks-that-need-an-xcode-build--device-test) before
@@ -143,6 +147,43 @@ peers carried while you were away still arrive live through gossip sync, which i
 receive path. Upstream's `meshTimelineCap` (1337) now caps what's restored in memory; the
 oldest messages are dropped from the view. The file keeps whatever was last saved, and after
 the first save that is also capped.
+
+---
+
+## Follow-up merge of festy main (#14, #15)
+
+This is a second merge commit (`git merge origin/main`, no rebase). It brings in festy
+`a0cf29e..2e18ac1`:
+* #14 adds `TripNamespace` / `AppStorageKeys`, the `trips/` directory, `MESHY_TRIP`, and
+  JSON-driven safety / infoLinks / seedMessages.
+* #15 adds `SelfieShareScope`, the `NostrPubkeyFormat` npub→hex fix, and
+  `SelfieSyncService.privateSender` / `connectedPeerNoiseKeys`.
+
+It had 7 conflicts, re-homed as follows:
+
+| festy change | Pre-merge location | Post-merge location |
+|---|---|---|
+| `MESHY_TRIP = trip-ge136c-spring-2026` | `Configs/Release.xcconfig` | Same file, kept alongside the upstream `APP_GROUP_ID` lines |
+| `MeshyTrip` Info.plist key | `bitchat/Info.plist` | Same file, next to upstream's `LSApplicationCategoryType` |
+| `appData` doc, `selfieDTag` / `tripNoteKTag` as `TripNamespace`-derived `static var`s, note d-tag prefix | `Nostr/NostrProtocol.swift` | Same file, merged into the union with upstream's new kinds |
+| `SelfieSyncService.privateSender` + `connectedPeerNoiseKeys` wiring | `ChatViewModel.init` | `festyConfigureTripLayer()` in `ChatViewModel+Trip.swift`, next to the broadcaster wiring. Uses `unifiedPeerService.peers` and `meshService.sendPrivateMessage(_:to:recipientNickname:messageID:)` (verified on `Transport`). |
+| Receiving a mutual-favorites selfie sent as a DM (festy's `didReceiveMessage` intercept covered private messages too) | `ChatViewModel.didReceiveMessage` | `festyInterceptTripControlMessage` gained an `isPrivate:` parameter and runs on **three** upstream paths: `handlePublicMessage(from:…)`, `handleReceivedMessage` (now public *and* private), and `handleNoisePayload(.privateMessage)`. The last is where upstream delivers decrypted Noise DMs; a consumed packet is still delivery-ACKed. Auto-favoriting stays public-only. |
+| `TripData.bundled`-based `seedMealPlaceholdersIfNeeded` (versioned `seedMessages` from the trip JSON, `TripNamespace.key(...)` UserDefaults keys, remove previously seeded IDs) | `ChatViewModel` | `ChatViewModel+Trip.swift`, on `ConversationStore` (`removeMessage(withID:from: .mesh)`, `appendPublicMessage`) |
+| `TripNamespace.file("mesh-timeline.json")` / `AppStorageKeys.privateChatsFile` | `ViewModels/PublicTimelineStore.swift` (modify/delete conflict) | `Features/festival/TripTimelinePersistence.swift`. `PublicTimelineStore.swift` stays deleted. For namespace `ge136c` the filenames are unchanged. |
+| `@AppStorage(AppStorageKeys.colorScheme)`, `@AppStorage(SelfieShareScope.storageKey)`, the "Share selfie with" picker, header text `TripData.bundled` name + date range | `Views/AppInfoView.swift` | `Features/festival/TripAppInfoView.swift`. festy's diff was applied with the `Trip*` renames; upstream's `AppInfoView.swift` stays verbatim. |
+| Header title from `TripData.bundled?.trip.displayShortName` | `Views/ContentView.swift` (header) | `Views/ContentHeaderView.swift` (`// festy:`). The `content.empty.switch_hint` English text now says "tap the trip name". |
+| `Package.swift` resources `Features/festival/trips` | — | Auto-merged |
+
+New risks from this round:
+* `SelfieShareScope.mutualFavorites` relies on `BLEService.sendPrivateMessage` reaching a
+  *connected* peer. If there is no Noise session yet, upstream queues it and starts a
+  handshake. Test that the first selfie send after connecting arrives.
+* A mutual-favorites selfie that arrives by any path other than the three hooked ones
+  (for example a Nostr-routed DM through `NostrInboundPipeline`) would show up as a DM
+  containing base64. festy only sends these over the mesh.
+* Checklist addition: set "Share selfie with" to Mutual favorites on A, with A and B
+  mutual favorites. B gets A's selfie, and no DM row appears on either phone. Set it to
+  Nobody, and nothing is sent.
 
 ---
 

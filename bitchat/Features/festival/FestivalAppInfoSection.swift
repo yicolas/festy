@@ -22,7 +22,7 @@ struct TripAppInfoSection: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text(scheduleManager.tripData?.trip.name ?? "GE136C Trip Mode")
+                            Text(scheduleManager.tripData?.trip.name ?? "Trip Mode")
                                 .font(.system(size: 14, weight: .semibold, design: .monospaced))
                                 .foregroundColor(TripTheme.primaryText)
 

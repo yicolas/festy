@@ -8,7 +8,7 @@
 //     Nostr pubkeys.
 //   • BLE mesh (offline fallback) — request/response messages routed through
 //     the existing public-chat broadcast path, with marker prefixes so they
-//     never render as chat. Useful in the Sierras where cellular dies.
+//     never render as chat. Useful off-grid where cellular dies.
 //
 // The service does not own selfie storage; the per-peer cache lives in
 // `PeerSelfieStore` and the user's own selfie in `UserSelfieStore`.
@@ -21,6 +21,72 @@ import BitLogger
 import UIKit
 #endif
 
+/// Who may receive the user's selfie. User setting (Settings → Profile).
+///
+/// Physics of the transports, so the labels stay honest:
+/// - A BLE *public* message is plaintext to every device in radio range
+///   (~10–100 m), whoever asked. So "mutual favorites" cannot be a filter on
+///   who we answer — it must switch the transport to per-recipient
+///   Noise-encrypted private messages.
+/// - Nostr kind-30078 events sit on public relays; anyone who knows your
+///   pubkey can fetch them. So only `.everyone` publishes to Nostr.
+/// - Selfies already delivered stay on the receivers' devices, and a Nostr
+///   copy may persist on relays after switching away from `.everyone`.
+enum SelfieShareScope: String, CaseIterable, Identifiable {
+    /// Public BLE broadcast + answer any request + publish to Nostr.
+    case everyone
+    /// Encrypted private message to connected mutual favorites only; no
+    /// public broadcast, no Nostr.
+    case mutualFavorites
+    /// Never send.
+    case off
+
+    static let storageKey = "meshy.selfieShareScope"
+    static let defaultScope: SelfieShareScope = .everyone
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .everyone: return "Everyone nearby"
+        case .mutualFavorites: return "Mutual favorites"
+        case .off: return "Nobody"
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .everyone:
+            return "Broadcast over Bluetooth to anyone in range and published to Nostr relays."
+        case .mutualFavorites:
+            return "Sent encrypted, only to mutual favorites in Bluetooth range. Not published to Nostr."
+        case .off:
+            return "Your selfie is not sent to anyone."
+        }
+    }
+
+    static var current: SelfieShareScope {
+        UserDefaults.standard.string(forKey: storageKey).flatMap(SelfieShareScope.init(rawValue:)) ?? defaultScope
+    }
+}
+
+/// Nostr pubkeys arrive as npub bech32 (what peers send in favorite
+/// notifications, stored in `FavoriteRelationship.peerNostrPublicKey`) or hex
+/// (event `pubkey`, relay `authors` filters). Relays and signature checks use
+/// hex, so normalize before filtering or comparing.
+enum NostrPubkeyFormat {
+    static func hex(_ key: String) -> String? {
+        if key.lowercased().hasPrefix("npub1") {
+            guard let decoded = try? Bech32.decode(key.lowercased()),
+                  decoded.hrp == "npub", decoded.data.count == 32 else { return nil }
+            return decoded.data.hexEncodedString()
+        }
+        let lower = key.lowercased()
+        guard lower.count == 64, Data(hexString: lower) != nil else { return nil }
+        return lower
+    }
+}
+
 @MainActor
 final class SelfieSyncService: ObservableObject {
     static let shared = SelfieSyncService()
@@ -28,7 +94,8 @@ final class SelfieSyncService: ObservableObject {
     // MARK: - Wire markers (BLE chat-channel control messages)
 
     /// "Hey, I'd like your selfie." Optional payload: requester's noise key hex
-    /// (currently unused — every peer with a selfie just responds).
+    /// (currently unused). Whether and how we answer depends on
+    /// `SelfieShareScope`; the requester is identified by the packet sender.
     static let requestMarker = "\u{1}GE136C-SELFIE-REQ\u{1}"
 
     /// "Here's my selfie." Body is base64-encoded JPEG. Receivers decode and
@@ -39,6 +106,15 @@ final class SelfieSyncService: ObservableObject {
     /// over the BLE-mesh chat transport. Set externally so this service has no
     /// direct dependency on the mesh stack.
     var broadcaster: ((String) -> Void)?
+
+    /// Closure wired by ChatViewModel that sends a marker-prefixed string as a
+    /// Noise-encrypted private message to the peer with this Noise key. Used
+    /// by `.mutualFavorites`.
+    var privateSender: ((String, Data) -> Void)?
+
+    /// Noise keys of peers currently connected over BLE. Wired by
+    /// ChatViewModel.
+    var connectedPeerNoiseKeys: (() -> [Data])?
 
     // MARK: - State
 
@@ -66,7 +142,7 @@ final class SelfieSyncService: ObservableObject {
     func handleIncomingBLEMessage(content: String, senderNoiseKey: Data?, senderNickname: String) -> Bool {
         if content.hasPrefix(Self.requestMarker) {
             SecureLogger.info("🤳 RX selfie REQUEST from \(senderNickname)", category: .session)
-            handleSelfieRequest()
+            handleSelfieRequest(from: senderNoiseKey)
             return true
         }
         if content.hasPrefix(Self.responseMarker) {
@@ -93,9 +169,21 @@ final class SelfieSyncService: ObservableObject {
             SecureLogger.info("🤳 publishOwnSelfie skipped: no local selfie", category: .session)
             return
         }
-        SecureLogger.info("🤳 Publishing own selfie (jpeg=\(data.count)B) — Nostr + BLE", category: .session)
-        broadcastOwnSelfieOverBLE(data: data)
-        publishOwnSelfieToNostr(data: data)
+        switch SelfieShareScope.current {
+        case .everyone:
+            SecureLogger.info("🤳 Publishing own selfie (jpeg=\(data.count)B) — Nostr + BLE", category: .session)
+            broadcastOwnSelfieOverBLE(data: data)
+            publishOwnSelfieToNostr(data: data)
+        case .mutualFavorites:
+            let recipients = (connectedPeerNoiseKeys?() ?? [])
+                .filter { FavoritesPersistenceService.shared.isMutualFavorite($0) }
+            SecureLogger.info("🤳 Sending own selfie privately to \(recipients.count) connected mutual favorite(s)", category: .session)
+            for key in recipients {
+                sendOwnSelfiePrivately(data: data, to: key)
+            }
+        case .off:
+            SecureLogger.info("🤳 publishOwnSelfie skipped: sharing off", category: .session)
+        }
     }
 
     /// Ask known peers for their selfies (BLE-only — Nostr fetches are pull, no
@@ -122,7 +210,8 @@ final class SelfieSyncService: ObservableObject {
     /// Refresh the Nostr subscription whenever the known peer Nostr pubkey set
     /// changes. Idempotent — only resubscribes when the author set is different.
     func refreshNostrSubscription(authors: Set<String>) {
-        let cleaned = Set(authors.filter { !$0.isEmpty })
+        // Relays match `authors` against hex pubkeys; favorites store npub.
+        let cleaned = Set(authors.compactMap(NostrPubkeyFormat.hex))
         guard cleaned != currentNostrAuthors else { return }
 
         if let oldID = currentNostrSubscriptionID {
@@ -137,7 +226,7 @@ final class SelfieSyncService: ObservableObject {
         }
 
         let filter = NostrFilter.tripSelfies(authors: Array(cleaned))
-        let subID = "ge136c-selfies"
+        let subID = TripNamespace.file("selfies")
         currentNostrSubscriptionID = subID
         SecureLogger.info("🤳 Subscribing to selfies for \(cleaned.count) peer pubkey(s)", category: .session)
         NostrRelayManager.shared.subscribe(filter: filter, id: subID) { [weak self] event in
@@ -149,9 +238,21 @@ final class SelfieSyncService: ObservableObject {
 
     // MARK: - Private — incoming
 
-    private func handleSelfieRequest() {
+    private func handleSelfieRequest(from requesterNoiseKey: Data?) {
         guard let data = ownSelfieData() else { return }
-        broadcastOwnSelfieOverBLE(data: data)
+        switch SelfieShareScope.current {
+        case .everyone:
+            broadcastOwnSelfieOverBLE(data: data)
+        case .mutualFavorites:
+            guard let key = requesterNoiseKey,
+                  FavoritesPersistenceService.shared.isMutualFavorite(key) else {
+                SecureLogger.info("🤳 Ignoring selfie request: requester is not a mutual favorite", category: .session)
+                return
+            }
+            sendOwnSelfiePrivately(data: data, to: key)
+        case .off:
+            return
+        }
     }
 
     private func handleNostrSelfieEvent(_ event: NostrEvent) {
@@ -193,8 +294,19 @@ final class SelfieSyncService: ObservableObject {
 
     private func broadcastOwnSelfieOverBLE(data: Data) {
         guard let broadcaster else { return }
-        let body = "\(Self.responseMarker)\(data.base64EncodedString())"
-        broadcaster(body)
+        broadcaster(Self.responseBody(for: data))
+    }
+
+    private func sendOwnSelfiePrivately(data: Data, to noiseKey: Data) {
+        guard let privateSender else {
+            SecureLogger.warning("🤳 private selfie send skipped: privateSender not wired", category: .session)
+            return
+        }
+        privateSender(Self.responseBody(for: data), noiseKey)
+    }
+
+    private static func responseBody(for data: Data) -> String {
+        "\(responseMarker)\(data.base64EncodedString())"
     }
 
     private func publishOwnSelfieToNostr(data: Data) {
@@ -228,13 +340,11 @@ final class SelfieSyncService: ObservableObject {
     }
 
     private func noiseKey(forNostrPubkey nostrPubkey: String) -> Data? {
-        let lower = nostrPubkey.lowercased()
-        for relationship in FavoritesPersistenceService.shared.favorites.values {
-            if relationship.peerNostrPublicKey?.lowercased() == lower {
-                return relationship.peerNoisePublicKey
-            }
-        }
-        return nil
+        // Event pubkeys are hex; stored favorites are usually npub.
+        guard let target = NostrPubkeyFormat.hex(nostrPubkey) else { return nil }
+        return FavoritesPersistenceService.shared.favorites.values.first { relationship in
+            relationship.peerNostrPublicKey.flatMap(NostrPubkeyFormat.hex) == target
+        }?.peerNoisePublicKey
     }
 }
 

@@ -38,7 +38,9 @@ final class MeshTimelinePersistence {
 
     private var fileURL: URL {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return dir.appendingPathComponent("ge136c-mesh-timeline.json")
+        // Trip-scoped (festy#14): "<ns>-mesh-timeline.json"; for the
+        // "ge136c" namespace this is the original filename.
+        return dir.appendingPathComponent(TripNamespace.file("mesh-timeline.json"))
     }
 
     /// Returns persisted mesh messages. Strips trip control packets (location
@@ -109,7 +111,8 @@ final class PrivateChatsPersistence {
 
     private var fileURL: URL {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return dir.appendingPathComponent("ge136c-private-chats.json")
+        // App-level, not trip-scoped (festy#14).
+        return dir.appendingPathComponent(AppStorageKeys.privateChatsFile)
     }
 
     /// Returns loaded private chats keyed by routing peer ID.

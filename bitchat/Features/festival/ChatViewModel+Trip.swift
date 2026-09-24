@@ -127,6 +127,19 @@ extension ChatViewModel {
             guard let self else { return }
             self.meshService.sendMessage(content, mentions: [], messageID: UUID().uuidString, timestamp: Date())
         }
+        // `.mutualFavorites` selfie sharing (festy#15): Noise-encrypted private
+        // message straight to the transport (not ChatViewModel's DM path), so
+        // it never appears in the DM UI. The receiver's
+        // `festyInterceptTripControlMessage` consumes the marker before chat
+        // handling (private paths included).
+        SelfieSyncService.shared.privateSender = { [weak self] content, noiseKey in
+            guard let self,
+                  let peer = self.unifiedPeerService.peers.first(where: { $0.noisePublicKey == noiseKey }) else { return }
+            self.meshService.sendPrivateMessage(content, to: peer.peerID, recipientNickname: peer.nickname, messageID: UUID().uuidString)
+        }
+        SelfieSyncService.shared.connectedPeerNoiseKeys = { [weak self] in
+            self?.unifiedPeerService.peers.filter(\.isConnected).map(\.noisePublicKey) ?? []
+        }
 
         // Restore persisted mesh timeline + DMs before upstream's archived
         // echo seeding runs (it only seeds an untouched mesh timeline).
@@ -169,12 +182,13 @@ extension ChatViewModel {
     // MARK: Incoming (called from ChatTransportEventCoordinator)
 
     /// Routes trip control packets (location / selfie markers) to their
-    /// services. Returns `true` when the message was consumed and must not
+    /// services. Private (Noise) messages are checked too: `.mutualFavorites`
+    /// selfie sharing (festy#15) sends the selfie response as a DM. Returns `true` when the message was consumed and must not
     /// reach the timeline, notifications, mentions or haptics. For ordinary
     /// public mesh messages it auto-favorites the sender (so the trip map
     /// works without manual favoriting) and returns `false`.
     @MainActor
-    func festyInterceptTripControlMessage(content: String, senderPeerID: PeerID?, senderNickname: String) -> Bool {
+    func festyInterceptTripControlMessage(content: String, senderPeerID: PeerID?, senderNickname: String, isPrivate: Bool) -> Bool {
         let noiseKey: Data? = senderPeerID.flatMap { unifiedPeer(for: $0)?.noisePublicKey }
         let senderIsBlocked = senderPeerID.map { isPeerBlocked($0) } ?? false
 
@@ -203,7 +217,8 @@ extension ChatViewModel {
             return true
         }
 
-        if let noiseKey, senderPeerID != meshService.myPeerID {
+        // Auto-favorite only from public mesh chat (pre-merge behavior).
+        if !isPrivate, let noiseKey, senderPeerID != meshService.myPeerID {
             autoFavoriteTripPeer(noiseKey: noiseKey, nickname: senderNickname)
         }
         return false
@@ -301,97 +316,32 @@ extension ChatViewModel {
         }
     }
 
-    // MARK: #meals seed
+    // MARK: Trip seed messages (#meals menus etc.)
 
-    /// Inserts one-time #meals placeholder messages into the mesh timeline,
-    /// anchored to the trip's actual meal times in America/Los_Angeles.
-    /// Bumping the seed version regenerates them.
+    /// Inserts the trip's one-time seed messages (e.g. #meals menus from
+    /// `seedMessages` in the active trip JSON, festy#14) into the mesh
+    /// timeline. Bumping `seedMessages.version` in the JSON removes the
+    /// previous seeds and re-seeds.
     @MainActor
     func seedMealPlaceholdersIfNeeded() {
+        guard let trip = TripData.bundled,
+              let seeds = trip.seedMessages else { return }
         let defaults = UserDefaults.standard
-        let seedKey = "ge136c.mealPlaceholdersSeededVersion"
-        // Bump when meal contents change so existing users get the update.
-        // v2: replaced dinner placeholders with full menus from the dinners CSV.
-        // v3: removed breakfast/lunch placeholders — only dinners are seeded
-        //     because the rest are user-coordinated in chat.
-        let currentVersion = 3
-        let stored = defaults.integer(forKey: seedKey)
-        guard stored < currentVersion else { return }
+        // For namespace "ge136c" this is the key the hardcoded v3 seeds used,
+        // so GE136C installs don't re-seed.
+        let versionKey = TripNamespace.key("mealPlaceholdersSeededVersion")
+        let idsKey = TripNamespace.key("seededMessageIDs")
+        guard defaults.integer(forKey: versionKey) < seeds.version else { return }
 
-        // When re-seeding (stored > 0), evict the previous version's seed
-        // messages first so the new ones aren't deduped by ID match AND so
-        // dropped slots (breakfast/lunch) don't linger after upgrade. IDs
-        // follow the pattern `meal-seed-<date>-<meal>`.
-        if stored > 0 {
-            let dateStrings = ["2026-05-29", "2026-05-30", "2026-05-31", "2026-06-01"]
-            let meals = ["breakfast", "lunch", "dinner"]
-            for date in dateStrings {
-                for meal in meals {
-                    _ = conversations.removeMessage(withID: "meal-seed-\(date)-\(meal)", from: .mesh)
-                }
-            }
+        for id in defaults.stringArray(forKey: idsKey) ?? [] {
+            _ = conversations.removeMessage(withID: id, from: .mesh)
         }
-
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .current
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-
-        struct MealSlot {
-            let date: String        // yyyy-MM-dd
-            let time: String        // HH:mm 24h
-            let day: String         // "Friday"
-            let meal: String        // "dinner"
-            let placeholder: String // user-facing text
-        }
-
-        // Dinner menus from the 2026 dinners list. Listing ingredients without
-        // amounts + the obvious allergens so people with restrictions can plan.
-        let fajitas = """
-        🌯 Fajitas
-        Ingredients: pre-cooked beef strips, bell peppers, onions, beans, Mexican cheese, sour cream, guacamole, salsa, vegan meat option, tortillas, avocado, cilantro, tortilla chips, jalapeño, tomatoes
-        Allergens: dairy (cheese, sour cream), gluten (tortillas/chips may be wheat or cross-contaminated)
-        """
-        let alfredo = """
-        🍝 Pasta Alfredo
-        Ingredients: pre-cooked chicken, alfredo sauce, zucchini, summer squash, vegetarian sausage, mushrooms, pasta, spinach
-        Allergens: dairy (alfredo sauce — cream/butter/parmesan), gluten (pasta), possibly soy/wheat in vegetarian sausage
-        """
-        let kebabs = """
-        🥙 Kebabs + Salad
-        Ingredients: chicken thighs/breasts, tofu, Greek yogurt, bell peppers, cherry tomatoes, red onion, cilantro, mint, lemon, zucchini, summer squash, eggplant, pita, tzatziki, hummus, cucumber, olives, feta cheese
-        Spices: honey, cumin, turmeric, salt, pepper, olive oil, garlic powder, onion powder, chili powder, paprika
-        Allergens: dairy (yogurt, tzatziki, feta), gluten (pita), sesame (hummus/tahini), soy (tofu)
-        """
-
-        // Dinners only — breakfast/lunch coordination happens organically in chat.
-        let slots: [MealSlot] = [
-            .init(date: "2026-05-29", time: "18:30", day: "Friday",   meal: "dinner", placeholder: fajitas),
-            .init(date: "2026-05-30", time: "18:30", day: "Saturday", meal: "dinner", placeholder: alfredo),
-            .init(date: "2026-05-31", time: "18:30", day: "Sunday",   meal: "dinner", placeholder: kebabs)
-        ]
-
-        for slot in slots {
-            guard let stamp = formatter.date(from: "\(slot.date) \(slot.time)") else { continue }
-            let id = "meal-seed-\(slot.date)-\(slot.meal)"
-            // For multi-line menus, keep the channel tag on the header line so
-            // the channel filter regex hits it without trailing punctuation.
-            let isMultiline = slot.placeholder.contains("\n")
-            let body: String = isMultiline
-                ? "\(slot.day) \(slot.meal) #meals\n\(slot.placeholder)"
-                : "\(slot.day) \(slot.meal): \(slot.placeholder) #meals"
-            let message = BitchatMessage(
-                id: id,
-                sender: "system",
-                content: body,
-                timestamp: stamp,
-                isRelay: false
-            )
+        let messages = seeds.bitchatMessages(timezoneIdentifier: trip.trip.timezoneIdentifier)
+        for message in messages {
             _ = appendPublicMessage(message, to: .mesh)
         }
-        defaults.set(currentVersion, forKey: seedKey)
+        defaults.set(messages.map(\.id), forKey: idsKey)
+        defaults.set(seeds.version, forKey: versionKey)
         // Persist so the seeds aren't re-injected on the next launch.
         MeshTimelinePersistence.shared.saveNow(conversations.conversationsByID[.mesh]?.messages ?? [])
     }
@@ -404,7 +354,7 @@ extension ChatTransportEventContext {
     /// overrides via its conformance (the requirement is declared on the
     /// protocol, so dispatch is dynamic).
     @MainActor
-    func festyInterceptTripControlMessage(content: String, senderPeerID: PeerID?, senderNickname: String) -> Bool {
+    func festyInterceptTripControlMessage(content: String, senderPeerID: PeerID?, senderNickname: String, isPrivate: Bool) -> Bool {
         false
     }
 }

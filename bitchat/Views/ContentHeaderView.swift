@@ -42,7 +42,7 @@ struct ContentHeaderView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Text(verbatim: "GE136C/") // festy: branding
+            Text(verbatim: "\(TripData.bundled?.trip.displayShortName ?? "Meshy")/") // festy: active trip name
                 .bitchatFont(size: 18, weight: .medium)
                 .lineLimit(1)
                 .foregroundColor(palette.primary)

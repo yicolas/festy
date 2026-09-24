@@ -25,7 +25,7 @@ struct TripScheduleView: View {
     private var headerView: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text(scheduleManager.tripData?.trip.name ?? "GE136C")
+                Text(scheduleManager.tripData?.trip.name ?? "Trip")
                     .font(.system(.headline, design: .monospaced))
                     .foregroundColor(TripTheme.primaryText)
 
