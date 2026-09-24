@@ -2871,6 +2871,30 @@ final class BLEService: NSObject {
         sendNoisePayload(NoisePayload(type: .vouch, data: payload).encode(), to: peerID)
     }
 
+    // festy: encrypted friend location (MeshLocationSharing, Features/festival).
+    /// One Noise-encrypted `.locationShare` (0x30) copy per recipient. Only
+    /// peers with an established session get this fix (a queued location is
+    /// stale by delivery); others get a handshake for the next interval. No
+    /// plaintext fallback. `content` is the FriendLocationService marker+CSV
+    /// string, byte-identical to the plaintext path and to Android #89.
+    func sendEncryptedLocationShare(_ content: String, to peerIDs: [PeerID]) {
+        // Session checks and handshakes run on messageQueue, like sendNoisePayload.
+        if DispatchQueue.getSpecific(key: messageQueueKey) == nil {
+            messageQueue.async { [weak self] in
+                self?.sendEncryptedLocationShare(content, to: peerIDs)
+            }
+            return
+        }
+        let payload = NoisePayload(type: .locationShare, data: Data(content.utf8)).encode()
+        for peerID in peerIDs {
+            if noiseService.hasEstablishedSession(with: peerID) {
+                sendNoisePayload(payload, to: peerID)
+            } else {
+                initiateNoiseHandshake(with: peerID)
+            }
+        }
+    }
+
     // MARK: Live Voice (PTT)
 
     /// Sends one live voice-burst packet inside the Noise session. Unlike
