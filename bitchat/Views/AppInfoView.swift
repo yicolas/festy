@@ -22,6 +22,7 @@ struct AppInfoView: View {
     @State private var pickedSelfie: UIImage?
     #endif
     @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
+    @AppStorage(SelfieShareScope.storageKey) private var selfieShareScopeRaw: String = SelfieShareScope.defaultScope.rawValue
     @ObservedObject private var carStore = CarAssignmentStore.shared
     @State private var nicknameEdit: String = ""
     @State private var isEditingNickname: Bool = false
@@ -166,6 +167,38 @@ struct AppInfoView: View {
         #endif
     }
     
+    /// Who receives the user's selfie (see `SelfieShareScope` for why the
+    /// options switch transports rather than filtering one broadcast).
+    private var selfieSharingSetting: some View {
+        let scope = SelfieShareScope(rawValue: selfieShareScopeRaw) ?? SelfieShareScope.defaultScope
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.2.circle")
+                    .font(.system(size: 18))
+                    .foregroundColor(textColor)
+                    .frame(width: 30)
+                Text("Share selfie with")
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(textColor)
+                Spacer()
+                Picker("Share selfie with", selection: $selfieShareScopeRaw) {
+                    ForEach(SelfieShareScope.allCases) { option in
+                        Text(option.title).tag(option.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            Text(scope.explanation + " Selfies already shared stay on the devices that received them.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(secondaryTextColor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onChange(of: selfieShareScopeRaw) { _ in
+            // Push the selfie out under the new scope (no-op for `.off`).
+            SelfieSyncService.shared.publishOwnSelfie()
+        }
+    }
+
     @ViewBuilder
     private var infoContent: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -376,6 +409,8 @@ struct AppInfoView: View {
                         }
                     }
                     .padding(.vertical, 4)
+
+                    selfieSharingSetting
 
                     HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "at")
