@@ -99,6 +99,7 @@ enum NoisePayloadType: UInt8 {
     case vouch = 0x12               // Batch of vouch attestations
     // festy: friend location (festy#12, cross-platform with fest-mesh-android#89).
     // 0x30 starts a location/presence cluster; unused upstream as of 774c88e.
+    case selfieShare = 0x31         // Selfie response, encrypted to one recipient (SelfieShareScope.mutualFavorites); inner payload = SelfieSyncService marker+base64 string. Cross-platform with fest-mesh-android#86. PrivateMessagePacket can't carry it (255 B content TLV).
     case locationShare = 0x30       // Friend-location fix, encrypted per recipient; inner payload = FriendLocationService marker+CSV string
 
     /// #1434 briefly used 0x09 before release. Accept it while prerelease
@@ -129,6 +130,7 @@ enum NoisePayloadType: UInt8 {
         case .verifyResponse: return "verifyResponse"
         case .vouch: return "vouch"
         case .locationShare: return "locationShare"
+        case .selfieShare: return "selfieShare"
         }
     }
 }

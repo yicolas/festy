@@ -2871,7 +2871,7 @@ final class BLEService: NSObject {
         sendNoisePayload(NoisePayload(type: .vouch, data: payload).encode(), to: peerID)
     }
 
-    // festy: encrypted friend location (MeshLocationSharing, Features/festival).
+    // festy: encrypted friend location (MeshTripPayloadSending, Features/festival).
     /// One Noise-encrypted `.locationShare` (0x30) copy per recipient. Only
     /// peers with an established session get this fix (a queued location is
     /// stale by delivery); others get a handshake for the next interval. No
@@ -2893,6 +2893,16 @@ final class BLEService: NSObject {
                 initiateNoiseHandshake(with: peerID)
             }
         }
+    }
+
+    // festy: selfie to one mutual favorite (MeshTripPayloadSending).
+    /// Noise-encrypted `.selfieShare` (0x31) to one peer. Unlike a location
+    /// fix, a selfie doesn't go stale, so with no session yet it is queued
+    /// behind the handshake (sendNoisePayload's normal behavior). `content` is
+    /// the SelfieSyncService marker+base64 string (≤ ~53 KB; the Noise
+    /// payload is fragmented like private media).
+    func sendEncryptedSelfie(_ content: String, to peerID: PeerID) {
+        sendNoisePayload(NoisePayload(type: .selfieShare, data: Data(content.utf8)).encode(), to: peerID)
     }
 
     // MARK: Live Voice (PTT)
