@@ -5,11 +5,11 @@
 // Trip-scoped pinned notes on the map. Each note carries a precise lat/lon,
 // a short body, and an author nickname. Storage is local (JSON in Application
 // Support); propagation is via Nostr (kind 30078, NIP-78 parameterized
-// replaceable) with a shared `k` tag so every GE136C user fetches the same
+// replaceable) with a shared `k` tag so everyone on the trip fetches the same
 // shared map layer.
 //
 // BLE-only propagation isn't wired yet — pre-trip and post-trip, Nostr does
-// the work; mid-trip the Sierras have no signal but notes are still local
+// the work; mid-trip with no signal, notes are still local
 // and replicate when devices come back online.
 //
 
@@ -45,7 +45,7 @@ final class TripNotesService: ObservableObject {
     /// whenever this changes.
     @Published private(set) var notes: [TripNote] = []
 
-    private let filename = "ge136c-trip-notes.json"
+    private let filename = TripNamespace.file("trip-notes.json")
     private var subscriptionID: String?
     private lazy var identityBridge = NostrIdentityBridge()
 
@@ -88,7 +88,7 @@ final class TripNotesService: ObservableObject {
     /// is up before the user opens the map.
     func startNostrSubscription() {
         guard subscriptionID == nil else { return }
-        let subID = "ge136c-trip-notes"
+        let subID = TripNamespace.file("trip-notes")
         subscriptionID = subID
         SecureLogger.info("📌 Subscribing to trip notes", category: .session)
         NostrRelayManager.shared.subscribe(filter: NostrFilter.tripNotes(), id: subID) { [weak self] event in
@@ -116,10 +116,11 @@ final class TripNotesService: ObservableObject {
             return
         }
 
-        // Extract the per-note UUID from the d-tag (ge136c.note.<UUID>).
+        // Extract the per-note UUID from the d-tag (<ns>.note.<UUID>).
+        let dTagPrefix = TripNamespace.tripNoteDTagPrefix
         guard let dTag = event.tags.first(where: { $0.count >= 2 && $0[0] == "d" })?.last,
-              dTag.hasPrefix("ge136c.note.") else { return }
-        let noteID = String(dTag.dropFirst("ge136c.note.".count))
+              dTag.hasPrefix(dTagPrefix) else { return }
+        let noteID = String(dTag.dropFirst(dTagPrefix.count))
         guard !noteID.isEmpty else { return }
 
         guard let payload = NotePayload.decode(event.content) else { return }

@@ -3730,97 +3730,28 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
         
     }
     
-    /// Inserts one-time #meals placeholder messages into the mesh timeline,
-    /// anchored to the trip's actual meal times in America/Los_Angeles.
-    /// Bumping the seed version regenerates them.
+    /// Inserts the trip's one-time seed messages (e.g. #meals menus from
+    /// `seedMessages` in the active trip JSON) into the mesh timeline. Bumping
+    /// `seedMessages.version` in the JSON removes the previous seeds and
+    /// re-seeds.
     private func seedMealPlaceholdersIfNeeded() {
-        let seedKey = "ge136c.mealPlaceholdersSeededVersion"
-        // Bump when meal contents change so existing users get the update.
-        // v2: replaced dinner placeholders with full menus from the dinners CSV.
-        // v3: removed breakfast/lunch placeholders — only dinners are seeded
-        //     because the rest are user-coordinated in chat.
-        let currentVersion = 3
-        let stored = userDefaults.integer(forKey: seedKey)
-        guard stored < currentVersion else { return }
+        guard let trip = TripData.bundled,
+              let seeds = trip.seedMessages else { return }
+        // For namespace "ge136c" this is the key the hardcoded v3 seeds used,
+        // so GE136C installs don't re-seed.
+        let versionKey = TripNamespace.key("mealPlaceholdersSeededVersion")
+        let idsKey = TripNamespace.key("seededMessageIDs")
+        guard userDefaults.integer(forKey: versionKey) < seeds.version else { return }
 
-        // When re-seeding (stored > 0), evict the previous version's seed
-        // messages first so the new ones aren't deduped by ID match AND so
-        // dropped slots (breakfast/lunch) don't linger after upgrade. IDs
-        // follow the pattern `meal-seed-<date>-<meal>`.
-        if stored > 0 {
-            let dateStrings = ["2026-05-29", "2026-05-30", "2026-05-31", "2026-06-01"]
-            let meals = ["breakfast", "lunch", "dinner"]
-            for date in dateStrings {
-                for meal in meals {
-                    _ = timelineStore.removeMessage(withID: "meal-seed-\(date)-\(meal)")
-                }
-            }
+        for id in userDefaults.stringArray(forKey: idsKey) ?? [] {
+            _ = timelineStore.removeMessage(withID: id)
         }
-
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .current
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-
-        struct MealSlot {
-            let date: String        // yyyy-MM-dd
-            let time: String        // HH:mm 24h
-            let day: String         // "Friday"
-            let meal: String        // "breakfast"
-            let placeholder: String // user-facing text
-        }
-
-        // Dinner menus from the 2026 dinners list. Listing ingredients without
-        // amounts + the obvious allergens so people with restrictions can plan.
-        let fajitas = """
-        🌯 Fajitas
-        Ingredients: pre-cooked beef strips, bell peppers, onions, beans, Mexican cheese, sour cream, guacamole, salsa, vegan meat option, tortillas, avocado, cilantro, tortilla chips, jalapeño, tomatoes
-        Allergens: dairy (cheese, sour cream), gluten (tortillas/chips may be wheat or cross-contaminated)
-        """
-        let alfredo = """
-        🍝 Pasta Alfredo
-        Ingredients: pre-cooked chicken, alfredo sauce, zucchini, summer squash, vegetarian sausage, mushrooms, pasta, spinach
-        Allergens: dairy (alfredo sauce — cream/butter/parmesan), gluten (pasta), possibly soy/wheat in vegetarian sausage
-        """
-        let kebabs = """
-        🥙 Kebabs + Salad
-        Ingredients: chicken thighs/breasts, tofu, Greek yogurt, bell peppers, cherry tomatoes, red onion, cilantro, mint, lemon, zucchini, summer squash, eggplant, pita, tzatziki, hummus, cucumber, olives, feta cheese
-        Spices: honey, cumin, turmeric, salt, pepper, olive oil, garlic powder, onion powder, chili powder, paprika
-        Allergens: dairy (yogurt, tzatziki, feta), gluten (pita), sesame (hummus/tahini), soy (tofu)
-        """
-
-        // Dinners only — breakfast/lunch coordination happens organically in
-        // chat. Seeding all 11 slots cluttered the channel without adding info.
-        let slots: [MealSlot] = [
-            .init(date: "2026-05-29", time: "18:30", day: "Friday",   meal: "dinner", placeholder: fajitas),
-            .init(date: "2026-05-30", time: "18:30", day: "Saturday", meal: "dinner", placeholder: alfredo),
-            .init(date: "2026-05-31", time: "18:30", day: "Sunday",   meal: "dinner", placeholder: kebabs)
-        ]
-
-        for slot in slots {
-            guard let stamp = formatter.date(from: "\(slot.date) \(slot.time)") else { continue }
-            let id = "meal-seed-\(slot.date)-\(slot.meal)"
-            // For multi-line menus, keep the channel tag on the header line so
-            // the channel filter regex hits it without trailing punctuation.
-            let isMultiline = slot.placeholder.contains("\n")
-            let body: String = {
-                if isMultiline {
-                    return "\(slot.day) \(slot.meal) #meals\n\(slot.placeholder)"
-                }
-                return "\(slot.day) \(slot.meal): \(slot.placeholder) #meals"
-            }()
-            let message = BitchatMessage(
-                id: id,
-                sender: "system",
-                content: body,
-                timestamp: stamp,
-                isRelay: false
-            )
+        let messages = seeds.bitchatMessages(timezoneIdentifier: trip.trip.timezoneIdentifier)
+        for message in messages {
             timelineStore.append(message, to: .mesh)
         }
-        userDefaults.set(currentVersion, forKey: seedKey)
+        userDefaults.set(messages.map(\.id), forKey: idsKey)
+        userDefaults.set(seeds.version, forKey: versionKey)
         // Persist so the seeds aren't re-injected on the next launch.
         MeshTimelinePersistence.shared.saveNow(timelineStore.messages(for: .mesh))
     }

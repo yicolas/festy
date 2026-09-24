@@ -29,6 +29,8 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>MeshyTrip</key>
+	<string>$(MESHY_TRIP)</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>om</string>

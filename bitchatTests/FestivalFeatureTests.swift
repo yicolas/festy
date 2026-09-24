@@ -17,8 +17,8 @@ struct FestivalScheduleTests {
     @Test
     func scheduleJSON_loadsSuccessfully() async {
         // Verify the JSON can be loaded and decoded
-        guard let url = Bundle.main.url(forResource: "FestivalSchedule", withExtension: "json") else {
-            Issue.record("FestivalSchedule.json not found in bundle")
+        guard let url = Bundle.main.url(forResource: TripData.activeResourceName, withExtension: "json") else {
+            Issue.record("\(TripData.activeResourceName).json not found in bundle")
             return
         }
         
@@ -58,8 +58,8 @@ struct FestivalScheduleTests {
     
     @Test
     func tripChannel_defaultsIncludeExpectedChannels() {
-        guard let url = Bundle.main.url(forResource: "FestivalSchedule", withExtension: "json") else {
-            Issue.record("FestivalSchedule.json not found in bundle")
+        guard let url = Bundle.main.url(forResource: TripData.activeResourceName, withExtension: "json") else {
+            Issue.record("\(TripData.activeResourceName).json not found in bundle")
             return
         }
 

@@ -1,0 +1,266 @@
+{
+  "_README": "Placeholder for the October 2026 trip. Every value starting with FILL_IN must be replaced before this becomes the active trip (MESHY_TRIP in Configs/Release.xcconfig); TripConfigTests fails if the active trip contains FILL_IN. Keys starting with _ are ignored by the app. Schema + checklist: docs/NEW_TRIP.md.",
+  "trip": {
+    "id": "FILL_IN-oct-2026",
+    "namespace": "FILL_IN_ns",
+    "_namespace_note": "short lowercase slug, NEW per trip (e.g. ge136a26). Scopes Nostr tags + per-trip storage. Must differ from 'ge136c'.",
+    "shortName": "FILL_IN",
+    "name": "FILL_IN trip name",
+    "subtitle": "Offline mesh trip companion",
+    "location": "FILL_IN region (used in 'cell service drops on the trip (…)')",
+    "dates": {
+      "start": "FILL_IN_YYYY-MM-DD",
+      "end": "FILL_IN_YYYY-MM-DD"
+    },
+    "timezone": "America/Los_Angeles",
+    "feedbackEmail": "FILL_IN@example.com"
+  },
+  "tabs": [
+    {
+      "id": "schedule",
+      "name": "Schedule",
+      "icon": "calendar",
+      "type": "schedule"
+    },
+    {
+      "id": "channels",
+      "name": "Channels",
+      "icon": "number",
+      "type": "channels"
+    },
+    {
+      "id": "map",
+      "name": "Map",
+      "icon": "map",
+      "type": "map"
+    },
+    {
+      "id": "chat",
+      "name": "Chat",
+      "icon": "bubble.left.and.bubble.right",
+      "type": "chat"
+    },
+    {
+      "id": "info",
+      "name": "Info",
+      "icon": "info.circle",
+      "type": "info"
+    }
+  ],
+  "channels": [
+    {
+      "id": "announcements",
+      "name": "#announcements",
+      "description": "Instructor-only high-priority notices",
+      "icon": "megaphone.fill"
+    },
+    {
+      "id": "main",
+      "name": "#main",
+      "description": "Main trip coordination and updates — start here. Post here for anything not related to the categories below.",
+      "icon": "person.3.fill"
+    },
+    {
+      "id": "cars",
+      "name": "#cars",
+      "description": "Car group chats — find your car's chat by driver's first name",
+      "icon": "car.fill"
+    },
+    {
+      "id": "driving",
+      "name": "#driving",
+      "description": "Driver changes, ETAs, and regrouping",
+      "icon": "speedometer"
+    },
+    {
+      "id": "meals",
+      "name": "#meals",
+      "description": "Food timing, dinner plans, and dietary callouts",
+      "icon": "fork.knife"
+    },
+    {
+      "id": "gear",
+      "name": "#gear",
+      "description": "Let everyone know if something is broken, missing, or you need to borrow. Also serves as lost &amp; found.",
+      "icon": "backpack.fill"
+    }
+  ],
+  "days": [
+    {
+      "id": "day-1",
+      "title": "FILL_IN Day 1 (Fri)",
+      "date": "FILL_IN_YYYY-MM-DD",
+      "startTime": "FILL_IN 8:00 AM",
+      "routeURL": "FILL_IN https://maps.app.goo.gl/...",
+      "items": [
+        {
+          "id": "d1-FILL_IN-1",
+          "title": "FILL_IN stop title",
+          "location": {
+            "id": "FILL_IN-stop-1-1",
+            "name": "FILL_IN stop name",
+            "address": "FILL_IN address or 'lat, lon'",
+            "latitude": null,
+            "longitude": null
+          },
+          "arrive": "FILL_IN 8:00 AM",
+          "duration": "FILL_IN 1:00",
+          "leave": "FILL_IN 9:00 AM",
+          "driveTime": "FILL_IN 1:30",
+          "bathroom": true,
+          "food": false,
+          "presenters": [
+            "FILL_IN student name"
+          ],
+          "notes": "FILL_IN"
+        },
+        {
+          "id": "d1-FILL_IN-2",
+          "title": "FILL_IN stop title",
+          "location": {
+            "id": "FILL_IN-stop-1-2",
+            "name": "FILL_IN stop name",
+            "address": "FILL_IN address or 'lat, lon'",
+            "latitude": null,
+            "longitude": null
+          },
+          "arrive": "FILL_IN 8:00 AM",
+          "duration": "FILL_IN 1:00",
+          "leave": "FILL_IN 9:00 AM",
+          "driveTime": "FILL_IN 1:30",
+          "bathroom": true,
+          "food": false,
+          "presenters": [
+            "FILL_IN student name"
+          ],
+          "notes": "FILL_IN"
+        }
+      ]
+    },
+    {
+      "id": "day-2",
+      "title": "FILL_IN Day 2 (Sat)",
+      "date": "FILL_IN_YYYY-MM-DD",
+      "startTime": "FILL_IN 8:00 AM",
+      "routeURL": "FILL_IN https://maps.app.goo.gl/...",
+      "items": [
+        {
+          "id": "d2-FILL_IN-1",
+          "title": "FILL_IN stop title",
+          "location": {
+            "id": "FILL_IN-stop-2-1",
+            "name": "FILL_IN stop name",
+            "address": "FILL_IN address or 'lat, lon'",
+            "latitude": null,
+            "longitude": null
+          },
+          "arrive": "FILL_IN 8:00 AM",
+          "duration": "FILL_IN 1:00",
+          "leave": "FILL_IN 9:00 AM",
+          "driveTime": "FILL_IN 1:30",
+          "bathroom": true,
+          "food": false,
+          "presenters": [
+            "FILL_IN student name"
+          ],
+          "notes": "FILL_IN"
+        }
+      ]
+    }
+  ],
+  "_days_note": "latitude/longitude per stop drive map pins, routes, and the offline tile download region (bounding box of all stops). null = not on map.",
+  "infoSections": [
+    {
+      "id": "safety",
+      "title": "Safety",
+      "bullets": [
+        "FILL_IN"
+      ]
+    }
+  ],
+  "mapConfig": {
+    "centerLatitude": null,
+    "centerLongitude": null,
+    "latitudeDelta": 3.0,
+    "longitudeDelta": 3.0,
+    "routeLinks": [
+      {
+        "id": "route-day-1",
+        "title": "Day 1 Route",
+        "url": "FILL_IN https://maps.app.goo.gl/..."
+      }
+    ]
+  },
+  "infoLinks": [
+    {
+      "id": "FILL_IN-waiver",
+      "title": "FILL_IN waiver / form",
+      "subtitle": "Sign before the trip — tap to open form",
+      "icon": "pencil.and.list.clipboard",
+      "url": "https://example.com/FILL_IN",
+      "style": "mandatory"
+    },
+    {
+      "id": "FILL_IN-link",
+      "title": "FILL_IN link (gauge, photo upload, …)",
+      "subtitle": "FILL_IN",
+      "icon": "link",
+      "url": "https://example.com/FILL_IN",
+      "style": "accent"
+    }
+  ],
+  "_infoLinks_note": "style: mandatory (red, badged, listed first) | red | blue | green | accent. Delete entries you don't need.",
+  "safety": {
+    "sections": [
+      {
+        "rows": [
+          {
+            "icon": "person.3.fill",
+            "label": "Leaders",
+            "value": "FILL_IN names"
+          },
+          {
+            "icon": "phone.fill",
+            "label": "FILL_IN name",
+            "value": "FILL_IN (xxx) xxx-xxxx  carrier"
+          },
+          {
+            "icon": "antenna.radiowaves.left.and.right",
+            "label": "Sat phone",
+            "value": "FILL_IN"
+          }
+        ]
+      },
+      {
+        "rows": [
+          {
+            "icon": "cross.fill",
+            "label": "Hospital (FILL_IN area)",
+            "value": "FILL_IN name · (xxx) xxx-xxxx"
+          }
+        ]
+      },
+      {
+        "title": "Key hazards",
+        "bullets": [
+          "FILL_IN hazard — mitigation"
+        ]
+      },
+      {
+        "title": "Vehicles",
+        "text": "FILL_IN vehicle / driver policy"
+      }
+    ]
+  },
+  "seedMessages": {
+    "version": 1,
+    "messages": [
+      {
+        "id": "meal-seed-FILL_IN-date-dinner",
+        "time": "FILL_IN_YYYY-MM-DD 18:30",
+        "text": "FILL_IN Friday dinner #meals\nFILL_IN menu\nAllergens: FILL_IN"
+      }
+    ]
+  },
+  "_seedMessages_note": "time is 'yyyy-MM-dd HH:mm' in trip timezone; keep the #channel tag on the first line. Delete seedMessages entirely for no seeds."
+}

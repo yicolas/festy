@@ -8,7 +8,7 @@ import AppKit
 @MainActor
 final class CarAssignmentStore: ObservableObject {
     static let shared = CarAssignmentStore()
-    private let key = "ge136c.assignedCarDriver"
+    private let key = TripNamespace.key("assignedCarDriver")
 
     @Published var driver: String? {
         didSet {
