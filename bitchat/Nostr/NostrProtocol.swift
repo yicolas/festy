@@ -38,6 +38,13 @@ struct NostrProtocol {
         /// NIP-78 parameterized replaceable application data — used for
         /// trip-scoped peer selfies and trip notes (tags from `TripNamespace`).
         case appData = 30078
+        /// Trip-group kinds (`Features/festival/Groups`). Declared as cases so
+        /// the group layer needs no failable `EventKind(rawValue:)!`. Group
+        /// definitions reuse `appData` (30078).
+        case groupInvite = 30079
+        case groupRevoke = 30080
+        case groupEpoch = 30081
+        case groupMessage = 20078
     }
 
     /// d-tag scoping NIP-78 events to peer selfies for the current trip
