@@ -272,11 +272,12 @@ private extension ContentComposerView {
                 imagePickerSourceType = .photoLibrary
                 showImagePicker = true
             }
+            // festy: label/hint describe tap = camera; the library is the named action.
             .accessibilityLabel(
-                String(localized: "content.accessibility.attach_photo", comment: "Accessibility label for the photo attachment button")
+                String(localized: "content.accessibility.take_photo", comment: "Accessibility label for the camera button")
             )
             .accessibilityHint(
-                String(localized: "content.accessibility.attach_photo_hint", comment: "Accessibility hint explaining the attachment button opens the photo library")
+                String(localized: "content.accessibility.take_photo_hint", comment: "Accessibility hint explaining the trip composer photo button opens the camera (festy)")
             )
             .accessibilityAddTraits(.isButton)
             // The long-press → camera path is unreachable for VoiceOver users;
