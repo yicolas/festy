@@ -14,8 +14,8 @@ import UniformTypeIdentifiers
 final class ShareViewController: UIViewController {
     // festy: derive the group ID from the extension bundle ID (strip
     // ".ShareExtension") so it matches the main app's "group.\(bundleID)"
-    // (MeshyApp.groupID). Upstream reads Info.plist `AppGroupID`, but festy's
-    // pbxproj pins per-SDK bundle IDs that differ from APP_GROUP_ID.
+    // (MeshyApp.groupID). Equals APP_GROUP_ID (= group.$(PRODUCT_BUNDLE_IDENTIFIER)
+    // in Configs/Release.xcconfig), which the entitlements register.
     private static let groupID: String = {
         let extensionBundleID = Bundle.main.bundleIdentifier ?? "chat.bitchat.ShareExtension"
         let mainAppBundleID = extensionBundleID

@@ -330,14 +330,46 @@ final class SelfieSyncService: ObservableObject {
 
     // MARK: - Helpers
 
+    /// Largest JPEG we send. The BLE response is marker + base64(JPEG) as one
+    /// message, and base64 expands data by 4/3:
+    ///   chars = marker (~16) + ceil(bytes / 3) * 4
+    /// Limits: InputValidator.Limits.maxMessageLength = 60,000 and the 65,535 B
+    /// v1 public-message frame (upstream #1719 drops anything larger). 40,000 B
+    /// → 53,352 chars, leaving ~11% headroom under 60,000.
+    static let maxSelfieJPEGBytes = 40_000
+
     private func ownSelfieData() -> Data? {
         #if os(iOS)
         guard let image = UserSelfieStore.shared.image else { return nil }
-        return image.jpegData(compressionQuality: 0.65)
+        return Self.cappedJPEG(image, maxBytes: Self.maxSelfieJPEGBytes)
         #else
         return nil
         #endif
     }
+
+    #if os(iOS)
+    /// JPEG at the default quality (0.65); if it's over `maxBytes`, lower the
+    /// quality, then halve the dimensions, until it fits. A 256 px selfie is
+    /// normally 8–20 KB, so this only matters for unusually noisy images.
+    static func cappedJPEG(_ image: UIImage, maxBytes: Int) -> Data? {
+        var current = image
+        for _ in 0..<4 {
+            for quality in [0.65, 0.5, 0.35, 0.2] as [CGFloat] {
+                guard let data = current.jpegData(compressionQuality: quality) else { return nil }
+                if data.count <= maxBytes { return data }
+            }
+            let size = CGSize(width: current.size.width / 2, height: current.size.height / 2)
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let source = current
+            current = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                source.draw(in: CGRect(origin: .zero, size: size))
+            }
+        }
+        SecureLogger.warning("🤳 Selfie still over \(maxBytes)B after downscaling; not sending", category: .session)
+        return nil
+    }
+    #endif
 
     private func noiseKey(forNostrPubkey nostrPubkey: String) -> Data? {
         // Event pubkeys are hex; stored favorites are usually npub.

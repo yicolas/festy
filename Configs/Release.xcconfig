@@ -5,7 +5,9 @@ IPHONEOS_DEPLOYMENT_TARGET = 16.0
 MACOSX_DEPLOYMENT_TARGET = 13.0
 SWIFT_VERSION = 5.0
 
-// festy: Meshy identity (team + bundle id) — keep on upstream merges.
+// festy: shipping identity (team + bundle id + app group). Do NOT change
+// these for local builds; put your own team/bundle in Configs/Local.xcconfig
+// (gitignored, see Local.xcconfig.example and docs/LOCAL_SIGNING.md).
 DEVELOPMENT_TEAM = 9ZYQ3XT8L9
 CODE_SIGN_STYLE = Automatic
 
@@ -18,5 +20,8 @@ MESHY_TRIP = trip-ge136c-spring-2026
 // App Group identifier for sharing data between main app and extensions.
 // Upstream reads APP_GROUP_ID (Info.plist `AppGroupID`, entitlements);
 // APP_GROUP_IDENTIFIER is kept for festy's older local configs.
-APP_GROUP_ID = group.com.meshed.app
+APP_GROUP_ID = group.$(PRODUCT_BUNDLE_IDENTIFIER)
 APP_GROUP_IDENTIFIER = $(APP_GROUP_ID)
+
+// Per-developer overrides (gitignored). Must stay last so it wins.
+#include? "Local.xcconfig"
