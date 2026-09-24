@@ -31,21 +31,25 @@ struct NostrPubkeyFormatTests {
 }
 
 struct SelfieShareScopeTests {
+    // Each test gets its own defaults suite: Swift Testing runs tests in
+    // parallel, and sharing UserDefaults.standard made these two race (one
+    // removed the key while the other had just set it).
+    private func freshDefaults() -> UserDefaults {
+        let name = "SelfieShareScopeTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
+    }
+
     @Test
     func defaultsToEveryone_whenUnset() {
-        let defaults = UserDefaults.standard
-        let saved = defaults.string(forKey: SelfieShareScope.storageKey)
-        defaults.removeObject(forKey: SelfieShareScope.storageKey)
-        defer { defaults.set(saved, forKey: SelfieShareScope.storageKey) }
-        #expect(SelfieShareScope.current == .everyone)
+        #expect(SelfieShareScope.stored(in: freshDefaults()) == .everyone)
     }
 
     @Test
     func readsStoredScope() {
-        let defaults = UserDefaults.standard
-        let saved = defaults.string(forKey: SelfieShareScope.storageKey)
+        let defaults = freshDefaults()
         defaults.set(SelfieShareScope.mutualFavorites.rawValue, forKey: SelfieShareScope.storageKey)
-        defer { defaults.set(saved, forKey: SelfieShareScope.storageKey) }
-        #expect(SelfieShareScope.current == .mutualFavorites)
+        #expect(SelfieShareScope.stored(in: defaults) == .mutualFavorites)
     }
 }
