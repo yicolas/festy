@@ -3731,7 +3731,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate, CommandContextProv
     }
     
     /// Inserts the trip's one-time seed messages (e.g. #meals menus from
-    /// `seedMessages` in TripSchedule.json) into the mesh timeline. Bumping
+    /// `seedMessages` in the active trip JSON) into the mesh timeline. Bumping
     /// `seedMessages.version` in the JSON removes the previous seeds and
     /// re-seeds.
     private func seedMealPlaceholdersIfNeeded() {

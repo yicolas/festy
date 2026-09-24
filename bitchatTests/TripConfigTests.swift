@@ -95,4 +95,31 @@ struct TripConfigTests {
         let dates = trip.trip.dates
         #expect(trip.trip.dateRangeText != "\(dates.start) – \(dates.end)", "trip dates must be yyyy-MM-dd")
     }
+
+    // MARK: Trip switching
+
+    private static func bundledTripFiles() -> [URL] {
+        (Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? [])
+            .filter { $0.lastPathComponent.hasPrefix("trip-") }
+    }
+
+    @Test
+    func everyBundledTripFile_decodes() throws {
+        let files = Self.bundledTripFiles()
+        #expect(files.count >= 2, "expected the GE136C trip and the October placeholder")
+        for url in files {
+            do {
+                _ = try JSONDecoder().decode(TripData.self, from: Data(contentsOf: url))
+            } catch {
+                Issue.record("\(url.lastPathComponent) failed to decode: \(error)")
+            }
+        }
+    }
+
+    @Test
+    func activeTrip_hasNoPlaceholders() throws {
+        let url = try #require(Bundle.main.url(forResource: TripData.activeResourceName, withExtension: "json"))
+        let raw = try String(contentsOf: url, encoding: .utf8)
+        #expect(!raw.contains("FILL_IN"), "active trip \(TripData.activeResourceName) still has FILL_IN values")
+    }
 }

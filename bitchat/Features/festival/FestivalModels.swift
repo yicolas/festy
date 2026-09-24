@@ -118,22 +118,30 @@ struct TripData: Codable {
         tabs ?? TripTab.defaultTabs
     }
 
-    /// Resource names searched in the app bundle, in order.
-    static let bundledResourceNames = ["FestivalSchedule", "TripSchedule"]
+    /// Info.plist key naming the active trip file, set from the `MESHY_TRIP`
+    /// build setting in Configs/Release.xcconfig. Switching trips = changing
+    /// that one line (see docs/NEW_TRIP.md).
+    static let activeTripInfoKey = "MeshyTrip"
 
-    /// The trip shipped in the app bundle, decoded once. Nonisolated so
-    /// `TripNamespace` and background services can read it off the main actor.
+    /// Used only when Info.plist has no `MeshyTrip` (e.g. SwiftPM builds).
+    static let fallbackResourceName = "trip-ge136c-spring-2026"
+
+    /// Bundle resource name (no extension) of the active trip file in
+    /// `Features/festival/trips/`.
+    static var activeResourceName: String {
+        let configured = Bundle.main.object(forInfoDictionaryKey: activeTripInfoKey) as? String
+        guard let configured, !configured.isEmpty else { return fallbackResourceName }
+        return configured
+    }
+
+    /// The active trip, decoded once. Nonisolated so `TripNamespace` and
+    /// background services can read it off the main actor.
     static let bundled: TripData? = loadBundled()
 
     static func loadBundled() -> TripData? {
-        for name in bundledResourceNames {
-            if let url = Bundle.main.url(forResource: name, withExtension: "json"),
-               let data = try? Data(contentsOf: url),
-               let decoded = try? JSONDecoder().decode(TripData.self, from: data) {
-                return decoded
-            }
-        }
-        return nil
+        guard let url = Bundle.main.url(forResource: activeResourceName, withExtension: "json"),
+              let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(TripData.self, from: data)
     }
 
     /// Compatibility for legacy festival naming in a few untouched call sites.

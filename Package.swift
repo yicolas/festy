@@ -41,7 +41,7 @@ let package = Package(
             ],
             resources: [
                 .process("Localizable.xcstrings"),
-                .process("Features/festival/TripSchedule.json")
+                .process("Features/festival/trips")
             ]
         ),
         .testTarget(

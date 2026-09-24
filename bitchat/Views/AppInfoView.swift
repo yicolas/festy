@@ -169,7 +169,7 @@ struct AppInfoView: View {
     @ViewBuilder
     private var infoContent: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Header — Meshy brand + current trip (from TripSchedule.json). Tagline calls out that this page
+            // Header — Meshy brand + current trip (from the active trip JSON). Tagline calls out that this page
             // doubles as the how-to guide AND the settings hub.
             VStack(alignment: .center, spacing: 10) {
                 Image("MeshyLogo")

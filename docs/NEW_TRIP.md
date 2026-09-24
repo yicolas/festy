@@ -1,8 +1,27 @@
 # Setting up a new trip
 
-Everything trip-specific lives in one file:
-[`bitchat/Features/festival/TripSchedule.json`](../bitchat/Features/festival/TripSchedule.json).
-To run a new trip, edit that file, build, and ship a new TestFlight build. No Swift changes are needed.
+Each trip is one JSON file in
+[`bitchat/Features/festival/trips/`](../bitchat/Features/festival/trips/), and **one build setting picks the active trip**:
+
+```
+// Configs/Release.xcconfig
+MESHY_TRIP = trip-ge136c-spring-2026
+```
+
+`MESHY_TRIP` is copied into Info.plist (`MeshyTrip`), and `TripData.activeResourceName` loads `trips/<MESHY_TRIP>.json`. No Swift changes are needed.
+
+## Switching to a new trip
+
+1. Fill in the trip file. `trips/trip-oct-2026.json` is a placeholder: every value to replace starts with `FILL_IN`. Keys starting with `_` are notes and are ignored by the app.
+2. Validate it without Xcode:
+   ```
+   python3 scripts/validate_trip.py bitchat/Features/festival/trips/trip-oct-2026.json --active
+   ```
+   `--active` also fails on any leftover `FILL_IN`, bad `yyyy-MM-dd` dates or seed times, and a malformed namespace.
+3. Set `MESHY_TRIP = trip-oct-2026` in `Configs/Release.xcconfig`.
+4. Build, run the tests (`TripConfigTests.activeTrip_hasNoPlaceholders` fails if `FILL_IN` remains), and ship to TestFlight.
+
+To switch back to an old trip, point `MESHY_TRIP` at its file. Old trip files stay in `trips/` as a record.
 
 ## Checklist
 

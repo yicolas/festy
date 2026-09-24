@@ -4,8 +4,9 @@ import Foundation
 /// Nostr tags on shared relays, per-trip UserDefaults keys, and per-trip
 /// files (trip notes, cached routes, the public mesh timeline).
 ///
-/// The value comes from `trip.namespace` in `TripSchedule.json` (falling back
-/// to `trip.id`). Starting a new trip = change the JSON; nothing here changes.
+/// The value comes from `trip.namespace` in the active trip JSON
+/// (`Features/festival/trips/<MESHY_TRIP>.json`, falling back to `trip.id`).
+/// Starting a new trip = add a trip JSON and point MESHY_TRIP at it.
 ///
 /// For `"ge136c"` every derived key equals the literal it replaced, so
 /// installs from the GE136C trip keep their data and stay wire-compatible.
