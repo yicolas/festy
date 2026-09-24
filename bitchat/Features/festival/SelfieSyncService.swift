@@ -67,8 +67,12 @@ enum SelfieShareScope: String, CaseIterable, Identifiable {
     }
     #endif
 
-    static var current: SelfieShareScope {
-        UserDefaults.standard.string(forKey: storageKey).flatMap(SelfieShareScope.init(rawValue:)) ?? defaultScope
+    static var current: SelfieShareScope { stored(in: .standard) }
+
+    /// The scope saved in `defaults`, or `defaultScope`. Tests pass their own
+    /// suite so they don't race on the shared standard defaults.
+    static func stored(in defaults: UserDefaults) -> SelfieShareScope {
+        defaults.string(forKey: storageKey).flatMap(SelfieShareScope.init(rawValue:)) ?? defaultScope
     }
 }
 
