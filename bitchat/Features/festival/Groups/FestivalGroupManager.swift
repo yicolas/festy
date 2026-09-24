@@ -318,7 +318,7 @@ final class TripGroupManager: ObservableObject {
             throw TripGroupError.encryptionNotConfigured
         }
         
-        guard let group = groups[groupId] else {
+        guard groups[groupId] != nil else {
             throw TripGroupError.groupNotFound
         }
         
@@ -423,7 +423,7 @@ final class TripGroupManager: ObservableObject {
         
         // Find and verify their chain
         let groupInvites = invitesByGroup[groupId] ?? []
-        guard let theirInvite = groupInvites.first(where: { $0.inviteePubkey == pubkey }) else {
+        guard groupInvites.contains(where: { $0.inviteePubkey == pubkey }) else {
             return false // No invite found
         }
         

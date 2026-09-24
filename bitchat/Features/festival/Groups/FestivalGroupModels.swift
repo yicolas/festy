@@ -341,7 +341,7 @@ struct GroupMessage: Codable, Identifiable {
         let replyTo = event.tags.first(where: { $0.first == "e" && $0.count > 3 && $0[3] == "reply" })?[1]
         
         return GroupMessage(
-            id: event.id ?? UUID().uuidString,
+            id: event.id,
             groupId: groupTag[1],
             channelId: channelTag[1],
             senderPubkey: event.pubkey,

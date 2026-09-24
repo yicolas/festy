@@ -96,7 +96,7 @@ struct FriendLocationToggle: View {
     }
 
     private func toggleLocationSharing() {
-        let status = CLLocationManager.authorizationStatus()
+        let status = CLLocationManager().authorizationStatus
 
         switch status {
         case .notDetermined:

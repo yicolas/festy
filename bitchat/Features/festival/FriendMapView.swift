@@ -1559,7 +1559,17 @@ final class TileCacheManager: ObservableObject {
     }
 
     private func refreshCacheStats() async {
-        let root = cacheRoot()
+        let (count, bytes) = Self.scanTileCache(at: cacheRoot())
+        await MainActor.run {
+            self.cachedTileCount = count
+            self.cachedBytes = bytes
+        }
+    }
+
+    /// Counts cached tile PNGs and their bytes. Synchronous on purpose:
+    /// FileManager.DirectoryEnumerator's iterator is unavailable from async
+    /// contexts (an error in Swift 6 mode).
+    nonisolated private static func scanTileCache(at root: URL) -> (count: Int, bytes: Int) {
         var count = 0
         var bytes = 0
         if let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.fileSizeKey]) {
@@ -1570,10 +1580,7 @@ final class TileCacheManager: ObservableObject {
                 }
             }
         }
-        await MainActor.run {
-            self.cachedTileCount = count
-            self.cachedBytes = bytes
-        }
+        return (count, bytes)
     }
 }
 
