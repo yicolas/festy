@@ -97,6 +97,9 @@ enum NoisePayloadType: UInt8 {
     case verifyResponse  = 0x11     // Verification response
     // Transitive verification (web of trust)
     case vouch = 0x12               // Batch of vouch attestations
+    // festy: friend location (festy#12, cross-platform with fest-mesh-android#89).
+    // 0x30 starts a location/presence cluster; unused upstream as of 774c88e.
+    case locationShare = 0x30       // Friend-location fix, encrypted per recipient; inner payload = FriendLocationService marker+CSV string
 
     /// #1434 briefly used 0x09 before release. Accept it while prerelease
     /// builds age out, but never emit it. Decoders canonicalize both values to
@@ -125,6 +128,7 @@ enum NoisePayloadType: UInt8 {
         case .verifyChallenge: return "verifyChallenge"
         case .verifyResponse: return "verifyResponse"
         case .vouch: return "vouch"
+        case .locationShare: return "locationShare"
         }
     }
 }

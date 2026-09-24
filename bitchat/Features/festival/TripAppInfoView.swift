@@ -24,6 +24,7 @@ struct TripAppInfoView: View {
     #endif
     @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
     @AppStorage(SelfieShareScope.storageKey) private var selfieShareScopeRaw: String = SelfieShareScope.defaultScope.rawValue
+    @AppStorage(FriendLocationService.ShareMode.storageKey) private var locationShareModeRaw: String = FriendLocationService.ShareMode.broadcast.rawValue
     @ObservedObject private var carStore = CarAssignmentStore.shared
     @State private var nicknameEdit: String = ""
     @State private var isEditingNickname: Bool = false
@@ -167,6 +168,35 @@ struct TripAppInfoView: View {
             }
         }
         #endif
+    }
+
+    /// Broadcast vs encrypted friend location. Labels must not over-claim
+    /// (festy#12): broadcast is readable by anyone in range; encrypted hides
+    /// coordinates but not the fact that you're sending.
+    private var locationShareModeSetting: some View {
+        let mode = FriendLocationService.ShareMode(rawValue: locationShareModeRaw) ?? .broadcast
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Image(systemName: mode == .encrypted ? "lock.fill" : "dot.radiowaves.left.and.right")
+                    .font(.system(size: 18))
+                    .foregroundColor(textColor)
+                    .frame(width: 30)
+                Text("Who can read it")
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(textColor)
+                Spacer()
+                Picker("Who can read my location", selection: $locationShareModeRaw) {
+                    ForEach(FriendLocationService.ShareMode.allCases) { option in
+                        Text(option.title).tag(option.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            Text(mode.explanation)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(secondaryTextColor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// Who receives the user's selfie (see `SelfieShareScope` for why the
@@ -635,13 +665,15 @@ struct TripAppInfoView: View {
                                 Text("Share my location")
                                     .font(.system(size: 14, weight: .semibold, design: .monospaced))
                                     .foregroundColor(textColor)
-                                Text("Broadcasts your position to trip peers every ~30s")
+                                Text("Sends your position to trip peers every ~30s")
                                     .font(.system(size: 11, design: .monospaced))
                                     .foregroundColor(secondaryTextColor)
                             }
                         }
                     }
                     .tint(textColor)
+
+                    locationShareModeSetting
                 }
                 .padding(.bottom, 8)
             }
