@@ -1,10 +1,14 @@
-// Your Apple Developer Team ID - https://stackoverflow.com/a/18727947
-DEVELOPMENT_TEAM = 9ZYQ3XT8L9
+// Copy to Configs/Local.xcconfig (gitignored) to build with your own Apple
+// Developer team without touching tracked files. See docs/LOCAL_SIGNING.md.
 
-// Unique bundle id to be able to register and run locally
+// Your Apple Developer Team ID (Xcode → Settings → Accounts, or
+// developer.apple.com → Membership).
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+
+// A bundle id your team can register. Keep it unique per developer.
 PRODUCT_BUNDLE_IDENTIFIER = com.meshy.$(DEVELOPMENT_TEAM)
 
-// App Group identifier - must match across main app and extensions and be
-// registered to your team. Uses the same pattern as the bundle ID.
+// App Group shared by the app and the share extension; must be registered
+// to your team. Same pattern as the bundle id.
 APP_GROUP_ID = group.$(PRODUCT_BUNDLE_IDENTIFIER)
 APP_GROUP_IDENTIFIER = $(APP_GROUP_ID)

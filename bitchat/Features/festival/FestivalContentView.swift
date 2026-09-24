@@ -462,6 +462,9 @@ struct TripMainView: View {
     @State private var isShowingSelfieMenu = false
     @State private var isShowingSettings = false
     @State private var showPeerList = false
+    /// DM chosen in the peer sheet; opened in its onDismiss so the DM sheet
+    /// doesn't race the peer sheet's dismissal.
+    @State private var pendingDMPeer: PeerID?
     #if os(iOS)
     @State private var isShowingSelfieCamera = false
     @State private var pickedSelfieImage: UIImage?
@@ -514,6 +517,12 @@ struct TripMainView: View {
                 selectedTabId = first.id
             }
         }
+    }
+
+    private func openPendingDM() {
+        guard let peerID = pendingDMPeer else { return }
+        pendingDMPeer = nil
+        viewModel.startPrivateChat(with: peerID)
     }
 
     @ViewBuilder
@@ -625,9 +634,11 @@ struct TripMainView: View {
             TripAppInfoView() // festy: trip settings page (upstream AppInfoView reachable from it)
                 .environmentObject(viewModel)
         }
-        .sheet(isPresented: $showPeerList) {
-            OnlinePeersSheet(onDMStarted: { _ in
-                showPeerList = false
+        .sheet(isPresented: $showPeerList, onDismiss: openPendingDM) {
+            OnlinePeersSheet(onMessage: { peerID in
+                pendingDMPeer = peerID
+                // Mount the chat tab (ContentView hosts the DM sheet) while
+                // the peer sheet dismisses.
                 selectedTabId = "chat"
             })
             .environmentObject(viewModel)
@@ -737,10 +748,13 @@ struct TripChatHost: View {
     // festy-merge: upstream's LocationChannelsSheet reads these models.
     @EnvironmentObject private var locationChannelsModel: LocationChannelsModel
     @EnvironmentObject private var peerListModel: PeerListModel
+    @EnvironmentObject private var appChromeModel: AppChromeModel
     @ObservedObject private var locationManager = LocationChannelManager.shared
     @State private var showChannelPicker = false
     @State private var showClearConfirm = false
     @State private var showPeerList = false
+    /// See TripMainView.pendingDMPeer.
+    @State private var pendingDMPeer: PeerID?
 
     private var peerCount: Int {
         viewModel.allPeers.reduce(0) { count, peer in
@@ -767,16 +781,40 @@ struct TripChatHost: View {
                 // Sheets can drop inherited environment objects (#1558).
                 .environmentObject(locationChannelsModel)
                 .environmentObject(peerListModel)
-                // festy-merge TODO: pre-merge this set
-                // `viewModel.isLocationChannelsSheetPresented` so a screenshot
-                // taken with the channel list open showed the location-privacy
-                // warning. Upstream moved that flag to
-                // `AppChromeModel.isLocationChannelsSheetPresented`, which also
-                // drives ContentHeaderView's own sheet, so it is not set from
-                // here; the warning does not fire for this sheet.
+                // Screenshots taken with the channel list open warn about
+                // location exposure (AppRuntime routes them via
+                // `isTripChannelSheetPresented`). ContentHeaderView, which
+                // hosts upstream's alert, is hidden in trip mode, so the
+                // alert is presented from here.
+                .alert("content.alert.screenshot.title", isPresented: $appChromeModel.showScreenshotPrivacyWarning) {
+                    Button("common.ok", role: .cancel) {}
+                } message: {
+                    Text("content.alert.screenshot.message")
+                }
         }
-        .sheet(isPresented: $showPeerList) {
-            OnlinePeersSheet()
+        .onChange(of: showChannelPicker) { isPresented in
+            appChromeModel.isTripChannelSheetPresented = isPresented
+        }
+        // Location-channel timeline screenshots (header hidden in trip mode,
+        // so upstream's alert isn't mounted). Defers to the sheet's alert
+        // while the channel sheet is up.
+        .alert(
+            "content.alert.screenshot.title",
+            isPresented: Binding(
+                get: { appChromeModel.showScreenshotPrivacyWarning && !showChannelPicker },
+                set: { appChromeModel.showScreenshotPrivacyWarning = $0 }
+            )
+        ) {
+            Button("common.ok", role: .cancel) {}
+        } message: {
+            Text("content.alert.screenshot.message")
+        }
+        .sheet(isPresented: $showPeerList, onDismiss: {
+            guard let peerID = pendingDMPeer else { return }
+            pendingDMPeer = nil
+            viewModel.startPrivateChat(with: peerID)
+        }) {
+            OnlinePeersSheet(onMessage: { pendingDMPeer = $0 })
                 .environmentObject(viewModel)
         }
         .confirmationDialog("Clear this chat log?", isPresented: $showClearConfirm, titleVisibility: .visible) {
@@ -1318,7 +1356,10 @@ struct TripInfoView: View {
 // MARK: - Online Peers Sheet
 
 struct OnlinePeersSheet: View {
-    var onDMStarted: ((PeerID) -> Void)? = nil
+    /// Called with the peer to message; the sheet then dismisses itself. The
+    /// presenter opens the DM from the sheet's onDismiss (starting it here
+    /// would present upstream's DM sheet mid-dismissal and could be dropped).
+    let onMessage: (PeerID) -> Void
     @EnvironmentObject private var viewModel: ChatViewModel
     @ObservedObject private var selfieStore = PeerSelfieStore.shared
     @Environment(\.dismiss) private var dismiss
@@ -1397,8 +1438,7 @@ struct OnlinePeersSheet: View {
             }
             Spacer()
             Button(action: {
-                viewModel.startPrivateChat(with: peer.peerID)
-                onDMStarted?(peer.peerID)
+                onMessage(peer.peerID)
                 dismiss()
             }) {
                 Label("Message", systemImage: "bubble.left.fill")

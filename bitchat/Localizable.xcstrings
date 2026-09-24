@@ -43678,6 +43678,192 @@
         }
       }
     },
+    "content.accessibility.take_photo_hint" : {
+      "comment" : "Accessibility hint explaining the trip composer photo button opens the camera (festy)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "fa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "fil" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "ne" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "ur" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "opens the camera; use the choose photo action for the photo library"
+          }
+        }
+      }
+    },
     "content.accessibility.toggle_bookmark" : {
       "extractionState" : "manual",
       "localizations" : {

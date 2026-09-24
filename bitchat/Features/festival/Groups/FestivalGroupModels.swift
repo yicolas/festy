@@ -169,12 +169,13 @@ struct InviteChain: Codable {
 
 // MARK: - Nostr Event Kinds for Groups
 
+// The invite (30079), revoke (30080), epoch (30081) and message (20078)
+// kinds are real `EventKind` cases (see the `festy:` block in
+// NostrProtocol.swift); the old `EventKind(rawValue:)!` statics crashed at
+// first use because those raw values had no case.
 extension NostrProtocol.EventKind {
-    static let tripGroup = NostrProtocol.EventKind(rawValue: 30078)!        // Replaceable: Group definition
-    static let groupInvite = NostrProtocol.EventKind(rawValue: 30079)!      // Replaceable: Invite
-    static let groupRevoke = NostrProtocol.EventKind(rawValue: 30080)!      // Replaceable: Revocation
-    static let groupMessage = NostrProtocol.EventKind(rawValue: 20078)!     // Ephemeral: Group chat message
-    static let groupEpoch = NostrProtocol.EventKind(rawValue: 30081)!       // Replaceable: Membership epoch
+    /// Replaceable: Group definition. Same wire kind (30078) as `appData`.
+    static let tripGroup: NostrProtocol.EventKind = .appData
 }
 
 // Convenience typealias
