@@ -49,7 +49,7 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Meshy uses Bluetooth to discover and connect with other Meshy users nearby.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Meshy uses the camera to scan QR codes to verify peers.</string>
+	<string>Meshy uses the camera to take your profile selfie for the trip map, to take photos you choose to share with nearby peers, and to scan QR codes to verify peers.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Meshy uses your location to show you on the trip map, to share your position with trip friends over the nearby mesh when you turn on location sharing, and to compute optional geohash channels.</string>
 	<key>NSMicrophoneUsageDescription</key>

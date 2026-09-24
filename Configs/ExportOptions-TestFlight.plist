@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Used by scripts/testflight.py (`just testflight`). -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>upload</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!-- Same as the "Automatically manage version and build number" checkbox
+	     in Xcode's Distribute App: App Store Connect assigns the next build
+	     number, so CURRENT_PROJECT_VERSION never needs a manual bump. -->
+	<key>manageAppVersionAndBuildNumber</key>
+	<true/>
+	<!-- false so the build can also go to external testers (students). -->
+	<key>testFlightInternalTestingOnly</key>
+	<false/>
+	<key>uploadSymbols</key>
+	<true/>
+</dict>
+</plist>
