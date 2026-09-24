@@ -3,29 +3,7 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
-private enum TripMapAnnotationItem: Identifiable {
-    case friend(FriendLocation)
-    case stop(TripLocation)
-
-    var id: String {
-        switch self {
-        case .friend(let friend):
-            return "friend-\(friend.id.hexEncodedString())"
-        case .stop(let stop):
-            return "stop-\(stop.id)"
-        }
-    }
-
-    var coordinate: CLLocationCoordinate2D {
-        switch self {
-        case .friend(let friend):
-            return friend.coordinate
-        case .stop(let stop):
-            return stop.coordinate ?? CLLocationCoordinate2D(latitude: 0, longitude: 0)
-        }
-    }
-}
-
+#if os(iOS)
 /// Map view displaying trip stops (pins) and live friend locations.
 struct FriendMapView: View {
     @ObservedObject var locationService = FriendLocationService.shared
@@ -590,69 +568,6 @@ struct FriendMapView: View {
     }
 }
 
-private struct TripStopPin: View {
-    let name: String
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Image(systemName: "mappin.circle.fill")
-                .font(.title2)
-                .foregroundColor(TripTheme.accent)
-                .background(Color.white.clipShape(Circle()))
-
-            Text(name)
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                .foregroundColor(Color(red: 0, green: 0, blue: 0))
-                .lineLimit(1)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(TripTheme.surface)
-                .cornerRadius(4)
-        }
-    }
-}
-
-/// Custom map pin for a friend
-struct FriendMapPin: View {
-    let friend: FriendLocation
-    let isSelected: Bool
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 0) {
-                ZStack {
-                    Circle()
-                        .fill(friend.isStale ? Color.gray : Color.blue)
-                        .frame(width: isSelected ? 44 : 36, height: isSelected ? 44 : 36)
-                        .shadow(radius: isSelected ? 4 : 2)
-
-                    Text(String(friend.nickname.prefix(1)).uppercased())
-                        .font(.system(size: isSelected ? 18 : 14, weight: .bold, design: .monospaced))
-                        .foregroundColor(.white)
-                }
-
-                Triangle()
-                    .fill(friend.isStale ? Color.gray : Color.blue)
-                    .frame(width: 12, height: 8)
-                    .offset(y: -2)
-            }
-        }
-        .animation(.spring(response: 0.3), value: isSelected)
-    }
-}
-
-struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.closeSubpath()
-        return path
-    }
-}
-
 struct TripMapTab: View {
     @ObservedObject var locationService = FriendLocationService.shared
 
@@ -703,7 +618,6 @@ struct TripMapTab: View {
     }
 }
 
-typealias FestivalMapTab = TripMapTab
 
 // MARK: - Trail routes (GPS tracks from the field)
 
@@ -769,7 +683,6 @@ struct TrailSheet: View {
     }
 }
 
-#if os(iOS)
 struct TrailPolylineMap: UIViewRepresentable {
     let coordinates: [CLLocationCoordinate2D]
 
@@ -816,12 +729,6 @@ struct TrailPolylineMap: UIViewRepresentable {
         }
     }
 }
-#else
-struct TrailPolylineMap: View {
-    let coordinates: [CLLocationCoordinate2D]
-    var body: some View { Text("Trail view available on iOS.") }
-}
-#endif
 
 // MARK: - Per-day route visibility (toggleable from the map side menu)
 
@@ -862,7 +769,6 @@ final class DayRouteVisibility: ObservableObject {
 
 // MARK: - Main trip map (MKMapView wrapper that supports polylines + tile overlay)
 
-#if os(iOS)
 struct MainTripMap: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     @Binding var selectedFriend: FriendLocation?
@@ -1248,11 +1154,9 @@ struct TripNoteDetailSheet: View {
         .presentationDetents([.fraction(0.35), .medium])
     }
 }
-#endif
 
 // MARK: - Offline download sheet (presented from map's left menu)
 
-#if os(iOS)
 struct OfflineDownloadSheet: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -1282,11 +1186,9 @@ struct OfflineDownloadSheet: View {
         .background(TripTheme.background)
     }
 }
-#endif
 
 // MARK: - Offline tile caching (OpenStreetMap / OpenTopoMap)
 
-#if os(iOS)
 @MainActor
 final class TileCacheManager: ObservableObject {
     static let shared = TileCacheManager()
@@ -1873,6 +1775,19 @@ struct OfflineTripMapSheet: View {
         .background(TripTheme.background)
     }
 }
+#else
+// macOS: the trip map (MKMapView, offline tiles, camera/selfie annotations) is
+// UIKit-based and iOS-only; festy's macOS build shows a placeholder.
+struct TripMapTab: View {
+    var body: some View {
+        Text("The trip map is available on iPhone.")
+            .font(.system(.body, design: .monospaced))
+            .foregroundColor(TripTheme.secondaryText)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+typealias FriendMapView = TripMapTab
 #endif
 
 #if DEBUG

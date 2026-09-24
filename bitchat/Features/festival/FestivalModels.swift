@@ -139,8 +139,19 @@ struct TripData: Codable {
     /// background services can read it off the main actor.
     static let bundled: TripData? = loadBundled()
 
+    /// Bundle holding the trip JSON files: the app bundle in Xcode builds,
+    /// the generated resource bundle under SwiftPM (`.process` resources are
+    /// not copied into `Bundle.main` there).
+    static var resourceBundle: Bundle {
+        #if SWIFT_PACKAGE
+        return .module
+        #else
+        return .main
+        #endif
+    }
+
     static func loadBundled() -> TripData? {
-        guard let url = Bundle.main.url(forResource: activeResourceName, withExtension: "json"),
+        guard let url = resourceBundle.url(forResource: activeResourceName, withExtension: "json"),
               let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(TripData.self, from: data)
     }
@@ -308,7 +319,6 @@ struct TripTab: Codable, Identifiable, Hashable {
         case chat
         case info
         case friends
-        case groups
         case custom
     }
 
@@ -693,7 +703,7 @@ enum TripRouteGeometry {
         (36.796185, -118.583738),
         (36.796505, -118.583560),
         (36.796396, -118.584642),
-        (36.796243, -118.584779),
+        (36.796243, -118.584779)
     ]
 
     static let southCreekFalls: [(Double, Double)] = [
@@ -847,7 +857,7 @@ enum TripRouteGeometry {
         (35.994245, -118.484900),
         (35.994143, -118.484963),
         (35.994052, -118.484895),
-        (35.993886, -118.484758),
+        (35.993886, -118.484758)
     ]
 
 }

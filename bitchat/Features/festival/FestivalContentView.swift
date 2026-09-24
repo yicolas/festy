@@ -4,6 +4,7 @@ import SwiftUI
 import UIKit
 #endif
 
+#if os(iOS)
 /// Stores the user's own selfie locally so it can render on the map pin and
 /// later be propagated to peers. Persists to Application Support so it survives
 /// app updates but is wiped by the standard "Erase all content".
@@ -64,6 +65,7 @@ final class UserSelfieStore: ObservableObject {
         return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
     }
 }
+#endif
 
 /// Per-user customization for the color the user's own messages render in.
 /// Persists a hex string in UserDefaults; defaults to the Meshy orange accent.
@@ -210,7 +212,9 @@ struct ShareSheet: UIViewControllerRepresentable {
 /// Main content wrapper that shows either normal chat or trip mode.
 struct TripContentView: View {
     @EnvironmentObject var viewModel: ChatViewModel
+    #if os(iOS)
     @ObservedObject private var selfieStore = UserSelfieStore.shared
+    #endif
     @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
 
     private var preferredColorScheme: ColorScheme? {
@@ -225,21 +229,27 @@ struct TripContentView: View {
         TripMainView()
             .environmentObject(viewModel)
             .preferredColorScheme(preferredColorScheme)
-        .fullScreenCover(isPresented: Binding(
-            get: { !viewModel.hasChosenNickname },
-            set: { _ in }
-        )) {
+        #if os(iOS)
+        .fullScreenCover(isPresented: nicknamePromptBinding) {
             NicknamePromptView()
                 .environmentObject(viewModel)
         }
-        #if os(iOS)
         .fullScreenCover(isPresented: Binding(
             get: { viewModel.hasChosenNickname && !selfieStore.hasPrompted },
             set: { _ in }
         )) {
             SelfiePromptView()
         }
+        #else
+        .sheet(isPresented: nicknamePromptBinding) {
+            NicknamePromptView()
+                .environmentObject(viewModel)
+        }
         #endif
+    }
+
+    private var nicknamePromptBinding: Binding<Bool> {
+        Binding(get: { !viewModel.hasChosenNickname }, set: { _ in })
     }
 }
 
@@ -285,7 +295,7 @@ struct CameraPicker: UIViewControllerRepresentable {
         let parent: CameraPicker
         init(_ p: CameraPicker) { parent = p }
 
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let img = info[.originalImage] as? UIImage {
                 parent.image = img
             }
@@ -455,7 +465,9 @@ struct NicknamePromptView: View {
 struct TripMainView: View {
     @EnvironmentObject var viewModel: ChatViewModel
     @ObservedObject var scheduleManager = TripScheduleManager.shared
+    #if os(iOS)
     @ObservedObject private var selfieStore = UserSelfieStore.shared
+    #endif
     @State private var selectedTabId: String = "schedule"
     @State private var isShowingShareSheet = false
     @State private var isShowingColorPicker = false
@@ -549,10 +561,6 @@ struct TripMainView: View {
             TripInfoView()
         case .friends:
             FriendMapView()
-        case .groups:
-            NavigationStack {
-                TripGroupsView()
-            }
         case .custom:
             VStack(spacing: 8) {
                 Image(systemName: "sparkles")
@@ -1361,7 +1369,12 @@ struct OnlinePeersSheet: View {
     /// would present upstream's DM sheet mid-dismissal and could be dropped).
     let onMessage: (PeerID) -> Void
     @EnvironmentObject private var viewModel: ChatViewModel
+    #if os(iOS)
     @ObservedObject private var selfieStore = PeerSelfieStore.shared
+    private static let closePlacement: ToolbarItemPlacement = .navigationBarTrailing
+    #else
+    private static let closePlacement: ToolbarItemPlacement = .automatic
+    #endif
     @Environment(\.dismiss) private var dismiss
 
     private var onlinePeers: [BitchatPeer] {
@@ -1405,9 +1418,11 @@ struct OnlinePeersSheet: View {
                 }
             }
             .navigationTitle("\(onlinePeers.count) Online")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: Self.closePlacement) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 13, weight: .semibold))
