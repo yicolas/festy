@@ -9,7 +9,6 @@ import BitFoundation
 import Foundation
 import CoreLocation
 import Combine
-import CryptoKit
 
 /// Represents a friend's shared location
 struct FriendLocation: Identifiable, Equatable {
@@ -22,69 +21,6 @@ struct FriendLocation: Identifiable, Equatable {
 
     static func == (lhs: FriendLocation, rhs: FriendLocation) -> Bool {
         lhs.id == rhs.id && lhs.timestamp == rhs.timestamp
-    }
-}
-
-/// Location update packet payload
-/// Sent via BLE mesh to mutual favorites only
-struct LocationSharePayload: Codable {
-    let latitude: Double
-    let longitude: Double
-    let accuracy: Double  // meters
-    let timestamp: UInt64  // milliseconds since epoch (UTC)
-
-    /// Encode to compact binary format (28 bytes)
-    /// Layout: lat (8 BE) + lon (8 BE) + accuracy (4 BE float) + timestamp (8 BE UInt64)
-    func toData() -> Data {
-        var data = Data()
-
-        var latBits = latitude.bitPattern.bigEndian
-        var lonBits = longitude.bitPattern.bigEndian
-        var accBits = Float(accuracy).bitPattern.bigEndian
-        var ts = timestamp.bigEndian
-
-        withUnsafeBytes(of: &latBits) { data.append(contentsOf: $0) }
-        withUnsafeBytes(of: &lonBits) { data.append(contentsOf: $0) }
-        withUnsafeBytes(of: &accBits) { data.append(contentsOf: $0) }
-        withUnsafeBytes(of: &ts) { data.append(contentsOf: $0) }
-
-        return data
-    }
-
-    /// Decode from compact binary format
-    static func fromData(_ data: Data) -> LocationSharePayload? {
-        // Expect exactly 28 bytes (or at least that many)
-        guard data.count >= 28 else { return nil }
-
-        return data.withUnsafeBytes { raw -> LocationSharePayload? in
-            let base = raw.baseAddress!.assumingMemoryBound(to: UInt8.self)
-            // Read 8 bytes -> Double (big-endian)
-            let latBits = base.withMemoryRebound(to: UInt64.self, capacity: 1) { $0.pointee }
-            let lonBits = base.advanced(by: 8).withMemoryRebound(to: UInt64.self, capacity: 1) { $0.pointee }
-            let accBits = base.advanced(by: 16).withMemoryRebound(to: UInt32.self, capacity: 1) { $0.pointee }
-            let tsBits = base.advanced(by: 20).withMemoryRebound(to: UInt64.self, capacity: 1) { $0.pointee }
-
-            let lat = Double(bitPattern: UInt64(bigEndian: latBits))
-            let lon = Double(bitPattern: UInt64(bigEndian: lonBits))
-            let acc = Float(bitPattern: UInt32(bigEndian: accBits))
-            let ts = UInt64(bigEndian: tsBits)
-
-            return LocationSharePayload(latitude: lat, longitude: lon, accuracy: Double(acc), timestamp: ts)
-        }
-    }
-}
-
-/// Simple AEAD helpers using CryptoKit (symmetric key).
-/// TODO: Replace symmetric key usage by deriving an AEAD key per-peer from the app's Noise state.
-struct AEAD {
-    static func encrypt(payload: Data, using key: SymmetricKey) throws -> Data {
-        let sealed = try AES.GCM.seal(payload, using: key)
-        return sealed.combined ?? Data()
-    }
-
-    static func decrypt(_ combined: Data, using key: SymmetricKey) throws -> Data {
-        let sealedBox = try AES.GCM.SealedBox(combined: combined)
-        return try AES.GCM.open(sealedBox, using: key)
     }
 }
 
@@ -156,10 +92,6 @@ class FriendLocationService: NSObject, ObservableObject {
     /// How old a location can be before considered stale (seconds)
     private let stalenessThreshold: TimeInterval = 120
 
-    /// Custom packet type for location sharing (uses reserved range)
-    /// This should be added to the packet type enum in BitchatPacket
-    static let locationSharePacketType: UInt8 = 0x20
-
     // MARK: - Published State
     @Published private(set) var isSharing = false
     @Published private(set) var friendLocations: [Data: FriendLocation] = [:]
@@ -213,47 +145,6 @@ class FriendLocationService: NSObject, ObservableObject {
     func toggleSharing() {
         if isSharing { stopSharing() } else { startSharing() }
     }
-
-    /// Call this from the packet handler when receiving locationSharePacketType
-    func handleLocationPacket(senderNoiseKey: Data, senderNickname: String, payload: Data, aeadKey: SymmetricKey? = nil) {
-        // Only process from mutual favorites
-        guard FavoritesPersistenceService.shared.favorites[senderNoiseKey]?.isMutual == true else {
-            print("📍 Ignoring location from non-mutual favorite")
-            return
-        }
-
-        let plain: Data
-        do {
-            if let key = aeadKey {
-                plain = try AEAD.decrypt(payload, using: key)
-            } else {
-                // If no key provided assume payload is plaintext (legacy)
-                plain = payload
-            }
-        } catch {
-            print("📍 Failed to decrypt location payload: \(error)")
-            return
-        }
-
-        guard let location = LocationSharePayload.fromData(plain) else {
-            print("📍 Failed to decode location payload")
-            return
-        }
-
-        let friendLocation = FriendLocation(
-            id: senderNoiseKey,
-            nickname: senderNickname,
-            coordinate: CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude),
-            accuracy: location.accuracy,
-            timestamp: Date(timeIntervalSince1970: Double(location.timestamp) / 1000.0),
-            isStale: false
-        )
-
-        friendLocations[senderNoiseKey] = friendLocation
-        print("📍 Updated location for \(senderNickname)")
-    }
-
-    func clearLocations() { friendLocations.removeAll() }
 
     // MARK: - Private Methods
     private func setupLocationManager() {
@@ -386,9 +277,4 @@ extension FriendLocationService: CLLocationManagerDelegate {
             }
         }
     }
-}
-
-// MARK: - Notification Extension
-extension Notification.Name {
-    static let friendLocationUpdated = Notification.Name("friendLocationUpdated")
 }
