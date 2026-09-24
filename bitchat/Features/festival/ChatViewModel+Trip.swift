@@ -426,6 +426,15 @@ enum TripTimelineFilter {
 
         guard let tag = hashtagFilter, !tag.isEmpty else { return rawMessages }
 
+        // Photos, voice notes and files carry no text, so they can't carry a
+        // channel hashtag (the sender's local copy is "[image] <file>", the
+        // receiver's the saved path). Show them in every channel; otherwise a
+        // photo sent from #gear vanishes from the sender's own #gear view.
+        // Same rule on Android (TripTimelineFilter.kt).
+        func isMedia(_ msg: BitchatMessage) -> Bool {
+            [MimeType.Category.image, .audio, .file].contains { msg.content.hasPrefix($0.messagePrefix) }
+        }
+
         // #main is a catch-all: show everything EXCEPT messages tagged with a
         // #car-X that isn't this user's own car AND any #meals messages (those
         // live exclusively in the #meals channel so they don't clog the feed).
@@ -433,6 +442,7 @@ enum TripTimelineFilter {
             let myCarTag = CarAssignmentStore.shared.assignedTag?.lowercased()
             let carRegex = try? NSRegularExpression(pattern: "#car-([a-zA-Z0-9-]+)", options: .caseInsensitive)
             return rawMessages.filter { msg in
+                if isMedia(msg) { return true }
                 let content = msg.content
                 if content.range(of: "#meals", options: .caseInsensitive) != nil {
                     return false
@@ -453,6 +463,6 @@ enum TripTimelineFilter {
             }
         }
 
-        return rawMessages.filter { $0.content.range(of: tag, options: .caseInsensitive) != nil }
+        return rawMessages.filter { isMedia($0) || $0.content.range(of: tag, options: .caseInsensitive) != nil }
     }
 }
