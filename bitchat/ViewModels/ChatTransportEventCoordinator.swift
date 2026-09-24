@@ -90,6 +90,7 @@ protocol ChatTransportEventContext: AnyObject {
     // consumed (never shown as chat). Default implementation returns false
     // (see ChatViewModel+Trip.swift).
     func festyInterceptTripControlMessage(content: String, senderPeerID: PeerID?, senderNickname: String, isPrivate: Bool) -> Bool
+    func festyHandleEncryptedLocationShare(from peerID: PeerID, payload: Data)
 }
 
 extension ChatViewModel: ChatTransportEventContext {
@@ -518,6 +519,10 @@ private extension ChatTransportEventCoordinator {
 
         case .vouch:
             context.handleVouchPayload(from: peerID, payload: payload)
+
+        case .locationShare:
+            // festy: encrypted friend-location fix (ChatViewModel+Trip.swift).
+            context.festyHandleEncryptedLocationShare(from: peerID, payload: payload)
 
         case .voiceFrame:
             context.handleVoiceFramePayload(from: peerID, payload: payload, timestamp: timestamp)

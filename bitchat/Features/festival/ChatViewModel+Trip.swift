@@ -12,6 +12,9 @@
 //   ChatViewModel.panicClearAllData → TripTimelinePersistenceController.wipe()
 //   ChatTransportEventCoordinator   → festyInterceptTripControlMessage(...)
 //                                      (public mesh message delivery, both paths)
+//                                   → festyHandleEncryptedLocationShare(...)
+//                                      (NoisePayloadType .locationShare, 0x30)
+//   BLEService                      → sendEncryptedLocationShare (MeshLocationSharing)
 //
 // This is free and unencumbered software released into the public domain.
 // For more information, see <https://unlicense.org>
@@ -140,6 +143,17 @@ extension ChatViewModel {
         SelfieSyncService.shared.connectedPeerNoiseKeys = { [weak self] in
             self?.unifiedPeerService.peers.filter(\.isConnected).map(\.noisePublicKey) ?? []
         }
+        // Encrypted friend location (festy#12): one Noise-encrypted 0x30 copy
+        // per connected mutual favorite (mirrors Android #89).
+        FriendLocationService.shared.encryptedBroadcaster = { [weak self] content, peerIDs in
+            (self?.meshService as? MeshLocationSharing)?.sendEncryptedLocationShare(content, to: peerIDs)
+        }
+        FriendLocationService.shared.encryptedRecipients = { [weak self] in
+            guard let self else { return [] }
+            return self.unifiedPeerService.peers
+                .filter { $0.isConnected && FavoritesPersistenceService.shared.isMutualFavorite($0.noisePublicKey) }
+                .map(\.peerID)
+        }
 
         // Restore persisted mesh timeline + DMs before upstream's archived
         // echo seeding runs (it only seeds an untouched mesh timeline).
@@ -180,6 +194,22 @@ extension ChatViewModel {
     }
 
     // MARK: Incoming (called from ChatTransportEventCoordinator)
+
+    /// Encrypted friend-location fix addressed to us (NoisePayloadType 0x30).
+    /// The inner payload is the same marker+CSV string as the plaintext path;
+    /// the sender's Noise key is passed so encrypted and plaintext fixes update
+    /// the same friend entry.
+    @MainActor
+    func festyHandleEncryptedLocationShare(from peerID: PeerID, payload: Data) {
+        guard !isPeerBlocked(peerID),
+              let content = String(data: payload, encoding: .utf8) else { return }
+        let peer = unifiedPeer(for: peerID)
+        FriendLocationService.shared.ingestLocationMessage(
+            content: content,
+            senderNoiseKey: peer?.noisePublicKey,
+            senderNickname: peer?.nickname ?? resolveNickname(for: peerID)
+        )
+    }
 
     /// Routes trip control packets (location / selfie markers) to their
     /// services. Private (Noise) messages are checked too: `.mutualFavorites`
@@ -357,7 +387,23 @@ extension ChatTransportEventContext {
     func festyInterceptTripControlMessage(content: String, senderPeerID: PeerID?, senderNickname: String, isPrivate: Bool) -> Bool {
         false
     }
+
+    /// Default for test contexts: encrypted location fixes are ignored.
+    @MainActor
+    func festyHandleEncryptedLocationShare(from peerID: PeerID, payload: Data) {}
 }
+
+// MARK: - Encrypted friend location transport
+
+/// Transport capability for encrypted friend location (festy#12). BLEService
+/// implements it (the method lives in BLEService.swift because it needs the
+/// transport's private Noise plumbing); other transports don't, so callers
+/// cast and no-op otherwise.
+protocol MeshLocationSharing: AnyObject {
+    func sendEncryptedLocationShare(_ content: String, to peerIDs: [PeerID])
+}
+
+extension BLEService: MeshLocationSharing {}
 
 // MARK: - Timeline filter (used by MessageListView)
 

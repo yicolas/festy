@@ -102,6 +102,53 @@ class FriendLocationService: NSObject, ObservableObject {
     /// over the existing BLE-mesh chat transport.
     var broadcaster: ((String) -> Void)?
 
+    /// How this device sends its location (user setting, Settings → Location).
+    /// Cross-platform with fest-mesh-android #89 (`ShareMode`).
+    ///
+    /// - `broadcast`: plaintext BLE public message; anyone in radio range can
+    ///   read the coordinates.
+    /// - `encrypted`: one Noise-encrypted copy (NoisePayloadType 0x30) per
+    ///   connected mutual favorite. Coordinates are hidden from everyone else,
+    ///   but a sniffer can still see *that* you are sending (timing, size,
+    ///   recipient count). Peers without an established Noise session miss
+    ///   that interval (a handshake is started for the next one).
+    enum ShareMode: String, CaseIterable, Identifiable {
+        case broadcast
+        case encrypted
+
+        static let storageKey = "meshy.friendLocationShareMode"
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .broadcast: return "Anyone nearby"
+            case .encrypted: return "Mutual favorites (encrypted)"
+            }
+        }
+
+        var explanation: String {
+            switch self {
+            case .broadcast:
+                return "Anyone nearby can read your location."
+            case .encrypted:
+                return "Only mutual favorites in Bluetooth range can read your location. Others can still tell that you're sending."
+            }
+        }
+
+        static var current: ShareMode {
+            UserDefaults.standard.string(forKey: storageKey).flatMap(ShareMode.init(rawValue:)) ?? .broadcast
+        }
+    }
+
+    /// Sends the marker+CSV string encrypted to each recipient (`.encrypted`
+    /// mode). Wired by ChatViewModel to `Transport.sendEncryptedLocationShare`.
+    var encryptedBroadcaster: ((String, [PeerID]) -> Void)?
+
+    /// Recipients for `.encrypted` mode: connected mutual favorites. Wired by
+    /// ChatViewModel.
+    var encryptedRecipients: (() -> [PeerID])?
+
     // MARK: - Configuration
     /// How often to broadcast location (seconds)
     private let broadcastInterval: TimeInterval = 30
@@ -235,16 +282,24 @@ class FriendLocationService: NSObject, ObservableObject {
             print("📍 broadcastLocation: no GPS fix yet, skipping")
             return
         }
-        guard let broadcaster else {
-            print("📍 No broadcaster wired up — location not sent")
-            return
-        }
         let lat = location.coordinate.latitude
         let lng = location.coordinate.longitude
         let acc = location.horizontalAccuracy
         let ts = Int(location.timestamp.timeIntervalSince1970)
         let content = "\(Self.locationMarker)\(lat),\(lng),\(acc),\(ts)"
-        broadcaster(content)
+        switch ShareMode.current {
+        case .broadcast:
+            guard let broadcaster else {
+                print("📍 No broadcaster wired up — location not sent")
+                return
+            }
+            broadcaster(content)
+        case .encrypted:
+            // No plaintext fallback: with no recipients, nothing is sent.
+            let recipients = encryptedRecipients?() ?? []
+            guard let encryptedBroadcaster, !recipients.isEmpty else { return }
+            encryptedBroadcaster(content, recipients)
+        }
         lastBroadcastTime = Date()
     }
 
