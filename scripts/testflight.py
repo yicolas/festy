@@ -36,14 +36,18 @@ def run(cmd):
 
 def xcconfig_value(key):
     """Last assignment of `key` across Release.xcconfig then Local.xcconfig
-    (Local is included last, so it wins — same order Xcode uses)."""
+    (Local is included last, so it wins — same order Xcode uses), with
+    `$(OTHER)` references resolved the same way (e.g. PRODUCT_BUNDLE_IDENTIFIER
+    = $(MESHY_BASE_BUNDLE_ID))."""
     value = None
     for name in ("Release.xcconfig", "Local.xcconfig"):
         path = ROOT / "Configs" / name
         if path.exists():
             for match in re.finditer(rf"^\s*{key}\s*=\s*(.+?)\s*$", path.read_text(), re.M):
                 value = match.group(1)
-    return value
+    if value is None:
+        return None
+    return re.sub(r"\$\((\w+)\)", lambda m: xcconfig_value(m.group(1)) or m.group(0), value)
 
 
 def require_clean_tree():
