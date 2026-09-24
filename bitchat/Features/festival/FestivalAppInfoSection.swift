@@ -1,3 +1,4 @@
+import BitFoundation
 import SwiftUI
 
 /// Trip mode section added to AppInfoView

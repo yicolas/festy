@@ -7,19 +7,21 @@ import AppKit
 #endif
 struct LocationChannelsSheet: View {
     @Binding var isPresented: Bool
-    @ObservedObject private var manager = LocationChannelManager.shared
-    @ObservedObject private var bookmarks = GeohashBookmarksStore.shared
-    @ObservedObject private var network = NetworkActivationService.shared
-    @EnvironmentObject var viewModel: ChatViewModel
-    @Environment(\.colorScheme) var colorScheme
+    @EnvironmentObject private var locationChannelsModel: LocationChannelsModel
+    @EnvironmentObject private var peerListModel: PeerListModel
+    @ThemedPalette private var palette
     @State private var customGeohash: String = ""
     @State private var customError: String? = nil
+    /// Geohash waiting on the fine-precision OpSec confirmation before share.
+    @State private var pendingShareGeohash: String?
+    @State private var showSharePrecisionWarning = false
+    @State private var activeSharePayload: ChannelSharePayload?
+    // festy: trip channel list state (see LocationChannelsSheet+Trip below).
+    @ObservedObject private var tripState = TripChatState.shared
     @ObservedObject private var carStore = CarAssignmentStore.shared
     @State private var showingCarPrompt: Bool = false
     @State private var driverEntry: String = ""
     @State private var carsExpanded: Bool = true
-
-    private var backgroundColor: Color { colorScheme == .dark ? .black : .white }
 
     private enum Strings {
         static let title: LocalizedStringKey = "location_channels.title"
@@ -28,15 +30,37 @@ struct LocationChannelsSheet: View {
         static let permissionDenied: LocalizedStringKey = "location_channels.permission_denied"
         static let openSettings: LocalizedStringKey = "location_channels.action.open_settings"
         static let loadingNearby: LocalizedStringKey = "location_channels.loading_nearby"
+        static let grantToFind: LocalizedStringKey = "location_channels.grant_to_find"
         static let teleport: LocalizedStringKey = "location_channels.action.teleport"
         static let bookmarked: LocalizedStringKey = "location_channels.bookmarked_section_title"
-        static let removeAccess: LocalizedStringKey = "location_channels.action.remove_access"
-        static let torTitle: LocalizedStringKey = "location_channels.tor.title"
-        static let torSubtitle: LocalizedStringKey = "location_channels.tor.subtitle"
-        static let toggleOn: LocalizedStringKey = "common.toggle.on"
-        static let toggleOff: LocalizedStringKey = "common.toggle.off"
+        // Same string the settings pane shows under the tor toggle — the
+        // warning belongs wherever the exposure is about to happen.
+        static let torOffWarning = String(localized: "app_info.settings.tor.off_warning", defaultValue: "tor is off: every relay you connect to can see your IP address, including relays carrying your private messages.", comment: "Warning shown under the tor toggle while tor is switched off, stating that relay operators can see the device IP address")
+
+        static let quickJoinTitle = String(localized: "location_channels.quick_join.title", defaultValue: "quick join", comment: "Section header in the location channels sheet for the one-tap suggestion of the region channel derived from the device region")
+        static func quickJoinDescription(_ regionName: String) -> String {
+            String(
+                format: String(localized: "location_channels.quick_join.description", defaultValue: "the region channel where people from %@ tend to gather — the wide cell around the main population center, not your location. it's public and well-known, so assume it's watched: quick join saves typing a geohash; it doesn't hide you or bypass blocks.", comment: "Caption under the quick join row; %@ is the localized country/region name. States plainly that the cell is the main population center's (not the person's location), that the channel must be assumed watched, and that quick join is discovery, not circumvention"),
+                locale: .current,
+                regionName
+            )
+        }
+        static func quickJoinLabel(_ regionName: String) -> String {
+            String(
+                format: String(localized: "location_channels.quick_join.join_label", defaultValue: "join the %@ region channel", comment: "Accessibility label for the quick join row; %@ is the localized country/region name"),
+                locale: .current,
+                regionName
+            )
+        }
 
         static let invalidGeohash = String(localized: "location_channels.error.invalid_geohash", comment: "Error shown when a custom geohash is invalid")
+        static let switchChannelHint = String(localized: "location_channels.accessibility.switch_hint", comment: "Accessibility hint on a channel row explaining activation switches to it")
+        static let addBookmark = String(localized: "location_channels.accessibility.add_bookmark", comment: "Accessibility action name for bookmarking a channel")
+        static let removeBookmark = String(localized: "location_channels.accessibility.remove_bookmark", comment: "Accessibility action name for removing a channel bookmark")
+        static let shareChannel = String(localized: "channel.share.action", defaultValue: "share channel", comment: "Context-menu / accessibility action that shares a location-channel invite")
+        static let sharePrecisionTitle = String(localized: "channel.share.precision_warning.title", defaultValue: "share a precise location channel?", comment: "Title of the confirmation before sharing a neighborhood-or-finer geohash invite")
+        static let sharePrecisionMessage = String(localized: "channel.share.precision_warning.message", defaultValue: "this channel covers a small area. an invite sent over sms or imessage is visible to the carrier and both handsets — it discloses interest in that place, not only that someone uses bitchat.", comment: "Body of the confirmation before sharing a fine-precision geohash invite")
+        static let shareAnyway = String(localized: "channel.share.precision_warning.confirm", defaultValue: "share anyway", comment: "Confirms sharing a fine-precision location channel after the OpSec warning")
 
         static func meshTitle(_ count: Int) -> String {
             let label = String(localized: "location_channels.mesh_label", comment: "Label for the mesh channel row")
@@ -103,20 +127,30 @@ struct LocationChannelsSheet: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Text(Strings.title)
-                        .font(.bitchatSystem(size: 18, design: .monospaced))
+                        .bitchatFont(size: 18)
                     Spacer()
                     closeButton
                 }
                 Text(Strings.description)
-                    .font(.bitchatSystem(size: 12, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .bitchatFont(size: 12)
+                    .foregroundColor(palette.secondary)
+
+                // The description's tor claim is only true while tor is on;
+                // when it's off, say what that exposes right where the person
+                // is about to join a channel, not just in settings.
+                if !locationChannelsModel.userTorEnabled {
+                    Text(verbatim: Strings.torOffWarning)
+                        .bitchatFont(size: 11)
+                        .foregroundColor(palette.alertRed)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 Group {
-                    switch manager.permissionState {
-                    case LocationChannelManager.PermissionState.notDetermined:
-                        Button(action: { manager.enableLocationChannels() }) {
+                    switch locationChannelsModel.permissionState {
+                    case .notDetermined:
+                        Button(action: { locationChannelsModel.enableLocationChannels() }) {
                             Text(Strings.requestPermissions)
-                                .font(.bitchatSystem(size: 12, design: .monospaced))
+                                .bitchatFont(size: 12)
                                 .foregroundColor(standardGreen)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 6)
@@ -124,15 +158,15 @@ struct LocationChannelsSheet: View {
                                 .cornerRadius(6)
                         }
                         .buttonStyle(.plain)
-                    case LocationChannelManager.PermissionState.denied, LocationChannelManager.PermissionState.restricted:
+                    case .denied, .restricted:
                         VStack(alignment: .leading, spacing: 8) {
                             Text(Strings.permissionDenied)
-                                .font(.bitchatSystem(size: 12, design: .monospaced))
-                                .foregroundColor(.secondary)
-                            Button(Strings.openSettings) { openSystemLocationSettings() }
+                                .bitchatFont(size: 12)
+                                .foregroundColor(palette.secondary)
+                            Button(Strings.openSettings, action: SystemSettings.location.open)
                             .buttonStyle(.plain)
                         }
-                    case LocationChannelManager.PermissionState.authorized:
+                    case .authorized:
                         EmptyView()
                     }
                 }
@@ -142,7 +176,7 @@ struct LocationChannelsSheet: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(backgroundColor)
+            .themedSurface()
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarHidden(true)
@@ -153,56 +187,84 @@ struct LocationChannelsSheet: View {
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 520)
         #endif
-        .background(backgroundColor)
+        .themedSheetBackground()
         .onAppear {
             // Refresh channels when opening
-            if manager.permissionState == LocationChannelManager.PermissionState.authorized {
-                manager.refreshChannels()
+            if locationChannelsModel.permissionState == .authorized {
+                locationChannelsModel.refreshChannels()
             }
             // Begin periodic refresh while sheet is open
-            manager.beginLiveRefresh()
+            locationChannelsModel.beginLiveRefresh()
             // Geohash sampling is now managed by ChatViewModel globally
         }
         .onDisappear {
-            manager.endLiveRefresh()
+            locationChannelsModel.endLiveRefresh()
         }
-        .onChange(of: manager.permissionState) { newValue in
-            if newValue == LocationChannelManager.PermissionState.authorized {
-                manager.refreshChannels()
+        .onChange(of: locationChannelsModel.permissionState) { newValue in
+            if newValue == .authorized {
+                locationChannelsModel.refreshChannels()
             }
         }
-        .onChange(of: manager.availableChannels) { _ in }
+        .onChange(of: locationChannelsModel.availableChannels) { _ in }
+        .confirmationDialog(
+            Strings.sharePrecisionTitle,
+            isPresented: $showSharePrecisionWarning,
+            titleVisibility: .visible
+        ) {
+            Button(Strings.shareAnyway) {
+                if let gh = pendingShareGeohash {
+                    presentShare(forGeohash: gh)
+                }
+                pendingShareGeohash = nil
+            }
+            Button("common.cancel", role: .cancel) {
+                pendingShareGeohash = nil
+            }
+        } message: {
+            Text(Strings.sharePrecisionMessage)
+        }
+        .sheet(item: $activeSharePayload) { payload in
+            ShareActivityView(text: payload.text)
+        }
+    }
+
+    private func requestShare(forGeohash geohash: String) {
+        if ChannelShare.shouldWarn(forGeohash: geohash) {
+            pendingShareGeohash = geohash
+            showSharePrecisionWarning = true
+        } else {
+            presentShare(forGeohash: geohash)
+        }
+    }
+
+    private func presentShare(forGeohash geohash: String) {
+        activeSharePayload = ChannelSharePayload(text: ChannelShare.payload(forGeohash: geohash))
     }
 
     private var closeButton: some View {
-        Button(action: { isPresented = false }) {
-            Image(systemName: "xmark")
-                .font(.bitchatSystem(size: 13, weight: .semibold, design: .monospaced))
-                .frame(width: 32, height: 32)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Close")
+        SheetCloseButton { isPresented = false }
     }
 
     private var channelList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
+                // festy: trip hashtag channels (#main, #meals, #cars, …) on top.
                 tripChannelsSection
 
-                channelRow(title: Strings.meshTitle(meshCount()), subtitlePrefix: Strings.subtitlePrefix(geohash: "bluetooth", coverage: bluetoothRangeString()), isSelected: isMeshSelected, titleColor: standardBlue, titleBold: meshCount() > 0) {
-                    manager.select(ChannelID.mesh)
+                channelRow(title: Strings.meshTitle(peerListModel.reachableMeshPeerCount), subtitlePrefix: Strings.subtitlePrefix(geohash: "bluetooth", coverage: bluetoothRangeString()), isSelected: isMeshSelected, titleColor: standardBlue, titleBold: peerListModel.reachableMeshPeerCount > 0) {
+                    locationChannelsModel.select(ChannelID.mesh)
                     isPresented = false
                 }
                 .padding(.vertical, 6)
 
-                let nearby = manager.availableChannels.filter { $0.level != .building }
+                let nearby = locationChannelsModel.availableChannels.filter { $0.level != .building }
                 if !nearby.isEmpty {
                     ForEach(nearby) { channel in
                         sectionDivider
                         let coverage = coverageString(forPrecision: channel.geohash.count)
                         let nameBase = locationName(for: channel.level)
                         let namePart = nameBase.map { formattedNamePrefix(for: channel.level) + $0 }
-                        let participantCount = viewModel.geohashParticipantCount(for: channel.geohash)
+                        let participantCount = peerListModel.participantCount(for: channel.geohash)
                         let subtitlePrefix = Strings.subtitlePrefix(geohash: channel.geohash, coverage: coverage)
                         let highlight = participantCount > 0
                         channelRow(
@@ -212,66 +274,75 @@ struct LocationChannelsSheet: View {
                             isSelected: isSelected(channel),
                             titleBold: highlight,
                             trailingAccessory: {
-                                Button(action: { bookmarks.toggle(channel.geohash) }) {
-                                    Image(systemName: bookmarks.isBookmarked(channel.geohash) ? "bookmark.fill" : "bookmark")
+                                Button(action: { locationChannelsModel.toggleBookmark(channel.geohash) }) {
+                                    Image(systemName: locationChannelsModel.isBookmarked(channel.geohash) ? "bookmark.fill" : "bookmark")
                                         .font(.bitchatSystem(size: 14))
                                 }
                                 .buttonStyle(.plain)
                                 .padding(.leading, 8)
-                            }
+                                .accessibilityLabel(locationChannelsModel.isBookmarked(channel.geohash) ? Strings.removeBookmark : Strings.addBookmark)
+                            },
+                            accessoryActionTitle: locationChannelsModel.isBookmarked(channel.geohash) ? Strings.removeBookmark : Strings.addBookmark,
+                            accessoryAction: { locationChannelsModel.toggleBookmark(channel.geohash) },
+                            shareGeohash: channel.geohash,
+                            onShare: { requestShare(forGeohash: channel.geohash) }
                         ) {
-                            manager.markTeleported(for: channel.geohash, false)
-                            manager.select(ChannelID.location(channel))
+                            locationChannelsModel.markTeleported(for: channel.geohash, false)
+                            locationChannelsModel.select(ChannelID.location(channel))
                             isPresented = false
+                        }
+                        .contextMenu {
+                            Button {
+                                requestShare(forGeohash: channel.geohash)
+                            } label: {
+                                Label(Strings.shareChannel, systemImage: "square.and.arrow.up")
+                            }
                         }
                         .padding(.vertical, 6)
                     }
-                } else {
+                } else if locationChannelsModel.permissionState == .authorized {
                     sectionDivider
                     HStack(spacing: 8) {
                         ProgressView()
                         Text(Strings.loadingNearby)
-                            .font(.bitchatSystem(size: 12, design: .monospaced))
+                            .bitchatFont(size: 12)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 10)
+                } else {
+                    // No permission means no fix is coming: an honest hint
+                    // beats a spinner that would never finish.
+                    sectionDivider
+                    Text(Strings.grantToFind)
+                        .bitchatFont(size: 12)
+                        .foregroundColor(palette.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
                 }
 
                 sectionDivider
                 customTeleportSection
                     .padding(.vertical, 8)
 
-                let bookmarkedList = bookmarks.bookmarks
+                if QuickJoinSuggestion.current() != nil {
+                    sectionDivider
+                    quickJoinSection
+                        .padding(.vertical, 8)
+                }
+
+                let bookmarkedList = locationChannelsModel.bookmarks
                 if !bookmarkedList.isEmpty {
                     sectionDivider
                     bookmarkedSection(bookmarkedList)
                         .padding(.vertical, 8)
                 }
 
-                if manager.permissionState == LocationChannelManager.PermissionState.authorized {
-                    sectionDivider
-                    torToggleSection
-                        .padding(.top, 12)
-                    Button(action: {
-                        openSystemLocationSettings()
-                    }) {
-                        Text(Strings.removeAccess)
-                            .font(.bitchatSystem(size: 12, design: .monospaced))
-                            .foregroundColor(Color(red: 0.75, green: 0.1, blue: 0.1))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                            .background(Color.red.opacity(0.08))
-                            .cornerRadius(6)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.vertical, 8)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
-            .background(backgroundColor)
+            .themedSurface()
         }
-        .background(backgroundColor)
+        .themedSurface()
     }
 
     private var sectionDivider: some View {
@@ -280,23 +351,21 @@ struct LocationChannelsSheet: View {
             .frame(height: 1)
     }
 
-    private var dividerColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
-    }
+    private var dividerColor: Color { palette.divider }
 
     private var customTeleportSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 2) {
                 Text(verbatim: "#")
-                    .font(.bitchatSystem(size: 14, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .bitchatFont(size: 14)
+                    .foregroundColor(palette.secondary)
                 TextField("geohash", text: $customGeohash)
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
                     .keyboardType(.asciiCapable)
                     #endif
-                    .font(.bitchatSystem(size: 14, design: .monospaced))
+                    .bitchatFont(size: 14)
                     .onChange(of: customGeohash) { newValue in
                         let allowed = Set("0123456789bcdefghjkmnpqrstuvwxyz")
                         let filtered = newValue
@@ -310,39 +379,76 @@ struct LocationChannelsSheet: View {
                         }
                     }
                 let normalized = customGeohash
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .trimmed
                     .lowercased()
                     .replacingOccurrences(of: "#", with: "")
                 let isValid = validateGeohash(normalized)
                 Button(action: {
                     let gh = normalized
                     guard isValid else { customError = Strings.invalidGeohash; return }
-                    let level = levelForLength(gh.count)
-                    let ch = GeohashChannel(level: level, geohash: gh)
-                    manager.markTeleported(for: ch.geohash, true)
-                    manager.select(ChannelID.location(ch))
+                    locationChannelsModel.teleport(to: gh)
                     isPresented = false
                 }) {
                     HStack(spacing: 6) {
                         Text(Strings.teleport)
-                            .font(.bitchatSystem(size: 14, design: .monospaced))
+                            .bitchatFont(size: 14)
                         Image(systemName: "face.dashed")
                             .font(.bitchatSystem(size: 14))
                     }
                 }
                 .buttonStyle(.plain)
-                .font(.bitchatSystem(size: 14, design: .monospaced))
+                .bitchatFont(size: 14)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 10)
-                .background(Color.secondary.opacity(0.12))
+                .background(palette.secondary.opacity(0.12))
                 .cornerRadius(6)
                 .opacity(isValid ? 1.0 : 0.4)
                 .disabled(!isValid)
             }
             if let err = customError {
                 Text(err)
-                    .font(.bitchatSystem(size: 12, design: .monospaced))
+                    .bitchatFont(size: 12)
                     .foregroundColor(.red)
+            }
+        }
+    }
+
+    /// One tap into the region channel around the device region's main
+    /// population center — derived from the locale, no location access, no
+    /// roster (see QuickJoinSuggestion). The caption is deliberately blunt
+    /// that the cell is public and watched: discovery, not circumvention.
+    @ViewBuilder
+    private var quickJoinSection: some View {
+        if let suggestion = QuickJoinSuggestion.current() {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(Strings.quickJoinTitle)
+                    .bitchatFont(size: 12)
+                    .foregroundColor(palette.secondary)
+
+                Button(action: {
+                    locationChannelsModel.teleport(to: suggestion.geohash)
+                    isPresented = false
+                }) {
+                    HStack {
+                        Text(verbatim: "\(suggestion.flag) \(suggestion.localizedName)")
+                            .bitchatFont(size: 14)
+                            .foregroundColor(palette.primary)
+                        Spacer()
+                        Text(verbatim: "#\(suggestion.geohash)")
+                            .bitchatFont(size: 12)
+                            .foregroundColor(palette.secondary)
+                    }
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Strings.quickJoinLabel(suggestion.localizedName))
+                .accessibilityHint(Strings.switchChannelHint)
+
+                Text(Strings.quickJoinDescription(suggestion.localizedName))
+                    .bitchatFont(size: 11)
+                    .foregroundColor(palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -350,41 +456,53 @@ struct LocationChannelsSheet: View {
     private func bookmarkedSection(_ entries: [String]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(Strings.bookmarked)
-                .font(.bitchatSystem(size: 12, design: .monospaced))
-                .foregroundColor(.secondary)
+                .bitchatFont(size: 12)
+                .foregroundColor(palette.secondary)
             LazyVStack(spacing: 0) {
                 ForEach(Array(entries.enumerated()), id: \.offset) { index, gh in
                     let level = levelForLength(gh.count)
                     let channel = GeohashChannel(level: level, geohash: gh)
                     let coverage = coverageString(forPrecision: gh.count)
                     let subtitle = Strings.subtitlePrefix(geohash: gh, coverage: coverage)
-                    let name = bookmarks.bookmarkNames[gh]
-                    let participantCount = viewModel.geohashParticipantCount(for: gh)
+                    let name = locationChannelsModel.bookmarkNames[gh]
+                    let participantCount = peerListModel.participantCount(for: gh)
                     channelRow(
                         title: Strings.bookmarkTitle(geohash: gh, count: participantCount),
                         subtitlePrefix: subtitle,
                         subtitleName: name.map { formattedNamePrefix(for: level) + $0 },
-                        isSelected: isSelected(channel),
+                        isSelected: locationChannelsModel.isSelected(channel),
                         trailingAccessory: {
-                            Button(action: { bookmarks.toggle(gh) }) {
-                                Image(systemName: bookmarks.isBookmarked(gh) ? "bookmark.fill" : "bookmark")
+                            Button(action: { locationChannelsModel.toggleBookmark(gh) }) {
+                                Image(systemName: locationChannelsModel.isBookmarked(gh) ? "bookmark.fill" : "bookmark")
                                     .font(.bitchatSystem(size: 14))
                             }
                             .buttonStyle(.plain)
                             .padding(.leading, 8)
-                        }
+                            .accessibilityLabel(locationChannelsModel.isBookmarked(gh) ? Strings.removeBookmark : Strings.addBookmark)
+                        },
+                        accessoryActionTitle: locationChannelsModel.isBookmarked(gh) ? Strings.removeBookmark : Strings.addBookmark,
+                        accessoryAction: { locationChannelsModel.toggleBookmark(gh) },
+                        shareGeohash: gh,
+                        onShare: { requestShare(forGeohash: gh) }
                     ) {
-                        let inRegional = manager.availableChannels.contains { $0.geohash == gh }
-                        if !inRegional && !manager.availableChannels.isEmpty {
-                            manager.markTeleported(for: gh, true)
+                        let inRegional = locationChannelsModel.availableChannels.contains { $0.geohash == gh }
+                        if !inRegional && !locationChannelsModel.availableChannels.isEmpty {
+                            locationChannelsModel.markTeleported(for: gh, true)
                         } else {
-                            manager.markTeleported(for: gh, false)
+                            locationChannelsModel.markTeleported(for: gh, false)
                         }
-                        manager.select(ChannelID.location(channel))
+                        locationChannelsModel.select(ChannelID.location(channel))
                         isPresented = false
                     }
+                    .contextMenu {
+                        Button {
+                            requestShare(forGeohash: gh)
+                        } label: {
+                            Label(Strings.shareChannel, systemImage: "square.and.arrow.up")
+                        }
+                    }
                     .padding(.vertical, 6)
-                    .onAppear { bookmarks.resolveBookmarkNameIfNeeded(for: gh) }
+                    .onAppear { locationChannelsModel.resolveBookmarkNameIfNeeded(for: gh) }
 
                     if index < entries.count - 1 {
                         sectionDivider
@@ -396,14 +514,11 @@ struct LocationChannelsSheet: View {
 
 
     private func isSelected(_ channel: GeohashChannel) -> Bool {
-        if case .location(let ch) = manager.selectedChannel {
-            return ch == channel
-        }
-        return false
+        locationChannelsModel.isSelected(channel)
     }
 
     private var isMeshSelected: Bool {
-        if case .mesh = manager.selectedChannel { return true }
+        if case .mesh = locationChannelsModel.selectedChannel { return true }
         return false
     }
 
@@ -412,11 +527,15 @@ struct LocationChannelsSheet: View {
         title: String,
         subtitlePrefix: String,
         subtitleName: String? = nil,
-        subtitleNameBold: Bool = false,
+        subtitleNameBold _: Bool = false,
         isSelected: Bool,
         titleColor: Color? = nil,
         titleBold: Bool = false,
         @ViewBuilder trailingAccessory: () -> some View = { EmptyView() },
+        accessoryActionTitle: String? = nil,
+        accessoryAction: (() -> Void)? = nil,
+        shareGeohash: String? = nil,
+        onShare: (() -> Void)? = nil,
         action: @escaping () -> Void
     ) -> some View {
         HStack(alignment: .center, spacing: 8) {
@@ -425,26 +544,26 @@ struct LocationChannelsSheet: View {
                 let parts = splitTitleAndCount(title)
                 HStack(spacing: 4) {
                     Text(parts.base)
-                            .font(.bitchatSystem(size: 14, design: .monospaced))
+                            .bitchatFont(size: 14)
                             .fontWeight(titleBold ? .bold : .regular)
-                            .foregroundColor(titleColor ?? Color.primary)
+                            .foregroundColor(titleColor ?? palette.primary)
                         if let count = parts.countSuffix, !count.isEmpty {
                             Text(count)
-                                .font(.bitchatSystem(size: 11, design: .monospaced))
-                                .foregroundColor(.secondary)
+                                .bitchatFont(size: 11)
+                                .foregroundColor(palette.secondary)
                         }
                     }
                 let subtitleFull = Strings.subtitle(prefix: subtitlePrefix, name: subtitleName)
                 Text(subtitleFull)
-                    .font(.bitchatSystem(size: 12, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .bitchatFont(size: 12)
+                    .foregroundColor(palette.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 }
                 Spacer()
                 if isSelected {
                     Text(verbatim: "✔︎")
-                        .font(.bitchatSystem(size: 16, design: .monospaced))
+                        .bitchatFont(size: 16)
                         .foregroundColor(standardGreen)
                 }
                 trailingAccessory()
@@ -452,26 +571,31 @@ struct LocationChannelsSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture(perform: action)
+        // The row is a plain HStack with a tap gesture, which VoiceOver reads
+        // as disconnected static text. Expose it as one activatable button;
+        // the visible bookmark accessory is mirrored as a named action.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: "\(title), \(Strings.subtitle(prefix: subtitlePrefix, name: subtitleName))"))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : [.isButton])
+        .accessibilityHint(Strings.switchChannelHint)
+        .accessibilityAction(.default, action)
+        .accessibilityActions {
+            if let accessoryActionTitle, let accessoryAction {
+                Button(accessoryActionTitle, action: accessoryAction)
+            }
+            if shareGeohash != nil, let onShare {
+                Button(Strings.shareChannel, action: onShare)
+            }
+        }
     }
 
     // Split a title like "#mesh [3 people]" into base and suffix "[3 people]"
     private func splitTitleAndCount(_ s: String) -> (base: String, countSuffix: String?) {
         guard let idx = s.lastIndex(of: "[") else { return (s, nil) }
-        let prefix = String(s[..<idx]).trimmingCharacters(in: .whitespaces)
+        let prefix = String(s[..<idx]).trimmed
         let suffix = String(s[idx...])
         return (prefix, suffix)
     }
-
-    // MARK: - Helpers for counts
-    private func meshCount() -> Int {
-        // Count mesh-connected OR mesh-reachable peers (exclude self)
-        let myID = viewModel.meshService.myPeerID
-        return viewModel.allPeers.reduce(0) { acc, peer in
-            if peer.peerID != myID && (peer.isConnected || peer.isReachable) { return acc + 1 }
-            return acc
-        }
-    }
-
     private func validateGeohash(_ s: String) -> Bool {
         let allowed = Set("0123456789bcdefghjkmnpqrstuvwxyz")
         guard !s.isEmpty, s.count <= 12 else { return false }
@@ -489,300 +613,14 @@ struct LocationChannelsSheet: View {
         default: return .block
         }
     }
-
-    @ViewBuilder
-    fileprivate var tripChannelsSection: some View {
-        let channels = TripScheduleManager.shared.channels
-        if !channels.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("Trip Channels")
-                        .font(.bitchatSystem(size: 12, weight: .bold, design: .monospaced))
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    if let active = viewModel.hashtagFilter, !active.isEmpty {
-                        Button(action: {
-                            viewModel.hashtagFilter = nil
-                            isPresented = false
-                        }) {
-                            Text("clear filter")
-                                .font(.bitchatSystem(size: 11, design: .monospaced))
-                                .foregroundColor(.red)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.top, 4)
-                .padding(.bottom, 2)
-
-                ForEach(channels) { channel in
-                    if channel.id == "cars" {
-                        carsChannelRow(channel: channel)
-                        if carsExpanded {
-                            carsSubChannelsRows
-                        }
-                    } else {
-                        regularChannelRow(channel: channel)
-                    }
-                }
-
-                Divider()
-                    .padding(.vertical, 6)
-            }
-            .alert("Who's driving your car?", isPresented: $showingCarPrompt) {
-                TextField("driver's first name", text: $driverEntry)
-                    #if os(iOS)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                    #endif
-                Button("Cancel", role: .cancel) { driverEntry = "" }
-                Button("Join car") {
-                    let name = driverEntry.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !name.isEmpty else { return }
-                    carStore.driver = name
-                    viewModel.hashtagFilter = CarAssignmentStore.tag(forDriver: name)
-                    manager.select(ChannelID.mesh)
-                    driverEntry = ""
-                    isPresented = false
-                }
-                if carStore.driver != nil {
-                    Button("Leave current car", role: .destructive) {
-                        carStore.driver = nil
-                        driverEntry = ""
-                    }
-                }
-            } message: {
-                Text("Enter your driver's first name. Everyone in the same car uses the same name so messages stay scoped to your vehicle.")
-            }
-        }
-    }
-
-    @ViewBuilder
-    fileprivate func regularChannelRow(channel: TripChannel) -> some View {
-        let isActive = (viewModel.hashtagFilter ?? "") == channel.name
-        Button(action: {
-            viewModel.hashtagFilter = channel.name
-            manager.select(ChannelID.mesh)
-            isPresented = false
-        }) {
-            HStack(spacing: 10) {
-                Image(systemName: channel.icon ?? "number")
-                    .foregroundColor(standardOrange)
-                    .frame(width: 22)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(channel.name)
-                        .font(.bitchatSystem(size: 14, weight: isActive ? .bold : .regular, design: .monospaced))
-                        .foregroundColor(isActive ? standardOrange : .primary)
-                    Text(channel.description)
-                        .font(.bitchatSystem(size: 10, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer()
-                if isActive {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(standardOrange)
-                }
-            }
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    fileprivate func carsChannelRow(channel: TripChannel) -> some View {
-        let activeIsCar = (viewModel.hashtagFilter ?? "").hasPrefix("#car-")
-        HStack(spacing: 10) {
-            Button(action: { carsExpanded.toggle() }) {
-                Image(systemName: carsExpanded ? "chevron.down" : "chevron.right")
-                    .font(.bitchatSystem(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .frame(width: 16)
-            }
-            .buttonStyle(.plain)
-
-            Button(action: {
-                driverEntry = carStore.driver ?? ""
-                showingCarPrompt = true
-            }) {
-                HStack(spacing: 10) {
-                    Image(systemName: channel.icon ?? "car.fill")
-                        .foregroundColor(standardOrange)
-                        .frame(width: 22)
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(channel.name)
-                                .font(.bitchatSystem(size: 14, weight: activeIsCar ? .bold : .regular, design: .monospaced))
-                                .foregroundColor(activeIsCar ? standardOrange : .primary)
-                            if let driver = carStore.driver, !driver.isEmpty {
-                                Text("· \(driver)")
-                                    .font(.bitchatSystem(size: 11, design: .monospaced))
-                                    .foregroundColor(standardOrange)
-                            }
-                        }
-                        Text(channel.description)
-                            .font(.bitchatSystem(size: 10, design: .monospaced))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                }
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    /// Discover all `#car-{driver}` tags currently in the timeline so users can
-    /// jump straight into any existing car chat without re-typing the driver.
-    private var discoveredCarDrivers: [String] {
-        let regex = try? NSRegularExpression(pattern: "#car-([a-zA-Z0-9-]+)", options: .caseInsensitive)
-        guard let regex else { return [] }
-        var seen: Set<String> = []
-        for message in viewModel.messages {
-            let content = message.content
-            let nsRange = NSRange(content.startIndex..., in: content)
-            let matches = regex.matches(in: content, options: [], range: nsRange)
-            for match in matches {
-                if let r = Range(match.range(at: 1), in: content) {
-                    seen.insert(String(content[r]).lowercased())
-                }
-            }
-        }
-        if let mine = carStore.driver?.lowercased() {
-            seen.insert(mine)
-        }
-        return seen.sorted()
-    }
-
-    @ViewBuilder
-    fileprivate var carsSubChannelsRows: some View {
-        let drivers = discoveredCarDrivers
-        if drivers.isEmpty {
-            HStack {
-                Text("No car chats yet. Tap #cars to start one.")
-                    .font(.bitchatSystem(size: 10, design: .monospaced))
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-            .padding(.leading, 48)
-            .padding(.vertical, 4)
-        } else {
-            ForEach(drivers, id: \.self) { driver in
-                let tag = "#car-\(driver)"
-                let isActive = viewModel.hashtagFilter == tag
-                let isMine = carStore.driver?.lowercased() == driver
-                Button(action: {
-                    viewModel.hashtagFilter = tag
-                    manager.select(ChannelID.mesh)
-                    isPresented = false
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.turn.down.right")
-                            .font(.bitchatSystem(size: 10, design: .monospaced))
-                            .foregroundColor(.secondary)
-                            .frame(width: 16)
-                        Image(systemName: "car.fill")
-                            .font(.bitchatSystem(size: 12, design: .monospaced))
-                            .foregroundColor(standardOrange.opacity(0.7))
-                            .frame(width: 22)
-                        Text("\(driver.prefix(1).uppercased())\(driver.dropFirst())'s car")
-                            .font(.bitchatSystem(size: 13, weight: isActive ? .bold : .regular, design: .monospaced))
-                            .foregroundColor(isActive ? standardOrange : .primary)
-                        if isMine {
-                            Text("you")
-                                .font(.bitchatSystem(size: 9, design: .monospaced))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(standardOrange)
-                                .cornerRadius(3)
-                        }
-                        Spacer()
-                        if isActive {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(standardOrange)
-                        }
-                    }
-                    .padding(.leading, 24)
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
 }
 
-// MARK: - TOR Toggle & Standardized Colors
+// MARK: - Standardized Colors
+// (The tor and internet-gateway toggles moved to AppInfoView's Settings pane;
+// IRCToggleStyle now lives in Views/Components.)
 extension LocationChannelsSheet {
-    private var torToggleBinding: Binding<Bool> {
-        Binding(
-            get: { network.userTorEnabled },
-            set: { network.setUserTorEnabled($0) }
-        )
-    }
-
-    private var torToggleSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle(isOn: torToggleBinding) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(Strings.torTitle)
-                        .font(.bitchatSystem(size: 12, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.primary)
-                    Text(Strings.torSubtitle)
-                        .font(.bitchatSystem(size: 11, design: .monospaced))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .toggleStyle(IRCToggleStyle(accent: standardGreen, onLabel: Strings.toggleOn, offLabel: Strings.toggleOff))
-        }
-        .padding(12)
-        .background(Color.secondary.opacity(0.12))
-        .cornerRadius(8)
-    }
-
-    private var standardGreen: Color {
-        TripTheme.uiTint
-    }
-    private var standardBlue: Color {
-        Color(red: 0.0, green: 0.478, blue: 1.0)
-    }
-    fileprivate var standardOrange: Color {
-        Color(red: 1.0, green: 0.494, blue: 0.082) // GE136C accent (#FF7E15)
-    }
-}
-
-private struct IRCToggleStyle: ToggleStyle {
-    let accent: Color
-    let onLabel: LocalizedStringKey
-    let offLabel: LocalizedStringKey
-
-    func makeBody(configuration: Configuration) -> some View {
-        Button(action: { configuration.isOn.toggle() }) {
-            HStack(spacing: 12) {
-                configuration.label
-                Spacer()
-                Text(configuration.isOn ? onLabel : offLabel)
-                    .textCase(.uppercase)
-                    .font(.bitchatSystem(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundColor(configuration.isOn ? accent : .secondary)
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(accent.opacity(configuration.isOn ? 0.18 : 0.08))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(accent.opacity(configuration.isOn ? 0.35 : 0.15), lineWidth: 1)
-                    )
-            }
-        }
-        .buttonStyle(.plain)
-    }
+    private var standardGreen: Color { palette.primary }
+    private var standardBlue: Color { palette.accentBlue }
 }
 
 // MARK: - Coverage helpers
@@ -844,7 +682,7 @@ extension LocationChannelsSheet {
     }
 
     private func locationName(for level: GeohashChannelLevel) -> String? {
-        manager.locationNames[level]
+        locationChannelsModel.locationName(for: level)
     }
 
     private func formattedNamePrefix(for level: GeohashChannelLevel) -> String {
@@ -857,17 +695,236 @@ extension LocationChannelsSheet {
     }
 }
 
-// MARK: - Open Settings helper
-private func openSystemLocationSettings() {
-    #if os(iOS)
-    if let url = URL(string: UIApplication.openSettingsURLString) {
-        UIApplication.shared.open(url)
+// MARK: - festy: trip channels (hashtag filters + per-car chats)
+// Moved out of the struct body during the 2026-09 upstream merge so the
+// upstream file only carries two small hooks (state vars + the section call).
+extension LocationChannelsSheet {
+    @ViewBuilder
+    fileprivate var tripChannelsSection: some View {
+        let channels = TripScheduleManager.shared.channels
+        if !channels.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Trip Channels")
+                        .font(.bitchatSystem(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    if let active = tripState.hashtagFilter, !active.isEmpty {
+                        Button(action: {
+                            tripState.hashtagFilter = nil
+                            isPresented = false
+                        }) {
+                            Text("clear filter")
+                                .font(.bitchatSystem(size: 11, design: .monospaced))
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 4)
+                .padding(.bottom, 2)
+
+                ForEach(channels) { channel in
+                    if channel.id == "cars" {
+                        carsChannelRow(channel: channel)
+                        if carsExpanded {
+                            carsSubChannelsRows
+                        }
+                    } else {
+                        regularChannelRow(channel: channel)
+                    }
+                }
+
+                Divider()
+                    .padding(.vertical, 6)
+            }
+            .alert("Who's driving your car?", isPresented: $showingCarPrompt) {
+                TextField("driver's first name", text: $driverEntry)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    #endif
+                Button("Cancel", role: .cancel) { driverEntry = "" }
+                Button("Join car") {
+                    let name = driverEntry.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !name.isEmpty else { return }
+                    carStore.driver = name
+                    tripState.hashtagFilter = CarAssignmentStore.tag(forDriver: name)
+                    locationChannelsModel.select(ChannelID.mesh)
+                    driverEntry = ""
+                    isPresented = false
+                }
+                if carStore.driver != nil {
+                    Button("Leave current car", role: .destructive) {
+                        carStore.driver = nil
+                        driverEntry = ""
+                    }
+                }
+            } message: {
+                Text("Enter your driver's first name. Everyone in the same car uses the same name so messages stay scoped to your vehicle.")
+            }
+        }
     }
-    #else
-    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices") {
-        NSWorkspace.shared.open(url)
-    } else if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") {
-        NSWorkspace.shared.open(url)
+
+    @ViewBuilder
+    fileprivate func regularChannelRow(channel: TripChannel) -> some View {
+        let isActive = (tripState.hashtagFilter ?? "") == channel.name
+        Button(action: {
+            tripState.hashtagFilter = channel.name
+            locationChannelsModel.select(ChannelID.mesh)
+            isPresented = false
+        }) {
+            HStack(spacing: 10) {
+                Image(systemName: channel.icon ?? "number")
+                    .foregroundColor(standardOrange)
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(channel.name)
+                        .font(.bitchatSystem(size: 14, weight: isActive ? .bold : .regular, design: .monospaced))
+                        .foregroundColor(isActive ? standardOrange : .primary)
+                    Text(channel.description)
+                        .font(.bitchatSystem(size: 10, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                if isActive {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(standardOrange)
+                }
+            }
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
-    #endif
+
+    @ViewBuilder
+    fileprivate func carsChannelRow(channel: TripChannel) -> some View {
+        let activeIsCar = (tripState.hashtagFilter ?? "").hasPrefix("#car-")
+        HStack(spacing: 10) {
+            Button(action: { carsExpanded.toggle() }) {
+                Image(systemName: carsExpanded ? "chevron.down" : "chevron.right")
+                    .font(.bitchatSystem(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 16)
+            }
+            .buttonStyle(.plain)
+
+            Button(action: {
+                driverEntry = carStore.driver ?? ""
+                showingCarPrompt = true
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: channel.icon ?? "car.fill")
+                        .foregroundColor(standardOrange)
+                        .frame(width: 22)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(channel.name)
+                                .font(.bitchatSystem(size: 14, weight: activeIsCar ? .bold : .regular, design: .monospaced))
+                                .foregroundColor(activeIsCar ? standardOrange : .primary)
+                            if let driver = carStore.driver, !driver.isEmpty {
+                                Text("· \(driver)")
+                                    .font(.bitchatSystem(size: 11, design: .monospaced))
+                                    .foregroundColor(standardOrange)
+                            }
+                        }
+                        Text(channel.description)
+                            .font(.bitchatSystem(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Discover all `#car-{driver}` tags currently in the timeline so users can
+    /// jump straight into any existing car chat without re-typing the driver.
+    private var discoveredCarDrivers: [String] {
+        let regex = try? NSRegularExpression(pattern: "#car-([a-zA-Z0-9-]+)", options: .caseInsensitive)
+        guard let regex else { return [] }
+        var seen: Set<String> = []
+        for message in tripState.meshMessages() {
+            let content = message.content
+            let nsRange = NSRange(content.startIndex..., in: content)
+            let matches = regex.matches(in: content, options: [], range: nsRange)
+            for match in matches {
+                if let r = Range(match.range(at: 1), in: content) {
+                    seen.insert(String(content[r]).lowercased())
+                }
+            }
+        }
+        if let mine = carStore.driver?.lowercased() {
+            seen.insert(mine)
+        }
+        return seen.sorted()
+    }
+
+    @ViewBuilder
+    fileprivate var carsSubChannelsRows: some View {
+        let drivers = discoveredCarDrivers
+        if drivers.isEmpty {
+            HStack {
+                Text("No car chats yet. Tap #cars to start one.")
+                    .font(.bitchatSystem(size: 10, design: .monospaced))
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.leading, 48)
+            .padding(.vertical, 4)
+        } else {
+            ForEach(drivers, id: \.self) { driver in
+                let tag = "#car-\(driver)"
+                let isActive = tripState.hashtagFilter == tag
+                let isMine = carStore.driver?.lowercased() == driver
+                Button(action: {
+                    tripState.hashtagFilter = tag
+                    locationChannelsModel.select(ChannelID.mesh)
+                    isPresented = false
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.turn.down.right")
+                            .font(.bitchatSystem(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .frame(width: 16)
+                        Image(systemName: "car.fill")
+                            .font(.bitchatSystem(size: 12, design: .monospaced))
+                            .foregroundColor(standardOrange.opacity(0.7))
+                            .frame(width: 22)
+                        Text("\(driver.prefix(1).uppercased())\(driver.dropFirst())'s car")
+                            .font(.bitchatSystem(size: 13, weight: isActive ? .bold : .regular, design: .monospaced))
+                            .foregroundColor(isActive ? standardOrange : .primary)
+                        if isMine {
+                            Text("you")
+                                .font(.bitchatSystem(size: 9, design: .monospaced))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(standardOrange)
+                                .cornerRadius(3)
+                        }
+                        Spacer()
+                        if isActive {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(standardOrange)
+                        }
+                    }
+                    .padding(.leading, 24)
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    fileprivate var standardOrange: Color {
+        TripTheme.accent // GE136C accent (#FF7E15)
+    }
 }

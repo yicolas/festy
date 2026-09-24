@@ -6,6 +6,7 @@
 // Uses local caching for O(1) membership verification after first check
 //
 
+import BitFoundation
 import Foundation
 import Combine
 

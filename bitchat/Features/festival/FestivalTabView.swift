@@ -5,6 +5,7 @@
 // Trip mode with schedule and chat integration
 //
 
+import BitFoundation
 import SwiftUI
 
 /// Main trip mode view with tab navigation

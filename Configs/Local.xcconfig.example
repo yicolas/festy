@@ -4,6 +4,7 @@ DEVELOPMENT_TEAM = 9ZYQ3XT8L9
 // Unique bundle id to be able to register and run locally
 PRODUCT_BUNDLE_IDENTIFIER = com.meshy.$(DEVELOPMENT_TEAM)
 
-// App Group identifier - must match across main app and extensions
-// Uses the same pattern as bundle ID for uniqueness
-APP_GROUP_IDENTIFIER = group.$(PRODUCT_BUNDLE_IDENTIFIER)
+// App Group identifier - must match across main app and extensions and be
+// registered to your team. Uses the same pattern as the bundle ID.
+APP_GROUP_ID = group.$(PRODUCT_BUNDLE_IDENTIFIER)
+APP_GROUP_IDENTIFIER = $(APP_GROUP_ID)

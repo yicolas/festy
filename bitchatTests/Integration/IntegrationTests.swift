@@ -9,17 +9,19 @@
 import Foundation
 import CryptoKit
 import Testing
+@testable import BitFoundation // to avoid unnecessary public's
 @testable import bitchat
 
+@Suite("Integration Tests", .serialized)
 struct IntegrationTests {
     
     private var helper = TestNetworkHelper()
     
     init() {
-        helper.createNode("Alice", peerID: PeerID(str: UUID().uuidString))
-        helper.createNode("Bob", peerID: PeerID(str: UUID().uuidString))
-        helper.createNode("Charlie", peerID: PeerID(str: UUID().uuidString))
-        helper.createNode("David", peerID: PeerID(str: UUID().uuidString))
+        helper.createNode("Alice")
+        helper.createNode("Bob")
+        helper.createNode("Charlie")
+        helper.createNode("David")
     }
     
     // MARK: - Multi-Peer Scenarios
@@ -173,7 +175,7 @@ struct IntegrationTests {
             }
             
             // Encrypted path: use NoiseSessionManager explicitly
-            let plaintext = "Encrypted message".data(using: .utf8)!
+            let plaintext = Data("Encrypted message".utf8)
             let ciphertext = try helper.noiseManagers["Alice"]!.encrypt(plaintext, for: helper.nodes["Bob"]!.peerID)
             
             helper.nodes["Bob"]!.packetDeliveryHandler = { packet in
@@ -205,7 +207,7 @@ struct IntegrationTests {
         
         try await confirmation("Messages delivered despite churn", expectedCount: totalMessages) { completion in
             // David tracks received messages
-            helper.nodes["David"]!.messageDeliveryHandler = { message in
+            helper.nodes["David"]!.messageDeliveryHandler = { _ in
                 completion()
             }
             
@@ -264,15 +266,27 @@ struct IntegrationTests {
             helper.nodes["Alice"]!.sendPrivateMessage("Before restart", to: helper.nodes["Bob"]!.peerID, recipientNickname: "Bob")
         }
         
-        // Simulate Bob restart by recreating his Noise manager
+        // Simulate Bob restart by recreating his Noise manager. A new static
+        // key means a new key-derived wire ID, just like production.
         let bobKey = Curve25519.KeyAgreement.PrivateKey()
         helper.noiseManagers["Bob"] = NoiseSessionManager(localStaticKey: bobKey, keychain: helper.mockKeychain)
+        helper.nodes["Bob"]!.myPeerID = PeerID(publicKey: bobKey.publicKey.rawRepresentation)
         
         // Re-establish Noise handshake explicitly via managers
         do {
             let m1 = try helper.noiseManagers["Bob"]!.initiateHandshake(with: helper.nodes["Alice"]!.peerID)
-            let m2 = try helper.noiseManagers["Alice"]!.handleIncomingHandshake(from: helper.nodes["Bob"]!.peerID, message: m1)!
-            let m3 = try helper.noiseManagers["Bob"]!.handleIncomingHandshake(from: helper.nodes["Alice"]!.peerID, message: m2)!
+            let m2 = try #require(
+                try helper.noiseManagers["Alice"]!.handleIncomingHandshake(
+                    from: helper.nodes["Bob"]!.peerID,
+                    message: m1
+                )
+            )
+            let m3 = try #require(
+                try helper.noiseManagers["Bob"]!.handleIncomingHandshake(
+                    from: helper.nodes["Alice"]!.peerID,
+                    message: m2
+                )
+            )
             _ = try helper.noiseManagers["Alice"]!.handleIncomingHandshake(from: helper.nodes["Bob"]!.peerID, message: m3)
         } catch {
             Issue.record("Failed to re-establish Noise session after restart: \(error)")
@@ -287,7 +301,7 @@ struct IntegrationTests {
             }
             
             do {
-                let plaintext = "After restart success".data(using: .utf8)!
+                let plaintext = Data("After restart success".utf8)
                 let ciphertext = try helper.noiseManagers["Bob"]!.encrypt(plaintext, for: helper.nodes["Alice"]!.peerID)
                 let packet = TestHelpers.createTestPacket(type: MessageType.noiseEncrypted.rawValue, payload: ciphertext)
                 helper.nodes["Alice"]!.packetDeliveryHandler = { pkt in
@@ -308,7 +322,7 @@ struct IntegrationTests {
     @Test func largeScaleNetwork() async throws {
         // Create larger network
         for i in 5...10 {
-            helper.createNode("Node\(i)", peerID: PeerID(str: "PEER\(i)"))
+            helper.createNode("Node\(i)")
         }
         
         // Connect in ring topology with cross-connections

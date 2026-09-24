@@ -14,10 +14,11 @@ let package = Package(
         .executable(
             name: "FestMest",
             targets: ["FestMest"]
-        ),
+        )
     ],
-    dependencies:[
+    dependencies: [
         .package(path: "localPackages/Arti"),
+        .package(path: "localPackages/BitFoundation"),
         .package(path: "localPackages/BitLogger"),
         .package(url: "https://github.com/21-DOT-DEV/swift-secp256k1", exact: "0.21.1")
     ],
@@ -26,6 +27,7 @@ let package = Package(
             name: "FestMest",
             dependencies: [
                 .product(name: "P256K", package: "swift-secp256k1"),
+                .product(name: "BitFoundation", package: "BitFoundation"),
                 .product(name: "BitLogger", package: "BitLogger"),
                 .product(name: "Tor", package: "Arti")
             ],
@@ -33,6 +35,7 @@ let package = Package(
             exclude: [
                 "Info.plist",
                 "Assets.xcassets",
+                "_PreviewHelpers/PreviewAssets.xcassets",
                 "bitchat.entitlements",
                 "bitchat-macOS.entitlements",
                 "LaunchScreen.storyboard",
@@ -45,16 +48,30 @@ let package = Package(
             ]
         ),
         .testTarget(
+            // festy: target/module names are FestMest (Xcode product stays `bitchat`).
             name: "FestMestTests",
-            dependencies: ["FestMest"],
+            dependencies: [
+                "FestMest",
+                .product(name: "BitFoundation", package: "BitFoundation")
+            ],
             path: "bitchatTests",
             exclude: [
                 "Info.plist",
-                "README.md"
+                "README.md",
+                // CI perf gate data (read by scripts/check-perf-floors.sh),
+                // not a test resource.
+                "Performance/perf-floors.json"
             ],
             resources: [
                 .process("Localization"),
-                .process("Noise")
+                // Only the vector fixture: declaring the whole "Noise"
+                // directory would claim its .swift test files as resources
+                // and silently drop them from compilation.
+                .process("Noise/NoiseTestVectors.json"),
+                // Frozen envelopes produced by the released iOS (733098bb)
+                // and Android (b7f0b33d) private-DM implementations; prove
+                // receive compatibility independently of the local generator.
+                .process("Nostr/Fixtures")
             ]
         )
     ]

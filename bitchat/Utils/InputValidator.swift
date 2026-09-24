@@ -21,9 +21,7 @@ struct InputValidator {
     /// Rejects strings containing control characters to prevent potential security issues
     /// and UI rendering problems. This strict approach ensures data integrity at input time.
     static func validateUserString(_ string: String, maxLength: Int) -> String? {
-        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        guard trimmed.count <= maxLength else { return nil }
+        guard let trimmed = string.trimmedOrNilIfEmpty, trimmed.count <= maxLength else { return nil }
 
         // Reject control characters outright instead of rewriting the string.
         // This prevents injection attacks and ensures consistent UI rendering.
@@ -41,9 +39,10 @@ struct InputValidator {
         return trimmed
     }
     
-    /// Validates nickname
+    /// Validates nickname and returns it in canonical (NFC) form so
+    /// visually identical names always compare equal.
     static func validateNickname(_ nickname: String) -> String? {
-        return validateUserString(nickname, maxLength: Limits.maxNicknameLength)
+        return validateUserString(nickname, maxLength: Limits.maxNicknameLength)?.normalizedNickname
     }
     
     // MARK: - Protocol Field Validation

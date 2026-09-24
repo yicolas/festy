@@ -6,6 +6,7 @@
 // This is free and unencumbered software released into the public domain.
 //
 
+import BitFoundation
 import Foundation
 import SwiftUI
 
@@ -24,10 +25,6 @@ protocol MessageFormattingContext: AnyObject {
     /// Gets the color for a message's sender
     func senderColor(for message: BitchatMessage, isDark: Bool) -> Color
 
-    /// User-picked color for the current user's own messages.
-    /// Defaults to GE136C orange.
-    var selfColor: Color { get }
-
     /// Resolves a peer ID to a clickable URL
     func peerURL(for peerID: PeerID) -> URL?
 }
@@ -42,41 +39,23 @@ final class MessageFormattingEngine {
 
     /// Precompiled regex patterns for message content parsing
     enum Patterns {
-        static let hashtag: NSRegularExpression = {
-            try! NSRegularExpression(pattern: "#([a-zA-Z0-9_]+)", options: [])
-        }()
+        static let hashtag = SafeRegex.compile("#([a-zA-Z0-9_]+)")
 
-        static let mention: NSRegularExpression = {
-            try! NSRegularExpression(pattern: "@([\\p{L}0-9_]+(?:#[a-fA-F0-9]{4})?)", options: [])
-        }()
+        static let mention = SafeRegex.compile("@([\\p{L}0-9_]+(?:#[a-fA-F0-9]{4})?)")
 
-        static let cashu: NSRegularExpression = {
-            try! NSRegularExpression(pattern: "\\bcashu[AB][A-Za-z0-9._-]{40,}\\b", options: [])
-        }()
+        static let cashu = SafeRegex.compile("\\bcashu[AB][A-Za-z0-9._-]{40,}\\b")
 
-        static let bolt11: NSRegularExpression = {
-            try! NSRegularExpression(pattern: "(?i)\\bln(bc|tb|bcrt)[0-9][a-z0-9]{50,}\\b", options: [])
-        }()
+        static let bolt11 = SafeRegex.compile("(?i)\\bln(bc|tb|bcrt)[0-9][a-z0-9]{50,}\\b")
 
-        static let lnurl: NSRegularExpression = {
-            try! NSRegularExpression(pattern: "(?i)\\blnurl1[a-z0-9]{20,}\\b", options: [])
-        }()
+        static let lnurl = SafeRegex.compile("(?i)\\blnurl1[a-z0-9]{20,}\\b")
 
-        static let lightningScheme: NSRegularExpression = {
-            try! NSRegularExpression(pattern: "(?i)\\blightning:[^\\s]+", options: [])
-        }()
+        static let lightningScheme = SafeRegex.compile("(?i)\\blightning:[^\\s]+")
 
         static let linkDetector: NSDataDetector? = {
             try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         }()
 
-        static let quickCashuPresence: NSRegularExpression = {
-            try! NSRegularExpression(pattern: "\\bcashu[AB][A-Za-z0-9._-]{40,}\\b", options: [])
-        }()
-
-        static let simplifyHTTPURL: NSRegularExpression = {
-            try! NSRegularExpression(pattern: "https?://[^\\s?#]+(?:[?#][^\\s]*)?", options: [.caseInsensitive])
-        }()
+        static let quickCashuPresence = SafeRegex.compile("\\bcashu[AB][A-Za-z0-9._-]{40,}\\b")
     }
 
     // MARK: - Match Types
@@ -116,7 +95,7 @@ final class MessageFormattingEngine {
         }
 
         var result = AttributedString()
-        let baseColor: Color = isSelf ? context.selfColor : context.senderColor(for: message, isDark: isDark)
+        let baseColor: Color = isSelf ? .orange : context.senderColor(for: message, isDark: isDark)
 
         // Format system messages differently
         if message.sender == "system" {
@@ -131,11 +110,12 @@ final class MessageFormattingEngine {
             )
 
             // Format content
+            let myNickname = context.nickname.normalizedNickname
             let contentResult = formatContent(
                 message.content,
                 baseColor: baseColor,
                 isSelf: isSelf,
-                isMentioned: message.mentions?.contains(context.nickname) ?? false
+                isMentioned: message.mentions?.contains { $0.normalizedNickname == myNickname } ?? false
             )
             result.append(contentResult)
 
@@ -158,7 +138,7 @@ final class MessageFormattingEngine {
     ) -> AttributedString {
         let isDark = colorScheme == .dark
         let isSelf = context.isSelfMessage(message)
-        let baseColor: Color = isSelf ? context.selfColor : context.senderColor(for: message, isDark: isDark)
+        let baseColor: Color = isSelf ? .orange : context.senderColor(for: message, isDark: isDark)
 
         if message.sender == "system" {
             var style = AttributeContainer()
@@ -198,7 +178,7 @@ final class MessageFormattingEngine {
 
     // MARK: - Private Helpers
 
-    private static func formatSystemMessage(_ message: BitchatMessage, isDark: Bool) -> AttributedString {
+    private static func formatSystemMessage(_ message: BitchatMessage, isDark _: Bool) -> AttributedString {
         var result = AttributedString()
 
         let content = AttributedString("* \(message.content) *")
@@ -258,9 +238,9 @@ final class MessageFormattingEngine {
         isSelf: Bool,
         isMentioned: Bool
     ) -> AttributedString {
-        // For very long content without special tokens, use plain formatting
-        let containsCashu = containsCashuToken(content)
-        if (content.count > 4000 || content.hasVeryLongToken(threshold: 1024)) && !containsCashu {
+        // For very long content, use plain formatting to avoid expensive
+        // regex/detector work. Cashu presence must not disable this guard.
+        if content.isOversizedForRichFormatting() {
             return formatPlainContent(content, baseColor: baseColor, isSelf: isSelf)
         }
 
@@ -405,9 +385,7 @@ final class MessageFormattingEngine {
         guard !text.isEmpty else { return AttributedString() }
 
         var style = AttributeContainer()
-        // Message body text is always primary (black in light, white in dark) for
-        // readability. Sender name remains tinted via formatSenderHeader.
-        style.foregroundColor = Color.primary
+        style.foregroundColor = baseColor
         style.font = isSelf
             ? .bitchatSystem(size: 14, weight: .bold, design: .monospaced)
             : .bitchatSystem(size: 14, design: .monospaced)
@@ -419,7 +397,7 @@ final class MessageFormattingEngine {
         return AttributedString(text).mergingAttributes(style)
     }
 
-    private static func formatMatch(_ text: String, type: MatchType, baseColor: Color, isSelf: Bool) -> AttributedString {
+    private static func formatMatch(_ text: String, type: MatchType, baseColor _: Color, isSelf _: Bool) -> AttributedString {
         var style = AttributeContainer()
 
         switch type {
