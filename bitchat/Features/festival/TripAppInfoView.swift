@@ -13,26 +13,26 @@ struct TripAppInfoView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var viewModel: ChatViewModel
-    @ObservedObject private var networkService = NetworkActivationService.shared
     @State private var showClearChatConfirm: Bool = false
-    @State private var showTextColorPicker: Bool = false
+    @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
+    @State private var settingsAppearanceExpanded = false
+    @State private var settingsDataExpanded = false
+    @State private var showAdvancedSettings = false // festy-merge: upstream settings sheet
+    // Profile (selfie, nickname, car), location and text-color settings are
+    // iOS-only sections of this page.
     #if os(iOS)
     @ObservedObject private var selfieStore = UserSelfieStore.shared
     @ObservedObject private var locationService = FriendLocationService.shared
     @State private var showSelfieCamera: Bool = false
     @State private var pickedSelfie: UIImage?
-    #endif
-    @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
+    @State private var showTextColorPicker: Bool = false
     @AppStorage(SelfieShareScope.storageKey) private var selfieShareScopeRaw: String = SelfieShareScope.defaultScope.rawValue
     @AppStorage(FriendLocationService.ShareMode.storageKey) private var locationShareModeRaw: String = FriendLocationService.ShareMode.broadcast.rawValue
     @ObservedObject private var carStore = CarAssignmentStore.shared
     @State private var nicknameEdit: String = ""
     @State private var isEditingNickname: Bool = false
     @State private var settingsProfileExpanded = false
-    @State private var settingsAppearanceExpanded = false
     @State private var settingsLocationExpanded = false
-    @State private var settingsDataExpanded = false
-    @State private var showAdvancedSettings = false // festy-merge: upstream settings sheet
 
     private static let tripDrivers = ["Nick", "Amanda", "Sarah", "Eran", "Abby", "Jarek", "Sophia", "Korbi"]
 
@@ -41,6 +41,7 @@ struct TripAppInfoView: View {
         if !trimmed.isEmpty { viewModel.confirmNickname(trimmed) }
         isEditingNickname = false
     }
+    #endif
 
     private var backgroundColor: Color {
         colorScheme == .dark ? Color.black : Color.white
@@ -56,9 +57,6 @@ struct TripAppInfoView: View {
 
     // MARK: - Constants
     private enum Strings {
-        static let appName: LocalizedStringKey = "app_info.app_name"
-        static let tagline: LocalizedStringKey = "app_info.tagline"
-
         enum Features {
             static let title: LocalizedStringKey = "app_info.features.title"
             static let offlineComm = TripAppInfoFeatureInfo(
@@ -105,25 +103,7 @@ struct TripAppInfoView: View {
                 title: "app_info.privacy.ephemeral.title",
                 description: "app_info.privacy.ephemeral.description"
             )
-            static let panic = TripAppInfoFeatureInfo(
-                icon: "hand.raised.fill",
-                title: "app_info.privacy.panic.title",
-                description: "app_info.privacy.panic.description"
-            )
         }
-
-        enum HowToUse {
-            static let title: LocalizedStringKey = "app_info.how_to_use.title"
-            static let instructions: [LocalizedStringKey] = [
-                "app_info.how_to_use.set_nickname",
-                "app_info.how_to_use.change_channels",
-                "app_info.how_to_use.open_sidebar",
-                "app_info.how_to_use.start_dm",
-                "app_info.how_to_use.clear_chat",
-                "app_info.how_to_use.commands"
-            ]
-        }
-
     }
 
     var body: some View {
@@ -170,6 +150,7 @@ struct TripAppInfoView: View {
         #endif
     }
 
+    #if os(iOS)
     /// Broadcast vs encrypted friend location. Labels must not over-claim
     /// (festy#12): broadcast is readable by anyone in range; encrypted hides
     /// coordinates but not the fact that you're sending.
@@ -230,6 +211,7 @@ struct TripAppInfoView: View {
             SelfieSyncService.shared.publishOwnSelfie()
         }
     }
+    #endif
 
     @ViewBuilder
     private var infoContent: some View {
@@ -1161,7 +1143,6 @@ struct AboutSection: View {
 
 struct TripBulletPoint: View {
     let text: String
-    @Environment(\.colorScheme) var colorScheme
 
     private var secondaryTextColor: Color {
         TripTheme.uiTint.opacity(0.8)
@@ -1190,7 +1171,6 @@ struct TripAppInfoFeatureInfo {
 
 struct TripSectionHeader: View {
     let title: LocalizedStringKey
-    @Environment(\.colorScheme) var colorScheme
 
     private var textColor: Color {
         TripTheme.uiTint

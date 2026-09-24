@@ -1,4 +1,3 @@
-import BitFoundation
 import SwiftUI
 
 struct TripScheduleView: View {
@@ -172,8 +171,6 @@ struct TripItemRowView: View {
             .cornerRadius(6)
     }
 }
-
-typealias FestivalScheduleView = TripScheduleView
 
 #if DEBUG
 struct FestivalScheduleView_Previews: PreviewProvider {

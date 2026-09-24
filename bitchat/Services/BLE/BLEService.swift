@@ -2872,6 +2872,8 @@ final class BLEService: NSObject {
     }
 
     // festy: encrypted friend location (MeshTripPayloadSending, Features/festival).
+    // iOS-only: location sending starts from the iOS trip map.
+    #if os(iOS)
     /// One Noise-encrypted `.locationShare` (0x30) copy per recipient. Only
     /// peers with an established session get this fix (a queued location is
     /// stale by delivery); others get a handshake for the next interval. No
@@ -2894,6 +2896,7 @@ final class BLEService: NSObject {
             }
         }
     }
+    #endif
 
     // festy: selfie to one mutual favorite (MeshTripPayloadSending).
     /// Noise-encrypted `.selfieShare` (0x31) to one peer. Unlike a location

@@ -125,10 +125,12 @@ extension ChatViewModel {
         // messages (BLE). They go straight to the transport — not through
         // `sendMessage` — so they skip the timeline, the hashtag scoping,
         // and the mesh bridge.
+        #if os(iOS)
         FriendLocationService.shared.broadcaster = { [weak self] content in
             guard let self else { return }
             self.meshService.sendMessage(content, mentions: [], messageID: UUID().uuidString, timestamp: Date())
         }
+        #endif
         SelfieSyncService.shared.broadcaster = { [weak self] content in
             guard let self else { return }
             self.meshService.sendMessage(content, mentions: [], messageID: UUID().uuidString, timestamp: Date())
@@ -142,11 +144,15 @@ extension ChatViewModel {
                   let peer = self.unifiedPeerService.peers.first(where: { $0.noisePublicKey == noiseKey }) else { return }
             (self.meshService as? MeshTripPayloadSending)?.sendEncryptedSelfie(content, to: peer.peerID)
         }
+        #if os(iOS)
         SelfieSyncService.shared.connectedPeerNoiseKeys = { [weak self] in
             self?.unifiedPeerService.peers.filter(\.isConnected).map(\.noisePublicKey) ?? []
         }
+        #endif
         // Encrypted friend location (festy#12): one Noise-encrypted 0x30 copy
         // per connected mutual favorite (mirrors Android #89).
+        // Location *sending* is iOS-only (started from the trip map).
+        #if os(iOS)
         FriendLocationService.shared.encryptedBroadcaster = { [weak self] content, peerIDs in
             (self?.meshService as? MeshTripPayloadSending)?.sendEncryptedLocationShare(content, to: peerIDs)
         }
@@ -156,6 +162,7 @@ extension ChatViewModel {
                 .filter { $0.isConnected && FavoritesPersistenceService.shared.isMutualFavorite($0.noisePublicKey) }
                 .map(\.peerID)
         }
+        #endif
 
         // Restore persisted mesh timeline + DMs before upstream's archived
         // echo seeding runs (it only seeds an untouched mesh timeline).
@@ -420,9 +427,12 @@ extension ChatTransportEventContext {
 /// (0x30, festy#12) and mutual-favorite selfies (0x31). BLEService implements
 /// it (the methods live in BLEService.swift because they need the transport's
 /// private Noise plumbing); other transports don't, so callers cast and no-op
-/// otherwise.
+/// otherwise. Location *sending* is iOS-only (started from the trip map);
+/// selfie sending is wired on both platforms (SelfieSyncService.privateSender).
 protocol MeshTripPayloadSending: AnyObject {
+    #if os(iOS)
     func sendEncryptedLocationShare(_ content: String, to peerIDs: [PeerID])
+    #endif
     func sendEncryptedSelfie(_ content: String, to peerID: PeerID)
 }
 

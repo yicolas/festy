@@ -22,6 +22,8 @@ import Combine
 import Foundation
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 
 /// On-disk persistence for the mesh timeline. Retention is indefinite; the
@@ -169,8 +171,6 @@ final class PrivateChatsPersistence {
 /// this flag.
 enum MediaRetention {
     static let keepMediaIndefinitely = true
-    /// Kept for source compatibility with older festy callers; no-op.
-    static func pruneNow() { /* indefinite retention — nothing to prune */ }
 }
 
 /// Wires `MeshTimelinePersistence` / `PrivateChatsPersistence` to the
@@ -217,6 +217,13 @@ final class TripTimelinePersistenceController {
 
         #if os(iOS)
         NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)
+            .sink { [weak self] _ in
+                self?.flushNow()
+            }
+            .store(in: &cancellables)
+        #elseif os(macOS)
+        // Quitting skips the debounced save; flush like iOS does on resign.
+        NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
             .sink { [weak self] _ in
                 self?.flushNow()
             }

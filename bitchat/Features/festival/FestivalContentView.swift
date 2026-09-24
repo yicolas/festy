@@ -4,6 +4,7 @@ import SwiftUI
 import UIKit
 #endif
 
+#if os(iOS)
 /// Stores the user's own selfie locally so it can render on the map pin and
 /// later be propagated to peers. Persists to Application Support so it survives
 /// app updates but is wiped by the standard "Erase all content".
@@ -64,6 +65,7 @@ final class UserSelfieStore: ObservableObject {
         return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
     }
 }
+#endif
 
 /// Per-user customization for the color the user's own messages render in.
 /// Persists a hex string in UserDefaults; defaults to the Meshy orange accent.
@@ -82,8 +84,6 @@ final class UserChatColorStore: ObservableObject {
     }
 
     var color: Color { Color(hex: hex) ?? .orange }
-
-    func reset() { hex = Self.defaultHex }
 }
 
 #if canImport(UIKit)
@@ -181,6 +181,7 @@ struct TextColorPickerSheet: View {
 }
 #endif
 
+#if os(iOS)
 enum InviteLink {
     /// Landing page served via GitHub Pages from the `docs/` folder of the repo.
     /// Recipients without the app installed see install instructions; recipients
@@ -195,7 +196,6 @@ enum InviteLink {
     }
 }
 
-#if os(iOS)
 struct ShareSheet: UIViewControllerRepresentable {
     let activityItems: [Any]
 
@@ -210,7 +210,9 @@ struct ShareSheet: UIViewControllerRepresentable {
 /// Main content wrapper that shows either normal chat or trip mode.
 struct TripContentView: View {
     @EnvironmentObject var viewModel: ChatViewModel
+    #if os(iOS)
     @ObservedObject private var selfieStore = UserSelfieStore.shared
+    #endif
     @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
 
     private var preferredColorScheme: ColorScheme? {
@@ -225,37 +227,27 @@ struct TripContentView: View {
         TripMainView()
             .environmentObject(viewModel)
             .preferredColorScheme(preferredColorScheme)
-        .fullScreenCover(isPresented: Binding(
-            get: { !viewModel.hasChosenNickname },
-            set: { _ in }
-        )) {
+        #if os(iOS)
+        .fullScreenCover(isPresented: nicknamePromptBinding) {
             NicknamePromptView()
                 .environmentObject(viewModel)
         }
-        #if os(iOS)
         .fullScreenCover(isPresented: Binding(
             get: { viewModel.hasChosenNickname && !selfieStore.hasPrompted },
             set: { _ in }
         )) {
             SelfiePromptView()
         }
+        #else
+        .sheet(isPresented: nicknamePromptBinding) {
+            NicknamePromptView()
+                .environmentObject(viewModel)
+        }
         #endif
     }
-}
 
-struct GlobalMeshBanner: View {
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-            Text("Global mesh chat — anyone in Bluetooth range can read these messages.")
-                .lineLimit(2)
-            Spacer()
-        }
-        .font(.system(.caption2, design: .monospaced))
-        .foregroundColor(.white)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.orange)
+    private var nicknamePromptBinding: Binding<Bool> {
+        Binding(get: { !viewModel.hasChosenNickname }, set: { _ in })
     }
 }
 
@@ -285,7 +277,7 @@ struct CameraPicker: UIViewControllerRepresentable {
         let parent: CameraPicker
         init(_ p: CameraPicker) { parent = p }
 
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let img = info[.originalImage] as? UIImage {
                 parent.image = img
             }
@@ -455,23 +447,23 @@ struct NicknamePromptView: View {
 struct TripMainView: View {
     @EnvironmentObject var viewModel: ChatViewModel
     @ObservedObject var scheduleManager = TripScheduleManager.shared
+    #if os(iOS)
     @ObservedObject private var selfieStore = UserSelfieStore.shared
+    #endif
     @State private var selectedTabId: String = "schedule"
-    @State private var isShowingShareSheet = false
-    @State private var isShowingColorPicker = false
-    @State private var isShowingSelfieMenu = false
     @State private var isShowingSettings = false
     @State private var showPeerList = false
     /// DM chosen in the peer sheet; opened in its onDismiss so the DM sheet
     /// doesn't race the peer sheet's dismissal.
     @State private var pendingDMPeer: PeerID?
     #if os(iOS)
+    @State private var isShowingShareSheet = false
+    @State private var isShowingSelfieMenu = false
     @State private var isShowingSelfieCamera = false
     @State private var pickedSelfieImage: UIImage?
     @State private var isEditingUsername = false
     @State private var nicknameEditText = ""
     #endif
-    @AppStorage(AppStorageKeys.colorScheme) private var colorSchemePreference: String = "system"
 
     private var peerCount: Int {
         viewModel.allPeers.reduce(0) { count, peer in
@@ -549,10 +541,6 @@ struct TripMainView: View {
             TripInfoView()
         case .friends:
             FriendMapView()
-        case .groups:
-            NavigationStack {
-                TripGroupsView()
-            }
         case .custom:
             VStack(spacing: 8) {
                 Image(systemName: "sparkles")
@@ -608,11 +596,13 @@ struct TripMainView: View {
                     }
                 }
                 Divider()
+                #if os(iOS)
                 Button {
                     isShowingShareSheet = true
                 } label: {
                     Label("Share invite", systemImage: "square.and.arrow.up")
                 }
+                #endif
                 Button {
                     isShowingSettings = true
                 } label: {
@@ -646,9 +636,6 @@ struct TripMainView: View {
         #if os(iOS)
         .sheet(isPresented: $isShowingShareSheet) {
             ShareSheet(activityItems: [InviteLink.shareText])
-        }
-        .sheet(isPresented: $isShowingColorPicker) {
-            TextColorPickerSheet()
         }
         .sheet(isPresented: $isShowingSelfieCamera, onDismiss: {
             if let img = pickedSelfieImage {
@@ -749,7 +736,6 @@ struct TripChatHost: View {
     @EnvironmentObject private var locationChannelsModel: LocationChannelsModel
     @EnvironmentObject private var peerListModel: PeerListModel
     @EnvironmentObject private var appChromeModel: AppChromeModel
-    @ObservedObject private var locationManager = LocationChannelManager.shared
     @State private var showChannelPicker = false
     @State private var showClearConfirm = false
     @State private var showPeerList = false
@@ -1361,7 +1347,12 @@ struct OnlinePeersSheet: View {
     /// would present upstream's DM sheet mid-dismissal and could be dropped).
     let onMessage: (PeerID) -> Void
     @EnvironmentObject private var viewModel: ChatViewModel
+    #if os(iOS)
     @ObservedObject private var selfieStore = PeerSelfieStore.shared
+    private static let closePlacement: ToolbarItemPlacement = .navigationBarTrailing
+    #else
+    private static let closePlacement: ToolbarItemPlacement = .automatic
+    #endif
     @Environment(\.dismiss) private var dismiss
 
     private var onlinePeers: [BitchatPeer] {
@@ -1405,9 +1396,11 @@ struct OnlinePeersSheet: View {
                 }
             }
             .navigationTitle("\(onlinePeers.count) Online")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: Self.closePlacement) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 13, weight: .semibold))
@@ -1738,13 +1731,7 @@ struct OfflineMapsCard: View {
         }
     }
 }
-#else
-struct OfflineMapsCard: View { var body: some View { EmptyView() } }
 #endif
-
-typealias FestivalContentView = TripContentView
-typealias FestivalMainView = TripMainView
-typealias FestivalInfoView = TripInfoView
 
 #if DEBUG
 struct FestivalContentView_Previews: PreviewProvider {

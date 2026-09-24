@@ -1,4 +1,3 @@
-import BitFoundation
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -178,8 +177,6 @@ struct TripChannelRow: View {
         .buttonStyle(.plain)
     }
 }
-
-typealias FestivalChannelsView = TripChannelsView
 
 #if DEBUG
 struct FestivalChannelsView_Previews: PreviewProvider {

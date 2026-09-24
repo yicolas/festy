@@ -53,22 +53,6 @@ final class PeerSelfieStore: ObservableObject {
     }
     #endif
 
-    /// Returns the raw JPEG bytes for our own outbound responses or for re-broadcast.
-    func cachedData(forNoiseKey key: Data) -> Data? {
-        let id = key.hexEncodedString()
-        guard let entry = entries[id] else { return nil }
-        let url = directoryURL.appendingPathComponent(entry.file)
-        return try? Data(contentsOf: url)
-    }
-
-    func nickname(forNoiseKey key: Data) -> String? {
-        entries[key.hexEncodedString()]?.nickname
-    }
-
-    func timestamp(forNoiseKey key: Data) -> Date? {
-        entries[key.hexEncodedString()]?.timestamp
-    }
-
     func hasSelfie(forNoiseKey key: Data) -> Bool {
         entries[key.hexEncodedString()] != nil
     }
@@ -99,15 +83,6 @@ final class PeerSelfieStore: ObservableObject {
         persistManifest()
         generation &+= 1
         return true
-    }
-
-    func clear() {
-        entries.removeAll()
-        #if os(iOS)
-        imageCache.removeAll()
-        #endif
-        try? FileManager.default.removeItem(at: directoryURL)
-        generation &+= 1
     }
 
     // MARK: - Persistence
