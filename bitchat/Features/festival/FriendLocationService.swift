@@ -5,11 +5,12 @@
 // Location sharing service for mutual favorites on trips
 //
 
-import BitFoundation
+#if os(iOS)
+import BitFoundation // PeerID (sending side)
+#endif
 import Foundation
 import CoreLocation
 import Combine
-import CryptoKit
 
 /// Represents a friend's shared location
 struct FriendLocation: Identifiable, Equatable {
@@ -25,69 +26,6 @@ struct FriendLocation: Identifiable, Equatable {
     }
 }
 
-/// Location update packet payload
-/// Sent via BLE mesh to mutual favorites only
-struct LocationSharePayload: Codable {
-    let latitude: Double
-    let longitude: Double
-    let accuracy: Double  // meters
-    let timestamp: UInt64  // milliseconds since epoch (UTC)
-
-    /// Encode to compact binary format (28 bytes)
-    /// Layout: lat (8 BE) + lon (8 BE) + accuracy (4 BE float) + timestamp (8 BE UInt64)
-    func toData() -> Data {
-        var data = Data()
-
-        var latBits = latitude.bitPattern.bigEndian
-        var lonBits = longitude.bitPattern.bigEndian
-        var accBits = Float(accuracy).bitPattern.bigEndian
-        var ts = timestamp.bigEndian
-
-        withUnsafeBytes(of: &latBits) { data.append(contentsOf: $0) }
-        withUnsafeBytes(of: &lonBits) { data.append(contentsOf: $0) }
-        withUnsafeBytes(of: &accBits) { data.append(contentsOf: $0) }
-        withUnsafeBytes(of: &ts) { data.append(contentsOf: $0) }
-
-        return data
-    }
-
-    /// Decode from compact binary format
-    static func fromData(_ data: Data) -> LocationSharePayload? {
-        // Expect exactly 28 bytes (or at least that many)
-        guard data.count >= 28 else { return nil }
-
-        return data.withUnsafeBytes { raw -> LocationSharePayload? in
-            let base = raw.baseAddress!.assumingMemoryBound(to: UInt8.self)
-            // Read 8 bytes -> Double (big-endian)
-            let latBits = base.withMemoryRebound(to: UInt64.self, capacity: 1) { $0.pointee }
-            let lonBits = base.advanced(by: 8).withMemoryRebound(to: UInt64.self, capacity: 1) { $0.pointee }
-            let accBits = base.advanced(by: 16).withMemoryRebound(to: UInt32.self, capacity: 1) { $0.pointee }
-            let tsBits = base.advanced(by: 20).withMemoryRebound(to: UInt64.self, capacity: 1) { $0.pointee }
-
-            let lat = Double(bitPattern: UInt64(bigEndian: latBits))
-            let lon = Double(bitPattern: UInt64(bigEndian: lonBits))
-            let acc = Float(bitPattern: UInt32(bigEndian: accBits))
-            let ts = UInt64(bigEndian: tsBits)
-
-            return LocationSharePayload(latitude: lat, longitude: lon, accuracy: Double(acc), timestamp: ts)
-        }
-    }
-}
-
-/// Simple AEAD helpers using CryptoKit (symmetric key).
-/// TODO: Replace symmetric key usage by deriving an AEAD key per-peer from the app's Noise state.
-struct AEAD {
-    static func encrypt(payload: Data, using key: SymmetricKey) throws -> Data {
-        let sealed = try AES.GCM.seal(payload, using: key)
-        return sealed.combined ?? Data()
-    }
-
-    static func decrypt(_ combined: Data, using key: SymmetricKey) throws -> Data {
-        let sealedBox = try AES.GCM.SealedBox(combined: combined)
-        return try AES.GCM.open(sealedBox, using: key)
-    }
-}
-
 /// Manages location sharing with mutual favorites
 @MainActor
 class FriendLocationService: NSObject, ObservableObject {
@@ -96,11 +34,6 @@ class FriendLocationService: NSObject, ObservableObject {
     /// Wire-level marker prefix for location packets sent as chat-channel
     /// messages. The leading control char ensures no collision with real text.
     static let locationMarker = "\u{1}GE136C-LOC\u{1}"
-
-    /// Closure invoked when this device wants to broadcast its location.
-    /// `ChatViewModel` sets this in init so we can fan the encoded string out
-    /// over the existing BLE-mesh chat transport.
-    var broadcaster: ((String) -> Void)?
 
     /// How this device sends its location (user setting, Settings → Location).
     /// Cross-platform with fest-mesh-android #89 (`ShareMode`).
@@ -120,6 +53,11 @@ class FriendLocationService: NSObject, ObservableObject {
 
         var id: String { rawValue }
 
+        static var current: ShareMode {
+            UserDefaults.standard.string(forKey: storageKey).flatMap(ShareMode.init(rawValue:)) ?? .broadcast
+        }
+
+        #if os(iOS)
         var title: String {
             switch self {
             case .broadcast: return "Anyone nearby"
@@ -135,11 +73,21 @@ class FriendLocationService: NSObject, ObservableObject {
                 return "Only mutual favorites in Bluetooth range can read your location. Others can still tell that you're sending."
             }
         }
-
-        static var current: ShareMode {
-            UserDefaults.standard.string(forKey: storageKey).flatMap(ShareMode.init(rawValue:)) ?? .broadcast
-        }
+        #endif
     }
+
+    /// How old a location can be before considered stale (seconds)
+    private let stalenessThreshold: TimeInterval = 120
+
+    @Published private(set) var friendLocations: [Data: FriendLocation] = [:]
+    private var stalenessTimer: DispatchSourceTimer?
+
+    // MARK: - Sending (iOS only: the macOS build has no trip map to start it)
+    #if os(iOS)
+    /// Closure invoked when this device wants to broadcast its location.
+    /// `ChatViewModel` sets this in init so we can fan the encoded string out
+    /// over the existing BLE-mesh chat transport.
+    var broadcaster: ((String) -> Void)?
 
     /// Sends the marker+CSV string encrypted to each recipient (`.encrypted`
     /// mode). Wired by ChatViewModel to `Transport.sendEncryptedLocationShare`.
@@ -149,27 +97,15 @@ class FriendLocationService: NSObject, ObservableObject {
     /// ChatViewModel.
     var encryptedRecipients: (() -> [PeerID])?
 
-    // MARK: - Configuration
     /// How often to broadcast location (seconds)
     private let broadcastInterval: TimeInterval = 30
 
-    /// How old a location can be before considered stale (seconds)
-    private let stalenessThreshold: TimeInterval = 120
-
-    /// Custom packet type for location sharing (uses reserved range)
-    /// This should be added to the packet type enum in BitchatPacket
-    static let locationSharePacketType: UInt8 = 0x20
-
-    // MARK: - Published State
     @Published private(set) var isSharing = false
-    @Published private(set) var friendLocations: [Data: FriendLocation] = [:]
     @Published private(set) var lastBroadcastTime: Date?
     @Published private(set) var myLocation: CLLocation?
 
-    // MARK: - Private Properties
     private var locationManager: CLLocationManager?
     private var broadcastTimer: DispatchSourceTimer?
-    private var stalenessTimer: DispatchSourceTimer?
 
     // MARK: - Computed Properties
     var activeFriendLocations: [FriendLocation] {
@@ -180,18 +116,6 @@ class FriendLocationService: NSObject, ObservableObject {
         friendLocations.values.sorted { $0.timestamp > $1.timestamp }
     }
 
-    // MARK: - Lifecycle
-    private override init() {
-        super.init()
-        setupStalenessTimer()
-    }
-
-    deinit {
-        broadcastTimer?.cancel()
-        stalenessTimer?.cancel()
-    }
-
-    // MARK: - Public API
     func startSharing() {
         guard !isSharing else { return }
         setupLocationManager()
@@ -213,47 +137,6 @@ class FriendLocationService: NSObject, ObservableObject {
     func toggleSharing() {
         if isSharing { stopSharing() } else { startSharing() }
     }
-
-    /// Call this from the packet handler when receiving locationSharePacketType
-    func handleLocationPacket(senderNoiseKey: Data, senderNickname: String, payload: Data, aeadKey: SymmetricKey? = nil) {
-        // Only process from mutual favorites
-        guard FavoritesPersistenceService.shared.favorites[senderNoiseKey]?.isMutual == true else {
-            print("📍 Ignoring location from non-mutual favorite")
-            return
-        }
-
-        let plain: Data
-        do {
-            if let key = aeadKey {
-                plain = try AEAD.decrypt(payload, using: key)
-            } else {
-                // If no key provided assume payload is plaintext (legacy)
-                plain = payload
-            }
-        } catch {
-            print("📍 Failed to decrypt location payload: \(error)")
-            return
-        }
-
-        guard let location = LocationSharePayload.fromData(plain) else {
-            print("📍 Failed to decode location payload")
-            return
-        }
-
-        let friendLocation = FriendLocation(
-            id: senderNoiseKey,
-            nickname: senderNickname,
-            coordinate: CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude),
-            accuracy: location.accuracy,
-            timestamp: Date(timeIntervalSince1970: Double(location.timestamp) / 1000.0),
-            isStale: false
-        )
-
-        friendLocations[senderNoiseKey] = friendLocation
-        print("📍 Updated location for \(senderNickname)")
-    }
-
-    func clearLocations() { friendLocations.removeAll() }
 
     // MARK: - Private Methods
     private func setupLocationManager() {
@@ -302,6 +185,22 @@ class FriendLocationService: NSObject, ObservableObject {
         }
         lastBroadcastTime = Date()
     }
+    #endif
+
+    // MARK: - Lifecycle
+    private override init() {
+        super.init()
+        setupStalenessTimer()
+    }
+
+    deinit {
+        #if os(iOS)
+        broadcastTimer?.cancel()
+        #endif
+        stalenessTimer?.cancel()
+    }
+
+    // MARK: - Receiving
 
     /// Called by `ChatViewModel.didReceiveMessage` when an incoming BLE-mesh
     /// chat-channel message starts with our location marker. We parse the
@@ -367,6 +266,7 @@ class FriendLocationService: NSObject, ObservableObject {
 }
 
 // MARK: - CLLocationManagerDelegate
+#if os(iOS)
 extension FriendLocationService: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
@@ -387,8 +287,4 @@ extension FriendLocationService: CLLocationManagerDelegate {
         }
     }
 }
-
-// MARK: - Notification Extension
-extension Notification.Name {
-    static let friendLocationUpdated = Notification.Name("friendLocationUpdated")
-}
+#endif

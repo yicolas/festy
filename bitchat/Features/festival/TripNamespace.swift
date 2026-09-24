@@ -50,11 +50,14 @@ enum TripNamespace {
 enum AppStorageKeys {
     static let colorScheme = "ge136c.colorScheme"
     static let userTextColor = "ge136c.userTextColor"
+    #if os(iOS)
+    // Own selfie + offline map tiles exist only in the iOS app.
     static let hasPromptedSelfie = "ge136c.hasPromptedSelfie"
     static let tileSource = "ge136c.tileSource"
     static let tileDetail = "ge136c.tileDetail"
-
     static let selfieFile = "ge136c-selfie.jpg"
+    #endif
+
     static let peerSelfiesDirectory = "ge136c-peer-selfies"
     static let privateChatsFile = "ge136c-private-chats.json"
 }

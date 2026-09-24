@@ -1,4 +1,3 @@
-import BitFoundation
 import SwiftUI
 
 /// Trip mode section added to AppInfoView
@@ -65,8 +64,6 @@ struct TripAppInfoSection: View {
         }
     }
 }
-
-typealias FestivalAppInfoSection = TripAppInfoSection
 
 #if DEBUG
 struct FestivalAppInfoSection_Previews: PreviewProvider {

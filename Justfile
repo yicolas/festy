@@ -17,6 +17,7 @@ default:
     @echo "  just clean              Remove repo-local build artifacts only"
     @echo "  just nuke               Also remove nested package build caches"
     @echo "  just check              Validate the development environment"
+    @echo "  just testflight         Archive the iOS app and upload it to TestFlight"
 
 # Static guard against reintroducing source-restoring or source-deleting clean
 # behavior. CI runs the same script directly.
@@ -64,3 +65,9 @@ info:
     @echo "BitChat - decentralized mesh messaging"
     @echo "macOS 13+ and iOS 16+"
     @echo "Bluetooth mesh behavior requires physical Bluetooth-capable devices"
+
+# Archive the iOS app (Release) and upload it to App Store Connect / TestFlight.
+# Xcode picks the next build number on upload. Signs in with the Apple ID in
+# Xcode → Settings → Accounts. See docs/RELEASE_TESTFLIGHT.md.
+testflight: check
+    @python3 scripts/testflight.py

@@ -56,6 +56,8 @@ final class TripNotesService: ObservableObject {
 
     // MARK: - Public API
 
+    // Notes are dropped/removed from the iOS trip map only.
+    #if os(iOS)
     /// Drop a new note at the given coordinate. Locally persisted immediately
     /// and queued for Nostr publish (NostrRelayManager defers until Tor + relay
     /// are ready, so this is safe to call offline).
@@ -84,6 +86,7 @@ final class TripNotesService: ObservableObject {
         notes.removeAll { $0.id == note.id }
         persist()
     }
+    #endif
 
     /// Wire to Nostr. Called once from ChatViewModel init so the subscription
     /// is up before the user opens the map.

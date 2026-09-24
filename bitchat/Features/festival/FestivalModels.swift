@@ -32,12 +32,6 @@ enum TripTheme {
             ? UIColor(white: 0.05, alpha: 1)
             : UIColor.white
     })
-    /// Surface for card headers / banners — dark grey in dark, accent-soft in light.
-    static let cardHeaderBackground = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark
-            ? UIColor(white: 0.18, alpha: 1)
-            : UIColor(red: 1.00, green: 0.49, blue: 0.08, alpha: 0.12) // accent @ 12%
-    })
     /// Channel subheader (centered) — neutral grey in both modes.
     static let subheaderBackground = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark
@@ -61,7 +55,6 @@ enum TripTheme {
     static let primaryText = Color(red: 0.08, green: 0.08, blue: 0.08)
     static let secondaryText = Color(red: 0.42, green: 0.42, blue: 0.42)
     static let surface = Color.white
-    static let cardHeaderBackground = Color(red: 1.00, green: 0.49, blue: 0.08).opacity(0.12)
     static let subheaderBackground = Color(white: 0.86)
     static let onSurfaceText = Color(red: 0.08, green: 0.08, blue: 0.08)
     static let stroke = Color.gray.opacity(0.2)
@@ -72,7 +65,6 @@ enum TripTheme {
     /// Replaces the bitchat-heritage terminal green throughout the chat UI.
     /// Same hue/sat/brightness as the `#channels` button's mesh-mode color.
     static let uiTint = Color(hue: 0.60, saturation: 0.85, brightness: 0.82)
-    static let uiTintSoft = uiTint.opacity(0.15)
 
     /// Distinct color per trip day (cycles past 4). Same hue used for the day
     /// picker pill and the route polyline on the map.
@@ -139,14 +131,22 @@ struct TripData: Codable {
     /// background services can read it off the main actor.
     static let bundled: TripData? = loadBundled()
 
+    /// Bundle holding the trip JSON files: the app bundle in Xcode builds,
+    /// the generated resource bundle under SwiftPM (`.process` resources are
+    /// not copied into `Bundle.main` there).
+    static var resourceBundle: Bundle {
+        #if SWIFT_PACKAGE
+        return .module
+        #else
+        return .main
+        #endif
+    }
+
     static func loadBundled() -> TripData? {
-        guard let url = Bundle.main.url(forResource: activeResourceName, withExtension: "json"),
+        guard let url = resourceBundle.url(forResource: activeResourceName, withExtension: "json"),
               let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(TripData.self, from: data)
     }
-
-    /// Compatibility for legacy festival naming in a few untouched call sites.
-    var festival: TripInfo { trip }
 }
 
 struct TripInfo: Codable {
@@ -308,7 +308,6 @@ struct TripTab: Codable, Identifiable, Hashable {
         case chat
         case info
         case friends
-        case groups
         case custom
     }
 
@@ -331,35 +330,9 @@ struct TripDay: Codable, Identifiable, Hashable {
     let items: [TripItem]
     let routeURL: String?
 
-    /// Coordinates of every item in order, dropping items without a location.
-    var routeCoordinates: [CLLocationCoordinate2D] {
-        items.compactMap { $0.location?.coordinate }
-    }
-
-    /// Organic Maps URL for the day's start → end (driving). OM URL scheme
-    /// doesn't support multi-waypoint routes, so intermediate stops are dropped.
-    var organicMapsURL: URL? {
-        let coords = routeCoordinates
-        guard let start = coords.first, let end = coords.last, coords.count >= 2 else { return nil }
-        let saddr = items.first?.location?.name ?? "Start"
-        let daddr = items.last?.location?.name ?? "End"
-        let urlStr = "om://route?sll=\(start.latitude),\(start.longitude)" +
-                     "&saddr=\(saddr.urlEscaped)" +
-                     "&dll=\(end.latitude),\(end.longitude)" +
-                     "&daddr=\(daddr.urlEscaped)" +
-                     "&type=vehicle"
-        return URL(string: urlStr)
-    }
-
     var googleMapsURL: URL? {
         guard let routeURL else { return nil }
         return URL(string: routeURL)
-    }
-}
-
-private extension String {
-    var urlEscaped: String {
-        addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? self
     }
 }
 
@@ -438,9 +411,6 @@ class TripScheduleManager: ObservableObject {
     @Published var selectedDay: String?
     @Published var isLoaded = false
 
-    /// Compatibility read-only alias for legacy references.
-    var festivalData: TripData? { tripData }
-
     private init() {
         loadSchedule()
     }
@@ -453,10 +423,6 @@ class TripScheduleManager: ObservableObject {
         tripData = decoded
         selectedDay = decoded.days.first?.date
         isLoaded = true
-    }
-
-    var timezone: String {
-        tripData?.trip.timezoneIdentifier ?? "America/Los_Angeles"
     }
 
     var tabs: [TripTab] {
@@ -474,10 +440,7 @@ class TripScheduleManager: ObservableObject {
         tripData?.channels ?? []
     }
 
-    var infoSections: [TripInfoSection] {
-        tripData?.infoSections ?? []
-    }
-
+    #if os(iOS)
     var mapConfig: TripMapConfig? {
         tripData?.mapConfig
     }
@@ -496,6 +459,7 @@ class TripScheduleManager: ObservableObject {
             return true
         }
     }
+    #endif
 
     func dayData(for day: String) -> TripDay? {
         tripData?.days.first(where: { $0.date == day })
@@ -518,8 +482,6 @@ class TripScheduleManager: ObservableObject {
 // MARK: - Compatibility Typealiases (keeps older references buildable)
 
 typealias FestivalData = TripData
-typealias FestivalInfo = TripInfo
-typealias FestivalTab = TripTab
 typealias FestivalScheduleManager = TripScheduleManager
 
 // MARK: - Color Extension
@@ -540,6 +502,7 @@ extension Color {
         self.init(red: r, green: g, blue: b)
     }
 }
+#if os(iOS)
 // Auto-generated from geojson tracks. Pairs are (latitude, longitude).
 enum TripRouteGeometry {
     static let kingsCanyonLoop: [(Double, Double)] = [
@@ -693,7 +656,7 @@ enum TripRouteGeometry {
         (36.796185, -118.583738),
         (36.796505, -118.583560),
         (36.796396, -118.584642),
-        (36.796243, -118.584779),
+        (36.796243, -118.584779)
     ]
 
     static let southCreekFalls: [(Double, Double)] = [
@@ -847,7 +810,8 @@ enum TripRouteGeometry {
         (35.994245, -118.484900),
         (35.994143, -118.484963),
         (35.994052, -118.484895),
-        (35.993886, -118.484758),
+        (35.993886, -118.484758)
     ]
 
 }
+#endif

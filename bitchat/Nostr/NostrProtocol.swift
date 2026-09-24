@@ -38,13 +38,6 @@ struct NostrProtocol {
         /// NIP-78 parameterized replaceable application data — used for
         /// trip-scoped peer selfies and trip notes (tags from `TripNamespace`).
         case appData = 30078
-        /// Trip-group kinds (`Features/festival/Groups`). Declared as cases so
-        /// the group layer needs no failable `EventKind(rawValue:)!`. Group
-        /// definitions reuse `appData` (30078).
-        case groupInvite = 30079
-        case groupRevoke = 30080
-        case groupEpoch = 30081
-        case groupMessage = 20078
     }
 
     /// d-tag scoping NIP-78 events to peer selfies for the current trip
@@ -56,8 +49,10 @@ struct NostrProtocol {
     /// (`<ns>.note.<uuid>`) so updates are parameterized-replaceable per note.
     static var tripNoteKTag: String { TripNamespace.tripNoteKTag }
 
+    #if os(iOS)
     /// Create a NIP-78 parameterized-replaceable event that publishes the
     /// caller's selfie. The relay keeps exactly one copy per (pubkey, kind, d).
+    /// iOS-only: only iOS has an own selfie to publish.
     static func createSelfieEvent(
         content: String,
         senderIdentity: NostrIdentity
@@ -73,6 +68,7 @@ struct NostrProtocol {
         let schnorrKey = try senderIdentity.schnorrSigningKey()
         return try event.sign(with: schnorrKey)
     }
+    #endif
 
     /// Create a NIP-78 event for a single trip note. Each note has its own
     /// `d` tag so an author can edit/replace it later. The shared `k` tag

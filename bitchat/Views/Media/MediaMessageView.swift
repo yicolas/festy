@@ -13,7 +13,10 @@ struct MediaMessageView: View {
     @Environment(\.appTheme) private var theme
     @ThemedPalette private var palette
     @EnvironmentObject private var conversationUIModel: ConversationUIModel
+    // festy: the text-color picker is iOS-only.
+    #if os(iOS)
     @ObservedObject private var userChatColor = UserChatColorStore.shared // festy: re-render own rows on color change
+    #endif
     let message: BitchatMessage
     let media: BitchatMessage.Media
     /// Value snapshot of the message's mutable delivery status, captured at
