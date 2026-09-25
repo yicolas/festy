@@ -331,8 +331,14 @@ struct PrekeyEndToEndTests {
             timeout: TestConstants.settleTimeout
         )
         #expect(cached)
-        // The verified bundle now participates in Alice's sync rounds.
-        #expect(alice._test_hasGossipPrekeyBundle(for: bob.myPeerID))
+        // The verified bundle now participates in Alice's sync rounds. The
+        // gossip insert is a queue.async hop after the cache write, so wait
+        // for it rather than racing it.
+        let gossiped = await TestHelpers.waitUntil(
+            { alice._test_hasGossipPrekeyBundle(for: bob.myPeerID) },
+            timeout: TestConstants.settleTimeout
+        )
+        #expect(gossiped)
     }
 
     @Test func spoofedSenderPrekeyBundleIsRejected() async throws {

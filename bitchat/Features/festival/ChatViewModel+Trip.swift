@@ -14,7 +14,10 @@
 //                                      (public mesh message delivery, both paths)
 //                                   → festyHandleEncryptedLocationShare(...)
 //                                      (NoisePayloadType .locationShare, 0x30)
-//   BLEService                      → sendEncryptedLocationShare (MeshLocationSharing)
+//                                   → festyHandleEncryptedSelfie(...)
+//                                      (NoisePayloadType .selfieShare, 0x31)
+//   BLEService                      → sendEncryptedLocationShare / sendEncryptedSelfie
+//                                      (MeshTripPayloadSending)
 //
 // This is free and unencumbered software released into the public domain.
 // For more information, see <https://unlicense.org>
@@ -132,15 +135,14 @@ extension ChatViewModel {
             guard let self else { return }
             self.meshService.sendMessage(content, mentions: [], messageID: UUID().uuidString, timestamp: Date())
         }
-        // `.mutualFavorites` selfie sharing (festy#15): Noise-encrypted private
-        // message straight to the transport (not ChatViewModel's DM path), so
-        // it never appears in the DM UI. The receiver's
-        // `festyInterceptTripControlMessage` consumes the marker before chat
-        // handling (private paths included).
+        // `.mutualFavorites` selfie sharing (festy#15): Noise-encrypted
+        // `.selfieShare` (0x31) payload straight to the transport. Not a
+        // private *message*: PrivateMessagePacket caps content at 255 B and a
+        // selfie is 10–53 KB. Never touches the DM UI on either side.
         SelfieSyncService.shared.privateSender = { [weak self] content, noiseKey in
             guard let self,
                   let peer = self.unifiedPeerService.peers.first(where: { $0.noisePublicKey == noiseKey }) else { return }
-            self.meshService.sendPrivateMessage(content, to: peer.peerID, recipientNickname: peer.nickname, messageID: UUID().uuidString)
+            (self.meshService as? MeshTripPayloadSending)?.sendEncryptedSelfie(content, to: peer.peerID)
         }
         #if os(iOS)
         SelfieSyncService.shared.connectedPeerNoiseKeys = { [weak self] in
@@ -152,7 +154,7 @@ extension ChatViewModel {
         // Location *sending* is iOS-only (started from the trip map).
         #if os(iOS)
         FriendLocationService.shared.encryptedBroadcaster = { [weak self] content, peerIDs in
-            (self?.meshService as? MeshLocationSharing)?.sendEncryptedLocationShare(content, to: peerIDs)
+            (self?.meshService as? MeshTripPayloadSending)?.sendEncryptedLocationShare(content, to: peerIDs)
         }
         FriendLocationService.shared.encryptedRecipients = { [weak self] in
             guard let self else { return [] }
@@ -201,6 +203,21 @@ extension ChatViewModel {
     }
 
     // MARK: Incoming (called from ChatTransportEventCoordinator)
+
+    /// Selfie addressed to us (NoisePayloadType 0x31, sender chose
+    /// `.mutualFavorites`). Same marker+base64 string as the public path.
+    @MainActor
+    func festyHandleEncryptedSelfie(from peerID: PeerID, payload: Data) {
+        guard !isPeerBlocked(peerID),
+              let content = String(data: payload, encoding: .utf8),
+              content.hasPrefix(SelfieSyncService.responseMarker) else { return }
+        let peer = unifiedPeer(for: peerID)
+        SelfieSyncService.shared.handleIncomingBLEMessage(
+            content: content,
+            senderNoiseKey: peer?.noisePublicKey,
+            senderNickname: peer?.nickname ?? resolveNickname(for: peerID)
+        )
+    }
 
     /// Encrypted friend-location fix addressed to us (NoisePayloadType 0x30).
     /// The inner payload is the same marker+CSV string as the plaintext path;
@@ -398,21 +415,28 @@ extension ChatTransportEventContext {
     /// Default for test contexts: encrypted location fixes are ignored.
     @MainActor
     func festyHandleEncryptedLocationShare(from peerID: PeerID, payload: Data) {}
+
+    /// Default for test contexts: encrypted selfies are ignored.
+    @MainActor
+    func festyHandleEncryptedSelfie(from peerID: PeerID, payload: Data) {}
 }
 
-// MARK: - Encrypted friend location transport
+// MARK: - Encrypted trip payload transport
 
-/// Transport capability for encrypted friend location (festy#12). BLEService
-/// implements it (the method lives in BLEService.swift because it needs the
-/// transport's private Noise plumbing); other transports don't, so callers
-/// cast and no-op otherwise.
-#if os(iOS)
-protocol MeshLocationSharing: AnyObject {
+/// Transport capability for festy's encrypted trip payloads: friend location
+/// (0x30, festy#12) and mutual-favorite selfies (0x31). BLEService implements
+/// it (the methods live in BLEService.swift because they need the transport's
+/// private Noise plumbing); other transports don't, so callers cast and no-op
+/// otherwise. Location *sending* is iOS-only (started from the trip map);
+/// selfie sending is wired on both platforms (SelfieSyncService.privateSender).
+protocol MeshTripPayloadSending: AnyObject {
+    #if os(iOS)
     func sendEncryptedLocationShare(_ content: String, to peerIDs: [PeerID])
+    #endif
+    func sendEncryptedSelfie(_ content: String, to peerID: PeerID)
 }
 
-extension BLEService: MeshLocationSharing {}
-#endif
+extension BLEService: MeshTripPayloadSending {}
 
 // MARK: - Timeline filter (used by MessageListView)
 

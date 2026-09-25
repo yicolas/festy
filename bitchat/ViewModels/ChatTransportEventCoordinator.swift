@@ -91,6 +91,7 @@ protocol ChatTransportEventContext: AnyObject {
     // (see ChatViewModel+Trip.swift).
     func festyInterceptTripControlMessage(content: String, senderPeerID: PeerID?, senderNickname: String, isPrivate: Bool) -> Bool
     func festyHandleEncryptedLocationShare(from peerID: PeerID, payload: Data)
+    func festyHandleEncryptedSelfie(from peerID: PeerID, payload: Data)
 }
 
 extension ChatViewModel: ChatTransportEventContext {
@@ -523,6 +524,10 @@ private extension ChatTransportEventCoordinator {
         case .locationShare:
             // festy: encrypted friend-location fix (ChatViewModel+Trip.swift).
             context.festyHandleEncryptedLocationShare(from: peerID, payload: payload)
+
+        case .selfieShare:
+            // festy: selfie sent to us as a mutual favorite (ChatViewModel+Trip.swift).
+            context.festyHandleEncryptedSelfie(from: peerID, payload: payload)
 
         case .voiceFrame:
             context.handleVoiceFramePayload(from: peerID, payload: payload, timestamp: timestamp)
