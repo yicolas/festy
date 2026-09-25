@@ -273,7 +273,7 @@ extension ChatViewModel {
 
         // Auto-favorite only from public mesh chat (pre-merge behavior).
         if !isPrivate, let noiseKey, senderPeerID != meshService.myPeerID {
-            autoFavoriteTripPeer(noiseKey: noiseKey, nickname: senderNickname)
+            autoFavoriteTripPeer(noiseKey: noiseKey, peerID: senderPeerID, nickname: senderNickname)
         }
         return false
     }
@@ -281,8 +281,13 @@ extension ChatViewModel {
     /// Silently adds the sender of any non-self mesh message to favorites so
     /// the map and friend features work without each user manually favoriting
     /// everyone in the group. Idempotent.
+    ///
+    /// A new auto-favorite also sends the peer a favorite notification, so they
+    /// learn about it and the relationship can become *mutual* (needed for
+    /// encrypted location and mutual-favorites selfies) once they post too.
+    /// The BLE transport queues it until the Noise handshake completes.
     @MainActor
-    private func autoFavoriteTripPeer(noiseKey: Data, nickname senderNickname: String) {
+    private func autoFavoriteTripPeer(noiseKey: Data, peerID: PeerID?, nickname senderNickname: String) {
         guard senderNickname != "system", senderNickname != nickname else { return }
 
         // Ask this peer for their selfie if we don't already have it cached
@@ -300,6 +305,9 @@ extension ChatViewModel {
             peerNostrPublicKey: nostrKey,
             peerNickname: senderNickname
         )
+        if let peerID {
+            meshService.sendFavoriteNotification(to: peerID, isFavorite: true)
+        }
         festyRefreshSelfieSubscription()
     }
 
